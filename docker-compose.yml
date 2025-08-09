@@ -13,7 +13,7 @@ services:
       retries: 3
     restart: unless-stopped
   store:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.16.1-pg16
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oddsfeed}
