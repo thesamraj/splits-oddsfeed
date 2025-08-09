@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.env
+.pytest_cache/
+.mypy_cache/
+
+# macOS
+.DS_Store
+
+# Docker / data
+pgdata/
+redis-data/
+grafana-data/
+prometheus-data/
+*.log
+
+# Playwright/Node (just in case)
+node_modules/
+.playwright/

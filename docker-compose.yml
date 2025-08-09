@@ -1,0 +1,162 @@
+
+services:
+  broker:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  store:
+    image: timescale/timescaledb:latest-pg16
+    platform: linux/amd64
+    command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oddsfeed}
+      POSTGRES_USER: ${POSTGRES_USER:-odds}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odds}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odds} -d ${POSTGRES_DB:-oddsfeed}"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  api:
+    build: ./api
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+      store:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  normalizer:
+    build: ./normalizer
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+      store:
+        condition: service_healthy
+
+  collector-dk:
+    build: ./collector-dk
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      BOOK_NAME: draftkings
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9101:9101"
+
+  collector-fd:
+    build: ./collector-fd
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      BOOK_NAME: fanduel
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9102:9102"
+
+  collector-mgm:
+    build: ./collector-mgm
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      BOOK_NAME: mgm
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9103:9103"
+
+  collector-b365:
+    build: ./collector-b365
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      BOOK_NAME: bet365
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9104:9104"
+
+  collector-stake:
+    build: ./collector-stake
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      BOOK_NAME: stake
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9105:9105"
+
+  proxy-manager:
+    build: ./proxy-manager
+    ports:
+      - "8099:8099"
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    driver: bridge

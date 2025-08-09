@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "api"
+version = "0.1.0"
+description = "OddsFeed API Service"
+authors = ["OddsFeed Team"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0"
+redis = "^5.0.0"
+psycopg = "^3.1.0"
+psycopg-pool = "^3.1.0"
+prometheus-client = "^0.19.0"
+pydantic = "^2.5.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.0"
+black = "^23.0.0"
+mypy = "^1.7.0"
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
