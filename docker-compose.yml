@@ -1,7 +1,7 @@
 
 services:
   broker:
-    image: redis:7
+    image: redis:7.2
     ports:
       - "6379:6379"
     volumes:
@@ -11,9 +11,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-
+    restart: unless-stopped
   store:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.16.1-pg16
     platform: linux/amd64
     command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
     environment:
@@ -30,7 +30,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-
+    restart: unless-stopped
   api:
     build: ./api
     ports:
@@ -44,12 +44,12 @@ services:
       store:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      test: [CMD-SHELL, 'curl -fsS http://localhost:8080/health >/dev/null']
       interval: 10s
       timeout: 3s
       retries: 3
       start_period: 15s
-
+    restart: unless-stopped
   normalizer:
     build: ./normalizer
     environment:
@@ -60,7 +60,7 @@ services:
         condition: service_healthy
       store:
         condition: service_healthy
-
+    restart: unless-stopped
   collector-dk:
     build: ./collector-dk
     environment:
@@ -72,7 +72,7 @@ services:
         condition: service_healthy
     ports:
       - "9101:9101"
-
+    restart: unless-stopped
   collector-fd:
     build: ./collector-fd
     environment:
@@ -84,7 +84,7 @@ services:
         condition: service_healthy
     ports:
       - "9102:9102"
-
+    restart: unless-stopped
   collector-mgm:
     build: ./collector-mgm
     environment:
@@ -96,7 +96,7 @@ services:
         condition: service_healthy
     ports:
       - "9103:9103"
-
+    restart: unless-stopped
   collector-b365:
     build: ./collector-b365
     environment:
@@ -108,7 +108,7 @@ services:
         condition: service_healthy
     ports:
       - "9104:9104"
-
+    restart: unless-stopped
   collector-stake:
     build: ./collector-stake
     environment:
@@ -120,14 +120,14 @@ services:
         condition: service_healthy
     ports:
       - "9105:9105"
-
+    restart: unless-stopped
   proxy-manager:
     build: ./proxy-manager
     ports:
       - "8099:8099"
-
+    restart: unless-stopped
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     ports:
       - "9090:9090"
     volumes:
@@ -138,9 +138,9 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-
+    restart: unless-stopped
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.1.0
     ports:
       - "3000:3000"
     environment:
@@ -150,13 +150,12 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
-
+    restart: unless-stopped
 volumes:
   pgdata:
   redis-data:
   prometheus-data:
   grafana-data:
-
 networks:
   default:
     driver: bridge
