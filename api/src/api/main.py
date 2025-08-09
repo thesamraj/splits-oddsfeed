@@ -116,7 +116,7 @@ async def get_odds(
                 o.ts
             FROM events e
             JOIN odds o ON e.id = o.event_id
-            WHERE o.ts >= NOW() - INTERVAL %(minutes)s MINUTES
+            WHERE o.ts >= NOW() - MAKE_INTERVAL(mins => %(minutes)s)
         """
 
         params = {"minutes": minutes}
