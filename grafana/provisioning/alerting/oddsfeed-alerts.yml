@@ -1,0 +1,49 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: OddsFeed Alerts
+    folder: OddsFeed
+    interval: 1m
+    rules:
+      - uid: no-ingest-10m
+        title: No odds ingested in 10m
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              expr: increase(odds_published_total{source="agg"}[10m]) < 1
+              instant: true
+              legendFormat: ''
+              range: false
+        annotations: { severity: warning }
+        isPaused: false
+      - uid: api-latency
+        title: API /odds latency > 0.5s (5m)
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              expr: (rate(odds_request_seconds_sum[5m]) / rate(odds_request_seconds_count[5m])) > 0.5
+              instant: true
+              legendFormat: ''
+              range: false
+        annotations: { severity: warning }
+        isPaused: false
+      - uid: budget-low
+        title: Odds API budget below 10%
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            relativeTimeRange: { from: 60, to: 0 }
+            model:
+              expr: collector_budget_remaining < 50
+              instant: true
+              legendFormat: ''
+              range: false
+        annotations: { severity: critical }
+        isPaused: false

@@ -1,41 +1,48 @@
-
 services:
   broker:
     image: redis:7.2
     ports:
-      - "6379:6379"
+    - 6379:6379
     volumes:
-      - redis-data:/data
+    - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      test:
+      - CMD-SHELL
+      - redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG
+      interval: 5s
       timeout: 3s
-      retries: 3
+      retries: 20
+      start_period: 10s
     restart: unless-stopped
+    command:
+    - redis-server
+    - --save
+    - ''
+    - --appendonly
+    - 'no'
   store:
-    image: timescale/timescaledb:latest-pg16
+    image: postgres:16
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oddsfeed}
       POSTGRES_USER: ${POSTGRES_USER:-odds}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odds}
-      POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=timescaledb"
-    command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
     ports:
-      - "5432:5432"
+    - 5432:5432
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    - pgdata:/var/lib/postgresql/data
+    - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odds} -d ${POSTGRES_DB:-oddsfeed}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-odds} -d ${POSTGRES_DB:-oddsfeed}
       interval: 10s
       timeout: 3s
       retries: 3
     restart: unless-stopped
-  api:
     build: ./api
     ports:
-      - "8080:8080"
+    - 8080:8080
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -45,7 +52,9 @@ services:
       store:
         condition: service_healthy
     healthcheck:
-      test: [CMD-SHELL, 'curl -fsS http://localhost:8080/health >/dev/null']
+      test:
+      - CMD-SHELL
+      - curl -fsS http://localhost:8080/health >/dev/null
       interval: 10s
       timeout: 3s
       retries: 3
@@ -72,7 +81,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9101:9101"
+    - 9101:9101
     restart: unless-stopped
   collector-fd:
     build: ./collector-fd
@@ -84,7 +93,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9102:9102"
+    - 9102:9102
     restart: unless-stopped
   collector-mgm:
     build: ./collector-mgm
@@ -96,7 +105,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9103:9103"
+    - 9103:9103
     restart: unless-stopped
   collector-b365:
     build: ./collector-b365
@@ -108,7 +117,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9104:9104"
+    - 9104:9104
     restart: unless-stopped
   collector-stake:
     build: ./collector-stake
@@ -120,37 +129,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9105:9105"
-    restart: unless-stopped
-  proxy-manager:
-    build: ./proxy-manager
-    ports:
-      - "8099:8099"
-    restart: unless-stopped
-  prometheus:
-    image: prom/prometheus:v2.54.1
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-    restart: unless-stopped
-  grafana:
-    image: grafana/grafana:11.1.0
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - prometheus
+    - 9105:9105
     restart: unless-stopped
   collector-agg:
     build: ./collector-agg
@@ -160,21 +139,47 @@ services:
       AGG_API_KEY: ${AGG_API_KEY}
       AGG_USE_MOCK: ${AGG_USE_MOCK}
       AGG_FETCH_INTERVAL: ${AGG_FETCH_INTERVAL}
-      AGG_DAILY_REQUEST_BUDGET: ${AGG_DAILY_REQUEST_BUDGET}
-      AGG_SPORT: ${AGG_SPORT}
-      AGG_MARKETS: ${AGG_MARKETS}
-      AGG_REGION: ${AGG_REGION}
     depends_on:
       broker:
         condition: service_healthy
     ports:
-      - "9106:9106"
+    - 9106:9106
+    restart: unless-stopped
+  proxy-manager:
+    build: ./proxy-manager
+    ports:
+    - 8099:8099
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+    - 9090:9090
+    volumes:
+    - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    - prometheus-data:/prometheus
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --web.console.libraries=/etc/prometheus/console_libraries
+    - --web.console.templates=/etc/prometheus/consoles
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports:
+    - 3000:3000
+    environment:
+    - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+    - grafana-data:/var/lib/grafana
+    - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+    - prometheus
     restart: unless-stopped
 volumes:
-  pgdata:
-  redis-data:
-  prometheus-data:
-  grafana-data:
+  pgdata: null
+  redis-data: null
+  prometheus-data: null
+  grafana-data: null
 networks:
   default:
     driver: bridge

@@ -39,6 +39,11 @@ scrape_configs:
       - targets: ['collector-stake:9105']
     scrape_interval: 10s
 
+  - job_name: 'collector-agg'
+    static_configs:
+      - targets: ['collector-agg:9106']
+    scrape_interval: 10s
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
