@@ -1,0 +1,44 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odds
+          POSTGRES_PASSWORD: odds
+          POSTGRES_DB: oddsfeed
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U odds -d oddsfeed"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql://odds:odds@localhost:5432/oddsfeed
+      REDIS_URL: redis://localhost:6379/0
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install deps (api + normalizer)
+        run: |
+          pushd api && poetry install --only main --no-root && popd
+          pushd normalizer && poetry install --only main --no-root && popd
+      - name: Lint & format
+        run: |
+          pip install ruff black
+          ruff check .
+          black --check .
+      - name: Run tests
+        run: pytest -q
