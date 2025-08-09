@@ -6,11 +6,8 @@ import httpx
 
 
 def test_environment_variables():
-    required_vars = [
-        "DATABASE_URL",
-        "REDIS_URL"
-    ]
-    
+    required_vars = ["DATABASE_URL", "REDIS_URL"]
+
     for var in required_vars:
         assert os.getenv(var) is not None, f"Environment variable {var} is not set"
 
@@ -19,7 +16,7 @@ def test_environment_variables():
 async def test_redis_connection():
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     client = redis.from_url(redis_url)
-    
+
     try:
         result = await client.ping()
         assert result is True
@@ -30,7 +27,7 @@ async def test_redis_connection():
 @pytest.mark.asyncio
 async def test_database_connection():
     db_url = os.getenv("DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed")
-    
+
     try:
         async with psycopg.AsyncConnection.connect(db_url) as conn:
             async with conn.cursor() as cur:
@@ -47,7 +44,7 @@ async def test_api_health_endpoint():
         try:
             response = await client.get("http://localhost:8080/health", timeout=5.0)
             assert response.status_code == 200
-            
+
             data = response.json()
             assert "status" in data
         except httpx.RequestError:

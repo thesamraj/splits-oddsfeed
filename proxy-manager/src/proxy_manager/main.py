@@ -38,16 +38,13 @@ proxy_manager = ProxyManager()
 @app.get("/lease", response_model=ProxyLease)
 async def lease_proxy(
     book: Optional[str] = Query(None, description="Sportsbook name"),
-    region: Optional[str] = Query(None, description="Geographic region")
+    region: Optional[str] = Query(None, description="Geographic region"),
 ):
     try:
         proxy_url = proxy_manager.get_next_proxy()
         logger.info(f"Leasing proxy for book={book}, region={region}: {proxy_url}")
-        
-        return ProxyLease(
-            proxy_url=proxy_url,
-            lease_seconds=300
-        )
+
+        return ProxyLease(proxy_url=proxy_url, lease_seconds=300)
     except Exception as e:
         logger.error(f"Failed to lease proxy: {e}")
         raise HTTPException(status_code=500, detail="Failed to lease proxy")

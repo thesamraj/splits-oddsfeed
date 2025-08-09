@@ -1,11 +1,10 @@
 import os
-import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import redis.asyncio as redis
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import Response
 import uvicorn
 
@@ -15,16 +14,16 @@ from .metrics import setup_metrics
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.redis = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-    
+
     db_dsn = os.getenv("DATABASE_URL", "postgresql://odds:odds@store:5432/oddsfeed")
     try:
         app.state.db_conn = await psycopg.AsyncConnection.connect(db_dsn)
     except Exception as e:
         print(f"Database connection failed: {e}")
         app.state.db_conn = None
-    
+
     yield
-    
+
     if getattr(app.state, "db_conn", None):
         await app.state.db_conn.close()
     await app.state.redis.close()
@@ -37,7 +36,7 @@ setup_metrics(app)
 
 @app.get("/health")
 async def health_check():
-    
+
     try:
         await app.state.redis.ping()
         redis_status = "ok"
@@ -67,22 +66,19 @@ async def health_check():
         except Exception as e:
             print(f"DB health check query failed: {e}")
             db_status = "error"
-    
+
     overall_status = "ok" if redis_status == "ok" and db_status == "ok" else "degraded"
-    
+
     return {
         "status": overall_status,
-        "components": {
-            "redis": redis_status,
-            "database": db_status
-        }
+        "components": {"redis": redis_status, "database": db_status},
     }
-
 
 
 @app.get("/metrics")
 async def metrics():
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
     data = generate_latest()  # bytes
     # Use media_type without charset so Starlette appends a single charset parameter
     media_type = CONTENT_TYPE_LATEST.split("; charset=")[0]
