@@ -16,13 +16,15 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GHCR_PAT }}   # use repo secret (no token pasted)
       - name: Build & push tiny image
         run: |
           printf 'FROM alpine:3.20\nCMD ["true"]\n' > Dockerfile.perm
-          docker buildx build --platform linux/amd64 \
+          docker buildx build \
+            --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}/permcheck:canary \
             -t ghcr.io/${{ github.repository }}/permcheck:run-${{ github.run_id }} \
-            -f Dockerfile.perm --push .
-      - name: Inspect image
+            -f Dockerfile.perm \
+            --push .
+      - name: Inspect image we just pushed
         run: docker buildx imagetools inspect ghcr.io/${{ github.repository }}/permcheck:canary
