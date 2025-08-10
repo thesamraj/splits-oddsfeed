@@ -1,6 +1,6 @@
 name: ghcr-perm-check
 on:
-  push:            # so a commit triggers it
+  push:
     branches: [main]
   workflow_dispatch:
 permissions:
@@ -20,11 +20,9 @@ jobs:
       - name: Build & push tiny image
         run: |
           printf 'FROM alpine:3.20\nCMD ["true"]\n' > Dockerfile.perm
-          docker buildx build \
-            --platform linux/amd64 \
+          docker buildx build --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}/permcheck:canary \
             -t ghcr.io/${{ github.repository }}/permcheck:run-${{ github.run_id }} \
-            -f Dockerfile.perm \
-            --push .
-      - name: Inspect image we just pushed
+            -f Dockerfile.perm --push .
+      - name: Inspect image
         run: docker buildx imagetools inspect ghcr.io/${{ github.repository }}/permcheck:canary
