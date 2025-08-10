@@ -13,7 +13,7 @@ services:
       retries: 3
     restart: unless-stopped
   store:
-    image: timescale/timescaledb:2.16.1-pg16
+    image: timescale/timescaledb:2.21.2-pg16
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oddsfeed}
@@ -169,6 +169,23 @@ services:
         condition: service_healthy
     ports:
       - "9106:9106"
+    restart: unless-stopped
+  collector-kambi:
+    image: ${COLLECTOR_KAMBI_IMAGE:-ghcr.io/thesamraj/splits-oddsfeed/collector-kambi:latest}
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      KAMBI_BASE_URL: ${KAMBI_BASE_URL}
+      KAMBI_BRAND: ${KAMBI_BRAND}
+      KAMBI_LOCALE: ${KAMBI_LOCALE}
+      KAMBI_SPORT: ${KAMBI_SPORT}
+      KAMBI_LEAGUE: ${KAMBI_LEAGUE}
+      KAMBI_POLL_INTERVAL: ${KAMBI_POLL_INTERVAL}
+      KAMBI_USE_MOCK: ${KAMBI_USE_MOCK}
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9107:9107"
     restart: unless-stopped
 volumes:
   pgdata:

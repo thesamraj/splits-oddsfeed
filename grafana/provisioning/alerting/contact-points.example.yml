@@ -1,0 +1,23 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: slack-primary
+    receivers:
+      - uid: slack-primary-receiver
+        type: slack
+        settings:
+          url: __SLACK_WEBHOOK_URL__
+          channel: '#alerts'
+          title: 'OddsFeed Alert'
+          text: |-
+            {{ range .Alerts }}
+            **{{ .Status | title }}**: {{ .Annotations.summary | default .Labels.alertname }}
+            
+            **Details**: {{ .Annotations.description | default "No description" }}
+            
+            **Labels**:
+            {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+            {{ end }}
+            {{ end }}
+        disableResolveMessage: false

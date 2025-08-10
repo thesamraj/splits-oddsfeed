@@ -47,3 +47,23 @@ groups:
               range: false
         annotations: { severity: critical }
         isPaused: false
+      - uid: kambi-ingestion-stalled
+        title: Kambi ingestion stalled
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: Prometheus
+            relativeTimeRange: { from: 600, to: 0 }
+            model:
+              expr: sum(rate(collector_fetch_total{source="kambi",status="ok"}[5m])) < 0.1
+              instant: true
+              legendFormat: ''
+              range: false
+        annotations: 
+          severity: warning
+          summary: "Kambi collector has stopped ingesting data successfully"
+          runbook_url: "https://github.com/thesamraj/splits-oddsfeed/wiki/Runbook-Kambi-Ingestion-Stalled"
+        labels:
+          source: kambi
+        for: 10m
+        isPaused: false
