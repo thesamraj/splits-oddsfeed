@@ -6,6 +6,9 @@ on:
     paths:
       - 'collector-kambi/**'
       - '.github/workflows/collector-kambi.yml'
+    tags: ['v*']
+  release:
+    types: [published, created]
   workflow_dispatch:
 
 permissions:
