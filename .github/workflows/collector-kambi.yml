@@ -26,7 +26,7 @@ jobs:
 
       # Use PAT if provided
       - name: Login to GHCR (PAT)
-      if: ${{ secrets.GHCR_PAT != '' }}
+        if: ${{ secrets.GHCR_PAT != '' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -35,7 +35,7 @@ jobs:
 
       # Fallback to repo token
       - name: Login to GHCR (GITHUB_TOKEN fallback)
-      if: ${{ secrets.GHCR_PAT == '' }}
+        if: ${{ secrets.GHCR_PAT == '' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
