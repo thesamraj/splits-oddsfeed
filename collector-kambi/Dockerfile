@@ -10,6 +10,6 @@ RUN poetry config virtualenvs.create false \
 
 COPY src/ ./
 
-EXPOSE 9106
+EXPOSE 9107
 
-CMD ["python", "-c", "print('collector-kambi image ready')"]
+CMD ["python", "/app/collector_kambi/main.py"]

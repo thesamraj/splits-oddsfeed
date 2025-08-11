@@ -38,6 +38,14 @@ LAST_SUCCESS = Gauge(
     ["source"],
 )
 
+ERROR_COUNT = Counter(
+    "collector_error_total", "Total error count", ["source", "error_type"]
+)
+
+CONSECUTIVE_ERRORS = Gauge(
+    "collector_consecutive_errors", "Number of consecutive errors", ["source"]
+)
+
 
 class KambiCollector:
     def __init__(self):
@@ -74,6 +82,8 @@ class KambiCollector:
         self.etag_cache_store: Dict[str, str] = {}
         self.content_hashes: Set[str] = set()
         self.running = False
+        self.error_count = 0
+        self.consecutive_errors = 0
 
         # Build endpoints
         self.endpoints = self._build_endpoints()
@@ -204,12 +214,23 @@ class KambiCollector:
 
         except httpx.RequestError as e:
             FETCH_TOTAL.labels(source="kambi", status="error").inc()
+            ERROR_COUNT.labels(source="kambi", error_type="request").inc()
             logger.error(f"Request error for {endpoint}: {e}")
             return None
         except Exception as e:
             FETCH_TOTAL.labels(source="kambi", status="error").inc()
-            logger.error(f"Unexpected error for {endpoint}: {e}")
+            ERROR_COUNT.labels(source="kambi", error_type="unexpected").inc()
+            logger.error(f"Unexpected error for {endpoint}: {e}", exc_info=True)
             return None
+
+    def _calculate_backoff(self) -> float:
+        """Calculate exponential backoff delay based on consecutive errors."""
+        if self.consecutive_errors == 0:
+            return 0.0
+
+        # Exponential backoff: 0.5s, 1s, 2s, 4s, 8s, max 10s
+        delay = min(0.5 * (2 ** (self.consecutive_errors - 1)), 10.0)
+        return delay
 
     def _normalize_kambi_data(
         self, raw_data: Dict[str, Any]
@@ -240,16 +261,20 @@ class KambiCollector:
                     if not event_id:
                         continue
 
-                    # Parse event participants (home/away teams)
-                    participants = event.get("event", {}).get("participants", [])
+                    # Parse event participants (home/away teams) with safe access
+                    event_info = event.get("event", {})
+                    participants = event_info.get("participants", [])
                     if len(participants) < 2:
+                        logger.debug(
+                            f"Skipping event {event_id}: insufficient participants"
+                        )
                         continue
 
-                    home_team = participants[0].get("name", "")
-                    away_team = participants[1].get("name", "")
+                    home_team = participants[0].get("name", "Unknown")
+                    away_team = participants[1].get("name", "Unknown")
 
-                    # Parse start time
-                    start_time = event.get("event", {}).get("start", "")
+                    # Parse start time with fallback
+                    start_time = event_info.get("start", "")
 
                     # Build normalized event
                     normalized_event = {
@@ -281,19 +306,26 @@ class KambiCollector:
                                 "outcomes": [],
                             }
 
-                            # Extract outcomes/selections
+                            # Extract outcomes/selections with safe access
                             for outcome in bet_offer.get("outcomes", []):
-                                outcome_data = {
-                                    "name": outcome.get("label", ""),
-                                    "price": outcome.get("odds", 0)
-                                    / 1000.0,  # Kambi odds are in millis
-                                }
+                                try:
+                                    outcome_data = {
+                                        "name": outcome.get("label", "Unknown"),
+                                        "price": outcome.get("odds", 0)
+                                        / 1000.0,  # Kambi odds are in millis
+                                    }
 
-                                # Add point/handicap if present
-                                if "line" in outcome:
-                                    outcome_data["point"] = outcome["line"] / 1000.0
+                                    # Add point/handicap if present
+                                    if (
+                                        "line" in outcome
+                                        and outcome["line"] is not None
+                                    ):
+                                        outcome_data["point"] = outcome["line"] / 1000.0
 
-                                market["outcomes"].append(outcome_data)
+                                    market["outcomes"].append(outcome_data)
+                                except (TypeError, ValueError, ZeroDivisionError) as e:
+                                    logger.debug(f"Skipping malformed outcome: {e}")
+                                    continue
 
                             if market["outcomes"]:
                                 normalized_event["markets"].append(market)
@@ -500,26 +532,50 @@ class KambiCollector:
         await asyncio.sleep(jitter)
 
     async def run(self):
-        """Main polling loop."""
-        # Start metrics server
+        """Main polling loop with error handling and backoff."""
+        # Start metrics server FIRST so it stays up even if fetch fails
         start_http_server(9107)
         logger.info("Metrics server started on :9107")
 
         self.running = True
 
-        try:
-            while self.running:
+        while self.running:
+            try:
                 await self._poll_once()
+                # Reset consecutive error count on successful poll
+                if self.consecutive_errors > 0:
+                    logger.info(
+                        f"Recovered from {self.consecutive_errors} consecutive errors"
+                    )
+                    self.consecutive_errors = 0
+                    CONSECUTIVE_ERRORS.labels(source="kambi").set(0)
+
                 await asyncio.sleep(self.poll_interval)
 
-        except KeyboardInterrupt:
-            logger.info("Received shutdown signal")
-        except Exception as e:
-            logger.error(f"Unexpected error in main loop: {e}")
-        finally:
-            self.running = False
+            except KeyboardInterrupt:
+                logger.info("Received shutdown signal")
+                break
+            except Exception as e:
+                self.consecutive_errors += 1
+                self.error_count += 1
+                ERROR_COUNT.labels(source="kambi", error_type="loop").inc()
+                CONSECUTIVE_ERRORS.labels(source="kambi").set(self.consecutive_errors)
+
+                backoff_delay = self._calculate_backoff()
+                logger.error(
+                    f"Error in main loop (#{self.consecutive_errors}): {e}. "
+                    f"Backing off for {backoff_delay:.1f}s",
+                    exc_info=True,
+                )
+
+                await asyncio.sleep(backoff_delay + self.poll_interval)
+
+        # Cleanup
+        try:
             await self.http_client.aclose()
             await self.redis_client.close()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
 
 
 async def main():
