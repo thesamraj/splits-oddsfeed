@@ -1,0 +1,17 @@
+# Keep the build context small, but DO NOT exclude our sources or pyproject.toml
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.venv/
+.env
+.env.*
+dist/
+build/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+*.log
+artifacts/
