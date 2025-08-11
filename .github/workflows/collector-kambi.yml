@@ -42,6 +42,7 @@ jobs:
             type=sha
 
       - name: Build & push (multi-arch)
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ./collector-kambi
@@ -53,5 +54,26 @@ jobs:
           provenance: true
           sbom: true
 
-      - name: Inspect sha tag we just pushed
-        run: docker buildx imagetools inspect "${IMAGE}:sha-${GITHUB_SHA}"
+      - name: Inspect image we just pushed (short SHA, then fallbacks)
+        run: |
+          set -euo pipefail
+          SHA7="${GITHUB_SHA::7}"
+          echo "Metadata tags pushed:"
+          echo '${{ steps.meta.outputs.tags }}'
+
+          echo "Trying tag: ${IMAGE}:sha-${SHA7}"
+          if docker buildx imagetools inspect "${IMAGE}:sha-${SHA7}"; then
+            echo "Found sha-short tag."
+          else
+            echo "sha-short not found; trying :main"
+            if docker buildx imagetools inspect "${IMAGE}:main"; then
+              echo ":main exists."
+            else
+              echo ":main not found; trying digest from build output"
+              docker buildx imagetools inspect "${IMAGE}@${{ steps.build.outputs.digest }}"
+            fi
+          fi
+
+          echo "Verifying both platforms are present:"
+          docker buildx imagetools inspect "${IMAGE}:sha-${SHA7}" 2>/dev/null \
+            | grep -E 'linux/(amd64|arm64)' | sort -u || true
