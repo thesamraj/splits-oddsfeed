@@ -1,0 +1,29 @@
+{
+  "events": [
+    {
+      "event_id": "kambi_mock_4",
+      "league": "NFL",
+      "start_time": "2025-08-17T20:00:00+00:00",
+      "home": "Tampa Bay Buccaneers",
+      "away": "New Orleans Saints",
+      "sport": "american_football",
+      "odds": [
+        {
+          "book": "kambi",
+          "market": "totals",
+          "outcome_name": "Under",
+          "outcome_price": -100.0,
+          "outcome_point": 47.3,
+          "timestamp": "2025-08-10T03:15:33.104967+00:00"
+        }
+      ]
+    }
+  ],
+  "count": 1,
+  "filters": {
+    "league": "NFL",
+    "book": null,
+    "market": null
+  },
+  "next_cursor": "2025-08-10T03:15:33.104967+00:00"
+}

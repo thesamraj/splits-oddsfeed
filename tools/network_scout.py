@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""
+Network scout tool for capturing XHR/fetch & WebSocket traffic.
+Designed for reconnaissance of sports betting sites like BetRivers (Kambi).
+"""
+
+import asyncio
+import argparse
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+from urllib.parse import urlparse
+
+from playwright.async_api import async_playwright, Page, Response, Request
+from playwright_stealth import stealth_async
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+class NetworkScout:
+    def __init__(
+        self,
+        base_url: str,
+        duration_seconds: int = 75,
+        headful: bool = False,
+        proxy: Optional[str] = None,
+        output_dir: str = "artifacts",
+    ):
+        self.base_url = base_url
+        self.duration_seconds = duration_seconds
+        self.headful = headful
+        self.proxy = proxy
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(exist_ok=True)
+
+        # Parse domain name for file naming
+        parsed = urlparse(base_url)
+        self.domain_name = parsed.netloc.replace(".", "_")
+
+        self.network_events: List[Dict[str, Any]] = []
+        self.kambi_endpoints: List[str] = []
+
+    async def capture_network_events(self):
+        """Capture network traffic using Playwright with stealth."""
+
+        async with async_playwright() as p:
+            # Configure browser
+            browser_args = []
+            if self.proxy:
+                browser_args.append(f"--proxy-server={self.proxy}")
+
+            browser = await p.chromium.launch(
+                headless=not self.headful, args=browser_args
+            )
+
+            # Create context and page
+            context_options = {}
+            if self.proxy and self.proxy.startswith("http"):
+                proxy_parts = self.proxy.replace("http://", "").split(":")
+                context_options["proxy"] = {
+                    "server": f"http://{proxy_parts[0]}:{proxy_parts[1] if len(proxy_parts) > 1 else '8080'}"
+                }
+
+            context = await browser.new_context(**context_options)
+            page = await context.new_page()
+
+            # Apply stealth techniques
+            await stealth_async(page)
+
+            # Set up network monitoring
+            page.on("request", self._handle_request)
+            page.on("response", self._handle_response)
+
+            logger.info(f"Starting network capture for {self.duration_seconds} seconds")
+            logger.info(f"Navigating to: {self.base_url}")
+
+            try:
+                # Navigate to the main page
+                await page.goto(self.base_url, wait_until="networkidle", timeout=30000)
+
+                # Try to navigate to NFL section
+                await self._navigate_to_nfl(page)
+
+                # Wait for the specified duration while capturing traffic
+                await asyncio.sleep(self.duration_seconds)
+
+            except Exception as e:
+                logger.error(f"Error during navigation/capture: {e}")
+
+            finally:
+                await browser.close()
+
+        logger.info(f"Captured {len(self.network_events)} network events")
+
+    async def _navigate_to_nfl(self, page: Page):
+        """Try to navigate to NFL section."""
+        try:
+            # Wait a bit for page to load
+            await asyncio.sleep(3)
+
+            # Look for common NFL navigation patterns
+            nfl_selectors = [
+                'a[href*="nfl"]',
+                "text=NFL",
+                "text=American Football",
+                '[data-sport*="american_football"]',
+                '[data-league*="nfl"]',
+            ]
+
+            for selector in nfl_selectors:
+                try:
+                    element = page.locator(selector).first
+                    if await element.count() > 0:
+                        logger.info(f"Found NFL link with selector: {selector}")
+                        await element.click(timeout=5000)
+                        await page.wait_for_load_state("networkidle", timeout=10000)
+                        break
+                except Exception as e:
+                    logger.debug(f"NFL selector {selector} failed: {e}")
+                    continue
+
+        except Exception as e:
+            logger.info(f"Could not navigate to NFL section automatically: {e}")
+
+    async def _handle_request(self, request: Request):
+        """Handle outgoing requests."""
+        try:
+            # Only capture XHR/fetch and WebSocket requests
+            if request.resource_type in ["xhr", "fetch", "websocket"]:
+                event = {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "type": "request",
+                    "method": request.method,
+                    "url": request.url,
+                    "resource_type": request.resource_type,
+                    "headers": dict(request.headers),
+                }
+
+                # Capture request body if present
+                try:
+                    if request.post_data:
+                        event["body"] = request.post_data[:2048]  # First 2KB
+                except Exception:
+                    pass
+
+                self.network_events.append(event)
+
+                # Check if this looks like a Kambi endpoint
+                if "kambi" in request.url.lower() or "offering" in request.url:
+                    self.kambi_endpoints.append(request.url)
+
+        except Exception as e:
+            logger.debug(f"Error handling request: {e}")
+
+    async def _handle_response(self, response: Response):
+        """Handle incoming responses."""
+        try:
+            request = response.request
+
+            # Only capture responses to XHR/fetch requests
+            if request.resource_type in ["xhr", "fetch"]:
+                event = {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "type": "response",
+                    "method": request.method,
+                    "url": response.url,
+                    "status": response.status,
+                    "status_text": response.status_text,
+                    "headers": dict(response.headers),
+                    "content_type": response.headers.get("content-type", ""),
+                }
+
+                # Capture response body for JSON responses
+                try:
+                    content_type = response.headers.get("content-type", "").lower()
+                    if "json" in content_type and response.status == 200:
+                        body = await response.text()
+                        if body:
+                            # Store first 2KB of JSON response
+                            event["body"] = body[:2048]
+                            event["body_size"] = len(body)
+
+                            # Try to parse as JSON to verify it's valid
+                            try:
+                                json.loads(body[:2048])
+                                event["body_valid_json"] = True
+                            except Exception:
+                                event["body_valid_json"] = False
+
+                except Exception as e:
+                    logger.debug(f"Error capturing response body: {e}")
+
+                self.network_events.append(event)
+
+        except Exception as e:
+            logger.debug(f"Error handling response: {e}")
+
+    def write_artifacts(self):
+        """Write captured data to artifact files."""
+
+        # Write raw network events as JSONL
+        jsonl_file = self.output_dir / f"{self.domain_name}_nfl_network.jsonl"
+        with open(jsonl_file, "w") as f:
+            for event in self.network_events:
+                f.write(json.dumps(event) + "\n")
+
+        logger.info(f"Wrote {len(self.network_events)} events to {jsonl_file}")
+
+        # Generate analysis report
+        self._generate_report()
+
+    def _generate_report(self):
+        """Generate markdown report analyzing captured traffic."""
+
+        report_file = self.output_dir / f"{self.domain_name}_nfl_network_report.md"
+
+        # Analyze Kambi endpoints
+        kambi_endpoints = list(set(self.kambi_endpoints))
+
+        # Find offering endpoints specifically
+        offering_endpoints = [url for url in kambi_endpoints if "offering" in url]
+
+        # Extract patterns
+        base_urls = set()
+        brands = set()
+        locales = set()
+
+        for url in offering_endpoints:
+            parsed = urlparse(url)
+
+            # Extract base URL up to v2018
+            if "/offering/v2018" in url:
+                base_url = url.split("/offering/v2018")[0] + "/offering/v2018"
+                base_urls.add(base_url)
+
+                # Extract brand (segment after v2018)
+                path_parts = parsed.path.split("/")
+                try:
+                    v2018_idx = path_parts.index("v2018")
+                    if v2018_idx + 1 < len(path_parts):
+                        brands.add(path_parts[v2018_idx + 1])
+                except ValueError:
+                    pass
+
+            # Extract locale from query params
+            if "locale=" in url:
+                locale_param = url.split("locale=")[1].split("&")[0]
+                locales.add(locale_param)
+
+        # Write report
+        with open(report_file, "w") as f:
+            f.write("# BetRivers (Kambi) Network Analysis Report\n\n")
+            f.write(f"**Generated:** {datetime.utcnow().isoformat()}\n")
+            f.write(f"**Target URL:** {self.base_url}\n")
+            f.write(f"**Capture Duration:** {self.duration_seconds} seconds\n")
+            f.write(f"**Total Network Events:** {len(self.network_events)}\n\n")
+
+            f.write("## Kambi Endpoint Analysis\n\n")
+            f.write(f"**Kambi Endpoints Found:** {len(kambi_endpoints)}\n")
+            f.write(f"**Offering Endpoints:** {len(offering_endpoints)}\n\n")
+
+            if base_urls:
+                f.write("### Base URLs\n")
+                for base_url in sorted(base_urls):
+                    f.write(f"- **{base_url}**\n")
+                f.write("\n")
+
+            if brands:
+                f.write("### Brand Slugs\n")
+                for brand in sorted(brands):
+                    f.write(f"- **{brand}**\n")
+                f.write("\n")
+
+            if locales:
+                f.write("### Locales\n")
+                for locale in sorted(locales):
+                    f.write(f"- **{locale}**\n")
+                f.write("\n")
+
+            f.write("### NFL-Related Endpoints\n")
+            nfl_endpoints = [
+                url
+                for url in offering_endpoints
+                if "american_football" in url or "nfl" in url.lower()
+            ]
+            for endpoint in sorted(nfl_endpoints):
+                f.write(f"- `{endpoint}`\n")
+
+            f.write("\n### All Kambi Endpoints\n")
+            for endpoint in sorted(kambi_endpoints):
+                f.write(f"- `{endpoint}`\n")
+
+        logger.info(f"Generated analysis report: {report_file}")
+
+        # Return discovered values for immediate use
+        return {
+            "base_urls": list(base_urls),
+            "brands": list(brands),
+            "locales": list(locales),
+            "nfl_endpoints": nfl_endpoints,
+        }
+
+
+async def main():
+    parser = argparse.ArgumentParser(
+        description="Network scout for sports betting sites"
+    )
+    parser.add_argument("--url", required=True, help="Target URL to scout")
+    parser.add_argument(
+        "--seconds", type=int, default=75, help="Capture duration in seconds"
+    )
+    parser.add_argument(
+        "--headful", action="store_true", help="Run browser in headful mode"
+    )
+    parser.add_argument("--proxy", help="Proxy server (e.g., http://localhost:8080)")
+
+    args = parser.parse_args()
+
+    scout = NetworkScout(
+        base_url=args.url,
+        duration_seconds=args.seconds,
+        headful=args.headful,
+        proxy=args.proxy,
+    )
+
+    await scout.capture_network_events()
+    results = scout.write_artifacts()
+
+    return results
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

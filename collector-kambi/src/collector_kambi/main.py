@@ -11,11 +11,11 @@ import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Set
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 import redis.asyncio as redis
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
+from prometheus_client import Counter, Histogram, Gauge, start_http_server, Info
 
 # Configure logging
 logging.basicConfig(
@@ -46,6 +46,13 @@ CONSECUTIVE_ERRORS = Gauge(
     "collector_consecutive_errors", "Number of consecutive errors", ["source"]
 )
 
+# Proxy metrics
+PROXY_ERRORS = Counter("kambi_proxy_errors_total", "Total proxy errors", ["type"])
+
+PROXY_ROTATIONS = Counter("kambi_proxy_rotations_total", "Total proxy rotations")
+
+ACTIVE_PROXY_INFO = Info("kambi_active_proxy", "Information about active proxy")
+
 
 class KambiCollector:
     def __init__(self):
@@ -63,20 +70,25 @@ class KambiCollector:
         self.hash_dedup = os.getenv("KAMBI_HASH_DEDUP", "true").lower() == "true"
         self.use_mock = os.getenv("KAMBI_USE_MOCK", "false").lower() == "true"
 
+        # Proxy configuration
+        self.proxy_url = os.getenv("PROXY_URL", "").strip()
+        self.proxy_manager_url = os.getenv("PROXY_MANAGER_URL", "").strip()
+        self.proxy_lease_path = os.getenv("PROXY_LEASE_PATH", "/lease")
+        self.proxy_release_path = os.getenv("PROXY_RELEASE_PATH", "/release")
+        self.proxy_book = os.getenv("PROXY_BOOK", "kambi")
+        self.proxy_region = os.getenv("PROXY_REGION", "us")
+        self.proxy_rotate_after_errors = int(
+            os.getenv("PROXY_ROTATE_AFTER_ERRORS", "3")
+        )
+        self.current_proxy = None
+        self.proxy_error_count = 0
+
         # Redis connection
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self.redis_client = redis.from_url(redis_url)
 
-        # HTTP client
-        self.http_client = httpx.AsyncClient(
-            timeout=30.0,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                "Accept": "application/json, text/plain, */*",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Cache-Control": "no-cache",
-            },
-        )
+        # HTTP client setup
+        self._setup_http_client()
 
         # State tracking
         self.etag_cache_store: Dict[str, str] = {}
@@ -100,6 +112,7 @@ class KambiCollector:
                 "poll_interval": self.poll_interval,
                 "endpoints": len(self.endpoints),
                 "use_mock": self.use_mock,
+                "proxy_configured": bool(self.proxy_url or self.proxy_manager_url),
                 "status": "starting",
             }
         )
@@ -119,6 +132,146 @@ class KambiCollector:
         endpoints.append(betoffer_path)
 
         return endpoints
+
+    def _setup_http_client(self):
+        """Setup HTTP client with proxy configuration."""
+        # Enhanced headers for better bot detection evasion
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.8",
+            "Referer": "https://www.betrivers.com/",
+            "Cache-Control": "no-cache",
+        }
+
+        # Timeout configuration
+        timeout = httpx.Timeout(connect=4.0, read=6.0, write=4.0, pool=10.0)
+
+        # Setup proxies
+        proxies = None
+        if self.proxy_url:
+            proxies = {"http://": self.proxy_url, "https://": self.proxy_url}
+            self.current_proxy = self.proxy_url
+            self._update_proxy_metrics()
+            logger.info(f"Using static proxy: {self._safe_proxy_log(self.proxy_url)}")
+        elif self.proxy_manager_url:
+            # Will lease proxy on first request
+            logger.info(f"Proxy manager configured at {self.proxy_manager_url}")
+
+        self.http_client = httpx.AsyncClient(
+            timeout=timeout,
+            headers=headers,
+            proxies=proxies,
+        )
+
+    def _safe_proxy_log(self, proxy_url: str) -> str:
+        """Safe proxy URL for logging (hide credentials)."""
+        if not proxy_url:
+            return "None"
+        parsed = urlparse(proxy_url)
+        if parsed.username:
+            return f"{parsed.scheme}://***:***@{parsed.hostname}:{parsed.port}"
+        return proxy_url
+
+    def _update_proxy_metrics(self):
+        """Update Prometheus metrics for active proxy."""
+        if self.current_proxy:
+            parsed = urlparse(self.current_proxy)
+            scheme = parsed.scheme or "unknown"
+            ACTIVE_PROXY_INFO.info(
+                {"scheme": scheme, "host": parsed.hostname or "unknown"}
+            )
+        else:
+            ACTIVE_PROXY_INFO.info({"scheme": "none", "host": "none"})
+
+    async def _lease_proxy(self) -> Optional[str]:
+        """Lease a proxy from proxy manager."""
+        if not self.proxy_manager_url:
+            return None
+
+        try:
+            url = f"{self.proxy_manager_url.rstrip('/')}{self.proxy_lease_path}"
+            params = {"book": self.proxy_book, "region": self.proxy_region}
+
+            # Use a simple client without proxy for manager communication
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                proxy_url = data.get("proxy")
+                if proxy_url:
+                    logger.info(
+                        f"Leased proxy from manager: {self._safe_proxy_log(proxy_url)}"
+                    )
+                    return proxy_url
+                else:
+                    logger.warning("Proxy manager returned no proxy")
+                    return None
+
+        except Exception as e:
+            logger.error(f"Failed to lease proxy: {e}")
+            PROXY_ERRORS.labels(type="lease_error").inc()
+            return None
+
+    async def _release_proxy(self, proxy_url: str, reason: str = "rotation"):
+        """Release a proxy back to the manager."""
+        if not self.proxy_manager_url or not proxy_url:
+            return
+
+        try:
+            url = f"{self.proxy_manager_url.rstrip('/')}{self.proxy_release_path}"
+            payload = {
+                "proxy": proxy_url,
+                "book": self.proxy_book,
+                "region": self.proxy_region,
+                "reason": reason,
+            }
+
+            # Use a simple client without proxy for manager communication
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                logger.info(
+                    f"Released proxy {self._safe_proxy_log(proxy_url)} (reason: {reason})"
+                )
+
+        except Exception as e:
+            logger.warning(f"Failed to release proxy: {e}")
+
+    async def _rotate_proxy(self, reason: str = "errors"):
+        """Rotate to a new proxy."""
+        if not self.proxy_manager_url:
+            return
+
+        old_proxy = self.current_proxy
+
+        # Release old proxy if we have one
+        if old_proxy:
+            await self._release_proxy(old_proxy, reason)
+
+        # Lease new proxy
+        new_proxy = await self._lease_proxy()
+        if new_proxy:
+            self.current_proxy = new_proxy
+            # Update HTTP client with new proxy
+            await self.http_client.aclose()
+            headers = self.http_client.headers
+            timeout = self.http_client.timeout
+            proxies = {"http://": new_proxy, "https://": new_proxy}
+            self.http_client = httpx.AsyncClient(
+                timeout=timeout,
+                headers=headers,
+                proxies=proxies,
+            )
+            self._update_proxy_metrics()
+            PROXY_ROTATIONS.inc()
+            self.proxy_error_count = 0
+            logger.info(f"Rotated to new proxy: {self._safe_proxy_log(new_proxy)}")
+        else:
+            logger.warning("Failed to rotate proxy - no new proxy available")
+            self.current_proxy = None
+            self._update_proxy_metrics()
 
     def _build_url(self, endpoint: str) -> str:
         """Build full URL with query parameters."""
@@ -151,6 +304,23 @@ class KambiCollector:
             headers["If-None-Match"] = self.etag_cache_store[endpoint]
 
         try:
+            # Lease proxy if using manager and no current proxy
+            if self.proxy_manager_url and not self.current_proxy:
+                new_proxy = await self._lease_proxy()
+                if new_proxy:
+                    self.current_proxy = new_proxy
+                    # Update client with new proxy
+                    await self.http_client.aclose()
+                    headers_dict = dict(self.http_client.headers)
+                    timeout = self.http_client.timeout
+                    proxies = {"http://": new_proxy, "https://": new_proxy}
+                    self.http_client = httpx.AsyncClient(
+                        timeout=timeout,
+                        headers=headers_dict,
+                        proxies=proxies,
+                    )
+                    self._update_proxy_metrics()
+
             with FETCH_DURATION.labels(source="kambi").time():
                 response = await self.http_client.get(full_url, headers=headers)
 
@@ -158,6 +328,25 @@ class KambiCollector:
             if response.status_code == 304:
                 FETCH_TOTAL.labels(source="kambi", status="skip").inc()
                 logger.debug(f"304 Not Modified for {endpoint}")
+                return None
+
+            # Handle proxy-related HTTP errors
+            if response.status_code in (403, 429):
+                FETCH_TOTAL.labels(source="kambi", status="error").inc()
+                PROXY_ERRORS.labels(type=str(response.status_code)).inc()
+                self.proxy_error_count += 1
+
+                logger.warning(
+                    f"HTTP {response.status_code} for {endpoint} (proxy error #{self.proxy_error_count})"
+                )
+
+                # Rotate proxy if threshold reached
+                if (
+                    self.proxy_error_count >= self.proxy_rotate_after_errors
+                    and self.proxy_manager_url
+                ):
+                    await self._rotate_proxy(f"http_{response.status_code}")
+
                 return None
 
             if response.status_code != 200:
@@ -215,7 +404,25 @@ class KambiCollector:
         except httpx.RequestError as e:
             FETCH_TOTAL.labels(source="kambi", status="error").inc()
             ERROR_COUNT.labels(source="kambi", error_type="request").inc()
-            logger.error(f"Request error for {endpoint}: {e}")
+
+            # Handle proxy-related request errors
+            if "timeout" in str(e).lower() or "connect" in str(e).lower():
+                PROXY_ERRORS.labels(type="timeout").inc()
+                self.proxy_error_count += 1
+
+                logger.error(
+                    f"Request error for {endpoint} (proxy error #{self.proxy_error_count}): {e}"
+                )
+
+                # Rotate proxy if threshold reached
+                if (
+                    self.proxy_error_count >= self.proxy_rotate_after_errors
+                    and self.proxy_manager_url
+                ):
+                    await self._rotate_proxy("timeout")
+            else:
+                logger.error(f"Request error for {endpoint}: {e}")
+
             return None
         except Exception as e:
             FETCH_TOTAL.labels(source="kambi", status="error").inc()
@@ -572,6 +779,10 @@ class KambiCollector:
 
         # Cleanup
         try:
+            # Release proxy if using manager
+            if self.proxy_manager_url and self.current_proxy:
+                await self._release_proxy(self.current_proxy, "shutdown")
+
             await self.http_client.aclose()
             await self.redis_client.close()
         except Exception as e:

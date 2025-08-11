@@ -1,0 +1,5 @@
+[
+  "http://user1:pass1@proxy1.example.com:8080",
+  "socks5://user2:pass2@proxy2.example.com:1080",
+  "http://user3:pass3@proxy3.example.com:3128"
+]
