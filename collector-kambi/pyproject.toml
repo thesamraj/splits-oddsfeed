@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "collector-kambi"
+version = "0.1.0"
+description = "BetRivers (Kambi) odds collector"
+authors = ["collector-kambi <collector-kambi@oddsfeed.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+httpx = "^0.25.2"
+redis = "^5.3.1"
+pydantic = "^2.11.7"
+prometheus-client = "^0.19.0"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
