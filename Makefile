@@ -1,4 +1,4 @@
-.PHONY: up down tail lint fmt typecheck test latency ingest-mock migrate db-status help
+.PHONY: up down tail lint fmt typecheck test latency ingest-mock pinnacle-mock pinnacle-real migrate db-status help
 
 # Default target
 help:
@@ -12,6 +12,8 @@ help:
 	@echo "  test       - Run pytest tests"
 	@echo "  latency    - Placeholder for latency testing"
 	@echo "  ingest-mock - Run aggregator collector in mock mode"
+	@echo "  pinnacle-mock - Run Pinnacle collector in mock mode"
+	@echo "  pinnacle-real - Run Pinnacle collector in real mode (requires PIN_USERNAME/PIN_PASSWORD)"
 	@echo "  migrate    - Apply database migrations"
 	@echo "  db-status  - Show database hypertable and policy status"
 
@@ -29,21 +31,21 @@ tail:
 # Code quality
 lint:
 	@echo "Running ruff on all services..."
-	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg proxy-manager; do \
+	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg collector-pinnacle proxy-manager; do \
 		echo "Linting $$service..."; \
 		cd $$service && poetry run ruff check . && cd ..; \
 	done
 
 fmt:
 	@echo "Running black on all services..."
-	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg proxy-manager; do \
+	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg collector-pinnacle proxy-manager; do \
 		echo "Formatting $$service..."; \
 		cd $$service && poetry run black . && cd ..; \
 	done
 
 typecheck:
 	@echo "Running mypy on all services..."
-	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg proxy-manager; do \
+	@for service in api normalizer collector-dk collector-fd collector-mgm collector-b365 collector-stake collector-agg collector-pinnacle proxy-manager; do \
 		echo "Type checking $$service..."; \
 		cd $$service && poetry run mypy . && cd ..; \
 	done
@@ -67,6 +69,29 @@ ingest-mock:
 	@echo "Waiting for dependencies..."
 	sleep 10
 	docker-compose up --build collector-agg
+
+# Pinnacle smoke tests
+pinnacle-mock:
+	@echo "Starting Pinnacle collector in mock mode..."
+	@if [ ! -f .env ]; then cp .env.example .env; fi
+	@echo "PIN_USE_MOCK=true" >> .env
+	docker-compose up -d broker store normalizer
+	@echo "Waiting for dependencies..."
+	sleep 10
+	docker-compose up --build collector-pinnacle
+
+pinnacle-real:
+	@echo "Starting Pinnacle collector in real mode..."
+	@if [ ! -f .env ]; then cp .env.example .env; fi
+	@echo "PIN_USE_MOCK=false" >> .env
+	@test -n "$$PIN_USERNAME" || (echo "PIN_USERNAME environment variable required"; exit 1)
+	@test -n "$$PIN_PASSWORD" || (echo "PIN_PASSWORD environment variable required"; exit 1)
+	@echo "PIN_USERNAME=$$PIN_USERNAME" >> .env
+	@echo "PIN_PASSWORD=$$PIN_PASSWORD" >> .env
+	docker-compose up -d broker store normalizer
+	@echo "Waiting for dependencies..."
+	sleep 10
+	docker-compose up --build collector-pinnacle
 
 release: ## release a new version: make release VER=v0.1.X
 	@test -n "$(VER)" || (echo "VER required"; exit 1)

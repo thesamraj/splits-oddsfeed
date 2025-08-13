@@ -16,6 +16,13 @@ from urllib.parse import urljoin, urlparse
 import httpx
 import redis.asyncio as redis
 from prometheus_client import Counter, Histogram, Gauge, start_http_server, Info
+from curl_cffi import requests as creq
+
+# Local imports
+try:
+    from .bootstrap import load_bootstrap
+except ImportError:
+    from bootstrap import load_bootstrap
 
 # Configure logging
 logging.basicConfig(
@@ -70,6 +77,23 @@ class KambiCollector:
         self.hash_dedup = os.getenv("KAMBI_HASH_DEDUP", "true").lower() == "true"
         self.use_mock = os.getenv("KAMBI_USE_MOCK", "false").lower() == "true"
 
+        # Browser impersonation config
+        self.state_host = os.getenv("KAMBI_STATE_HOST", "pa.betrivers.com")
+        self.impersonate = os.getenv("KAMBI_IMPERSONATE", "chrome_124")
+        self.warmup = os.getenv("KAMBI_WARMUP", "true").lower() == "true"
+
+        # Bootstrap configuration
+        self.bootstrap_enabled = (
+            os.getenv("KAMBI_BOOTSTRAP_ENABLED", "false").lower() == "true"
+        )
+        self.bootstrap_data = None
+        if self.bootstrap_enabled:
+            self.bootstrap_data = load_bootstrap()
+            if self.bootstrap_data:
+                logger.info("Loaded Playwright bootstrap data for bot evasion")
+            else:
+                logger.warning("Bootstrap enabled but no data found")
+
         # Proxy configuration
         self.proxy_url = os.getenv("PROXY_URL", "").strip()
         self.proxy_manager_url = os.getenv("PROXY_MANAGER_URL", "").strip()
@@ -88,7 +112,9 @@ class KambiCollector:
         self.redis_client = redis.from_url(redis_url)
 
         # HTTP client setup
-        self._setup_http_client()
+        self.session = creq.Session(impersonate=self.impersonate)
+        self.proxies = self._setup_proxy_config()
+        self._update_proxy_metrics()
 
         # State tracking
         self.etag_cache_store: Dict[str, str] = {}
@@ -133,36 +159,82 @@ class KambiCollector:
 
         return endpoints
 
-    def _setup_http_client(self):
-        """Setup HTTP client with proxy configuration."""
-        # Enhanced headers for better bot detection evasion
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.8",
-            "Referer": "https://www.betrivers.com/",
-            "Cache-Control": "no-cache",
-        }
-
-        # Timeout configuration
-        timeout = httpx.Timeout(connect=4.0, read=6.0, write=4.0, pool=10.0)
-
-        # Setup proxies
-        proxies = None
+    def _setup_proxy_config(self) -> Optional[dict]:
+        """Setup proxy configuration for requests."""
         if self.proxy_url:
-            proxies = {"http://": self.proxy_url, "https://": self.proxy_url}
             self.current_proxy = self.proxy_url
-            self._update_proxy_metrics()
             logger.info(f"Using static proxy: {self._safe_proxy_log(self.proxy_url)}")
+            return {"http": self.proxy_url, "https": self.proxy_url}
         elif self.proxy_manager_url:
-            # Will lease proxy on first request
+            # Will lease proxy dynamically
             logger.info(f"Proxy manager configured at {self.proxy_manager_url}")
+            return None
+        else:
+            return None
 
-        self.http_client = httpx.AsyncClient(
-            timeout=timeout,
-            headers=headers,
-            proxies=proxies,
-        )
+    def _lease_proxy_sync(self) -> Optional[str]:
+        """Lease a proxy from proxy manager synchronously."""
+        if not self.proxy_manager_url:
+            return None
+
+        try:
+            url = f"{self.proxy_manager_url.rstrip('/')}{self.proxy_lease_path}"
+            params = {"book": self.proxy_book, "region": self.proxy_region}
+
+            # Use simple httpx client for manager communication
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                proxy_url = data.get("proxy_url") or data.get("proxy")
+                if proxy_url:
+                    logger.info(
+                        f"Leased proxy from manager: {self._safe_proxy_log(proxy_url)}"
+                    )
+                    return proxy_url
+                else:
+                    logger.warning("Proxy manager returned no proxy")
+                    return None
+        except Exception as e:
+            logger.error(f"Failed to lease proxy: {e}")
+            PROXY_ERRORS.labels(type="lease_error").inc()
+            return None
+
+    def _warmup_session(self):
+        """Warm up session by visiting BetRivers state site."""
+        if not self.warmup:
+            return
+
+        try:
+            warmup_url = f"https://{self.state_host}/"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Cache-Control": "no-cache",
+                "DNT": "1",
+            }
+
+            # Use current proxy configuration
+            proxies = self.proxies
+            if self.proxy_manager_url and not proxies:
+                # Lease a proxy for this session
+                leased_proxy = self._lease_proxy_sync()
+                if leased_proxy:
+                    self.current_proxy = leased_proxy
+                    proxies = {"http": leased_proxy, "https": leased_proxy}
+                    self.proxies = proxies
+                    self._update_proxy_metrics()
+
+            logger.info(f"Warming up session on {warmup_url}")
+            response = self.session.get(
+                warmup_url, timeout=8, proxies=proxies, headers=headers
+            )
+            logger.info(f"Warmup completed: {response.status_code}")
+
+        except Exception as e:
+            logger.warning(f"Session warmup failed: {e}")
 
     def _safe_proxy_log(self, proxy_url: str) -> str:
         """Safe proxy URL for logging (hide credentials)."""
@@ -185,7 +257,7 @@ class KambiCollector:
             ACTIVE_PROXY_INFO.info({"scheme": "none", "host": "none"})
 
     async def _lease_proxy(self) -> Optional[str]:
-        """Lease a proxy from proxy manager."""
+        """Lease a proxy from proxy manager (async version)."""
         if not self.proxy_manager_url:
             return None
 
@@ -199,7 +271,7 @@ class KambiCollector:
                 response.raise_for_status()
                 data = response.json()
 
-                proxy_url = data.get("proxy")
+                proxy_url = data.get("proxy_url") or data.get("proxy")
                 if proxy_url:
                     logger.info(
                         f"Leased proxy from manager: {self._safe_proxy_log(proxy_url)}"
@@ -239,31 +311,18 @@ class KambiCollector:
         except Exception as e:
             logger.warning(f"Failed to release proxy: {e}")
 
-    async def _rotate_proxy(self, reason: str = "errors"):
+    def _rotate_proxy(self, reason: str = "errors"):
         """Rotate to a new proxy."""
         if not self.proxy_manager_url:
             return
 
         old_proxy = self.current_proxy
 
-        # Release old proxy if we have one
-        if old_proxy:
-            await self._release_proxy(old_proxy, reason)
-
         # Lease new proxy
-        new_proxy = await self._lease_proxy()
+        new_proxy = self._lease_proxy_sync()
         if new_proxy:
             self.current_proxy = new_proxy
-            # Update HTTP client with new proxy
-            await self.http_client.aclose()
-            headers = self.http_client.headers
-            timeout = self.http_client.timeout
-            proxies = {"http://": new_proxy, "https://": new_proxy}
-            self.http_client = httpx.AsyncClient(
-                timeout=timeout,
-                headers=headers,
-                proxies=proxies,
-            )
+            self.proxies = {"http": new_proxy, "https": new_proxy}
             self._update_proxy_metrics()
             PROXY_ROTATIONS.inc()
             self.proxy_error_count = 0
@@ -271,6 +330,7 @@ class KambiCollector:
         else:
             logger.warning("Failed to rotate proxy - no new proxy available")
             self.current_proxy = None
+            self.proxies = None
             self._update_proxy_metrics()
 
     def _build_url(self, endpoint: str) -> str:
@@ -293,36 +353,58 @@ class KambiCollector:
 
         return f"{full_url}?{query_string}"
 
-    async def _fetch_endpoint(self, endpoint: str) -> Optional[Dict[str, Any]]:
+    def _fetch_endpoint(self, endpoint: str) -> Optional[Dict[str, Any]]:
         """Fetch data from a single endpoint with caching and deduplication."""
         full_url = self._build_url(endpoint)
 
-        headers = {}
+        # Build headers for Kambi API request
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Origin": f"https://{self.state_host}",
+            "Referer": f"https://{self.state_host}/",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "DNT": "1",
+            "Connection": "keep-alive",
+        }
+
+        # Apply bootstrap headers if available
+        if self.bootstrap_data and self.bootstrap_data.get("headers"):
+            bootstrap_headers = self.bootstrap_data["headers"]
+            logger.debug(f"Applying {len(bootstrap_headers)} bootstrap headers")
+            headers.update(bootstrap_headers)
 
         # Add ETag header if caching enabled
         if self.etag_cache and endpoint in self.etag_cache_store:
             headers["If-None-Match"] = self.etag_cache_store[endpoint]
 
         try:
-            # Lease proxy if using manager and no current proxy
+            # Ensure we have a proxy if using proxy manager
+            proxies = self.proxies
             if self.proxy_manager_url and not self.current_proxy:
-                new_proxy = await self._lease_proxy()
-                if new_proxy:
-                    self.current_proxy = new_proxy
-                    # Update client with new proxy
-                    await self.http_client.aclose()
-                    headers_dict = dict(self.http_client.headers)
-                    timeout = self.http_client.timeout
-                    proxies = {"http://": new_proxy, "https://": new_proxy}
-                    self.http_client = httpx.AsyncClient(
-                        timeout=timeout,
-                        headers=headers_dict,
-                        proxies=proxies,
-                    )
+                leased_proxy = self._lease_proxy_sync()
+                if leased_proxy:
+                    self.current_proxy = leased_proxy
+                    proxies = {"http": leased_proxy, "https": leased_proxy}
+                    self.proxies = proxies
                     self._update_proxy_metrics()
 
+            # Prepare cookies for request if bootstrap data available
+            cookies = None
+            if self.bootstrap_data and self.bootstrap_data.get("cookies"):
+                cookies = self.bootstrap_data["cookies"]
+                logger.debug(f"Applying {len(cookies)} bootstrap cookies")
+
             with FETCH_DURATION.labels(source="kambi").time():
-                response = await self.http_client.get(full_url, headers=headers)
+                response = self.session.get(
+                    full_url,
+                    timeout=8,
+                    proxies=proxies,
+                    headers=headers,
+                    cookies=cookies,
+                )
 
             # Handle 304 Not Modified
             if response.status_code == 304:
@@ -330,30 +412,37 @@ class KambiCollector:
                 logger.debug(f"304 Not Modified for {endpoint}")
                 return None
 
-            # Handle proxy-related HTTP errors
-            if response.status_code in (403, 429):
-                FETCH_TOTAL.labels(source="kambi", status="error").inc()
-                PROXY_ERRORS.labels(type=str(response.status_code)).inc()
-                self.proxy_error_count += 1
-
-                logger.warning(
-                    f"HTTP {response.status_code} for {endpoint} (proxy error #{self.proxy_error_count})"
+            # Handle specific HTTP status codes
+            if response.status_code == 200:
+                FETCH_TOTAL.labels(source="kambi", status="ok").inc()
+                LAST_SUCCESS.labels(source="kambi").set(
+                    datetime.now(timezone.utc).timestamp()
                 )
-
-                # Rotate proxy if threshold reached
-                if (
-                    self.proxy_error_count >= self.proxy_rotate_after_errors
-                    and self.proxy_manager_url
-                ):
-                    await self._rotate_proxy(f"http_{response.status_code}")
-
+            elif response.status_code == 403:
+                FETCH_TOTAL.labels(source="kambi", status="403").inc()
+                PROXY_ERRORS.labels(type="403").inc()
+                self.proxy_error_count += 1
+                logger.warning(
+                    f"HTTP 403 for {endpoint} (proxy error #{self.proxy_error_count})"
+                )
                 return None
-
-            if response.status_code != 200:
+            elif response.status_code == 418:
+                FETCH_TOTAL.labels(source="kambi", status="418").inc()
+                PROXY_ERRORS.labels(type="418").inc()
+                self.proxy_error_count += 1
+                logger.warning(
+                    f"HTTP 418 for {endpoint} (proxy error #{self.proxy_error_count})"
+                )
+                return None
+            else:
                 FETCH_TOTAL.labels(source="kambi", status="error").inc()
                 logger.warning(
                     f"HTTP {response.status_code} for {endpoint}: {response.text[:200]}"
                 )
+                return None
+
+            # Only process 200 responses
+            if response.status_code != 200:
                 return None
 
             # Get response content
@@ -387,11 +476,6 @@ class KambiCollector:
                 if len(self.content_hashes) > 100:
                     self.content_hashes.pop()
 
-            FETCH_TOTAL.labels(source="kambi", status="ok").inc()
-            LAST_SUCCESS.labels(source="kambi").set(
-                datetime.now(timezone.utc).timestamp()
-            )
-
             logger.info(f"Fetched {len(json.dumps(data))} bytes from {endpoint}")
 
             return {
@@ -401,7 +485,7 @@ class KambiCollector:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-        except httpx.RequestError as e:
+        except Exception as e:
             FETCH_TOTAL.labels(source="kambi", status="error").inc()
             ERROR_COUNT.labels(source="kambi", error_type="request").inc()
 
@@ -409,25 +493,12 @@ class KambiCollector:
             if "timeout" in str(e).lower() or "connect" in str(e).lower():
                 PROXY_ERRORS.labels(type="timeout").inc()
                 self.proxy_error_count += 1
-
                 logger.error(
                     f"Request error for {endpoint} (proxy error #{self.proxy_error_count}): {e}"
                 )
-
-                # Rotate proxy if threshold reached
-                if (
-                    self.proxy_error_count >= self.proxy_rotate_after_errors
-                    and self.proxy_manager_url
-                ):
-                    await self._rotate_proxy("timeout")
             else:
                 logger.error(f"Request error for {endpoint}: {e}")
 
-            return None
-        except Exception as e:
-            FETCH_TOTAL.labels(source="kambi", status="error").inc()
-            ERROR_COUNT.labels(source="kambi", error_type="unexpected").inc()
-            logger.error(f"Unexpected error for {endpoint}: {e}", exc_info=True)
             return None
 
     def _calculate_backoff(self) -> float:
@@ -726,7 +797,7 @@ class KambiCollector:
         else:
             for endpoint in self.endpoints:
                 try:
-                    raw_data = await self._fetch_endpoint(endpoint)
+                    raw_data = self._fetch_endpoint(endpoint)
                     if raw_data:
                         normalized_data = self._normalize_kambi_data(raw_data)
                         await self._publish_data(raw_data, normalized_data)
@@ -743,6 +814,12 @@ class KambiCollector:
         # Start metrics server FIRST so it stays up even if fetch fails
         start_http_server(9107)
         logger.info("Metrics server started on :9107")
+
+        # Warm up session with BetRivers state site
+        try:
+            self._warmup_session()
+        except Exception as e:
+            logger.warning(f"Session warmup failed: {e}")
 
         self.running = True
 
@@ -783,7 +860,7 @@ class KambiCollector:
             if self.proxy_manager_url and self.current_proxy:
                 await self._release_proxy(self.current_proxy, "shutdown")
 
-            await self.http_client.aclose()
+            # No httpx client to close with curl_cffi
             await self.redis_client.close()
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")

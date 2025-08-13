@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "collector-kambi-browser"
+version = "0.1.0"
+description = "Playwright browser relay for Kambi (BetRivers)"
+authors = ["sam"]
+readme = "README.md"
+packages = [{ include = "collector_kambi_browser", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+playwright = "^1.46.0"
+redis = "^5.0.7"
+prometheus-client = "^0.20.0"
+pydantic = "^2.7.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.0.0"
+ruff = "^0.4.0"
+
+[tool.ruff]
+line-length = 100

@@ -1,0 +1,111 @@
+{
+  "state_host": "pa.betrivers.com",
+  "start_url": "https://pa.betrivers.com/sports",
+  "captured": [],
+  "cookies": [
+    {
+      "name": "__cf_bm",
+      "value": "NM4P07Cq0MNIKSywgR_sPvMofhYglRLzkSbNXB3aVxk-1755018776-1.0.1.1-sxf5BGuaTiJ6oalVnbCIhz3Cfww4TnSSy0fgvOVVK5V21krRXF_yFLbhhrmaIht7TBhh3CYxrpbZohDAxwdaewf_bRlqnUq55JP3Iplxshg",
+      "domain": ".betrivers.com",
+      "path": "/",
+      "expires": 1755020576.875653,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cflb",
+      "value": "0H28v8j2C912MTVk46azaawaoCJTLMhSzp8Fucjtdx8",
+      "domain": "pa.betrivers.com",
+      "path": "/",
+      "expires": 1755101576.877528,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "value": "oWwwOojWcwgE0XT4gyHkZKCQRlimrwLyfN9ytJlCxJU-1755018776884-0.0.1.1-604800000",
+      "domain": ".betrivers.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "uiThemeName",
+      "value": "light",
+      "domain": "pa.betrivers.com",
+      "path": "/",
+      "expires": 1786554777.140251,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "Ai9PwGQXVcZNvcsFJjYqyqGN6YDlo8wJWQWjNN_QSNE-1755018777-1.0.1.1-lODs_IN3PsjIsqWHDZ5s0fqa6NER_HjSvsQuWOlI5IYZ3LUA_txSjfC.JWVyvgTno6lLTUsy3k8nmnHTNPkkgUEgkvt.htXVqae2bPPcBcg",
+      "domain": ".rushstreetcontent.com",
+      "path": "/",
+      "expires": 1755020577.49753,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_dd_s",
+      "value": "aid=8cf8104a-9ef8-4b41-bf7a-3f0abf6ee440&rum=2&id=12e86dfc-d034-4426-b486-fcdbb669e1fa&created=1755018778301&expire=1755019678301",
+      "domain": "pa.betrivers.com",
+      "path": "/",
+      "expires": 1786554778,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "mainViewType",
+      "value": "CASINO",
+      "domain": "pa.betrivers.com",
+      "path": "/",
+      "expires": 1762794778,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "language",
+      "value": "ENG",
+      "domain": "pa.betrivers.com",
+      "path": "/",
+      "expires": 1786554778,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "k9k2Yr2k_9fj3pdUGo.JspDGUzwjQUsoO5cj8kXWH8c-1755018778-1.0.1.1-ZZrV19xDNDIf82gGGUeXoWW3LvH_c7dmlM34h9Z1K36BS342NQUr64gVs1G1VOjdSfhjhGS6L5Tx17OirunTPB7x2CpSVaOszw21miMsr7I",
+      "domain": ".playsugarhouse.com",
+      "path": "/",
+      "expires": 1755020578.846726,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "localStorage": {
+    "logIdentifier": "\"6d8d2afb043e\"",
+    "BrDFnr": "\"da7afadf4680c7dfaef630c7e287f40f\"",
+    "RSIConsentTracking_userPreferencesCreatedAt": "2025-08-12T17:13:03.421Z",
+    "uiThemeName": "light",
+    "_portalLastReloadTime": "1755018778584",
+    "RSIConsentTracking_userPreferences": "{\"statistical\":false,\"analytics\":false,\"targeting\":false,\"necessary\":true}",
+    "language": "\"ENG\"",
+    "QM_S": "{\"configReplayEnabled\":true}"
+  },
+  "sessionStorage": {
+    "mfe-promo-jackpot-banner": "{\"enabled\":true,\"jackpotValue\":62986.75,\"jackpotMoneyValue\":\"$62,986.75\",\"invitation\":{\"invited\":false,\"timer\":0,\"isNewGame\":false}}"
+  },
+  "seed_headers": {}
+}

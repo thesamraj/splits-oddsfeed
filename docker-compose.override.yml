@@ -1,3 +1,10 @@
 services:
-  api:
-    image: ghcr.io/thesamraj/splits-oddsfeed/api:v0.1.5
+  collector-kambi:
+    build:
+      context: ./collector-kambi
+      dockerfile: Dockerfile
+    image: splits-oddsfeed-collector-kambi:dev
+    environment:
+      KAMBI_IMPERSONATE: chrome120
+      KAMBI_WARMUP: "true"
+      KAMBI_STATE_HOST: pa.betrivers.com

@@ -194,6 +194,56 @@ services:
     ports:
       - "9117:9107"
     restart: unless-stopped
+  collector-kambi-browser:
+    build: ./collector-kambi-browser
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
+      REDIS_CHANNEL: ${REDIS_CHANNEL_KAMBI:-odds.raw.kambi}
+      KAMBI_STATE_URL: ${KAMBI_STATE_URL:-https://pa.betrivers.com/?page=sportsbook#american_football/nfl}
+      KAMBI_CAPTURE_PATTERNS: ${KAMBI_CAPTURE_PATTERNS:-/offering/.*(v2018|events|selections)|e0-api.kambi.com/.*}
+      KAMBI_STORAGE: ${KAMBI_STORAGE:-/app/state/kambi-browser/state.json}
+      KAMBI_BROWSER_HEADFUL: ${KAMBI_BROWSER_HEADFUL:-false}
+      KAMBI_LAST_RESORT_AFTER_SEC: ${KAMBI_LAST_RESORT_AFTER_SEC:-15}
+      KAMBI_NAV_TIMEOUT_SEC: ${KAMBI_NAV_TIMEOUT_SEC:-25}
+      PROXY_URL: ${PROXY_URL:-}
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL:-}
+    volumes:
+      - ./state/kambi-browser:/app/state/kambi-browser
+      - ./artifacts:/app/artifacts
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "9118:9118"
+    restart: unless-stopped
+
+  collector-pinnacle:
+    image: ${COLLECTOR_PIN_IMAGE:-ghcr.io/${REPO_OWNER:-thesamraj}/${REPO_NAME:-splits-oddsfeed}/collector-pinnacle:latest}
+    build: ./collector-pinnacle
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
+      PIN_BASE_URL: ${PIN_BASE_URL:-https://api.pinnacle.com}
+      PIN_USERNAME: ${PIN_USERNAME:-}
+      PIN_PASSWORD: ${PIN_PASSWORD:-}
+      PIN_SPORT_ID: ${PIN_SPORT_ID:-29}
+      PIN_LEAGUE_IDS: ${PIN_LEAGUE_IDS:-}
+      PIN_MARKETS: ${PIN_MARKETS:-moneyline,spreads,totals}
+      PIN_INTERVAL: ${PIN_INTERVAL:-5}
+      PIN_USE_MOCK: ${PIN_USE_MOCK:-true}
+      PIN_TIMEOUT_CONNECT: ${PIN_TIMEOUT_CONNECT:-4}
+      PIN_TIMEOUT_READ: ${PIN_TIMEOUT_READ:-6}
+      PIN_ETAG_CACHE: ${PIN_ETAG_CACHE:-true}
+      PIN_DAILY_REQUEST_BUDGET: ${PIN_DAILY_REQUEST_BUDGET:-10000}
+      PIN_BUDGET_MIN_REMAINING: ${PIN_BUDGET_MIN_REMAINING:-100}
+      PIN_RATE_LIMIT_SLEEP_MS: ${PIN_RATE_LIMIT_SLEEP_MS:-250}
+      PIN_PROM_PORT: ${PIN_PROM_PORT:-9110}
+    ports:
+      - "9110:9110"
+    depends_on:
+      broker:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redis-data:

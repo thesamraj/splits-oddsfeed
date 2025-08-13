@@ -10,6 +10,7 @@ COPY pyproject.toml .
 RUN poetry config virtualenvs.create false \
     && poetry install --only main --no-interaction --no-ansi --no-root
 
-COPY src/ ./
+COPY src/ ./src/
+RUN poetry install --only-root --no-interaction --no-ansi
 
-CMD ["python", "normalizer/main.py"]
+CMD ["python", "-m", "normalizer.main"]

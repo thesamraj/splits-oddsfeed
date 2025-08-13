@@ -20,3 +20,4 @@ prometheus-data/
 # Playwright/Node (just in case)
 node_modules/
 .playwright/
+proxy-manager/proxies.json

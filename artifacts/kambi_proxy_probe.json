@@ -1,0 +1,26 @@
+[
+  {
+    "proxy": "http://user:pass@res-proxy-1.example:8000",
+    "ip": null,
+    "status": null,
+    "ok": false,
+    "ms": 0,
+    "err": "AsyncClient.__init__() got an unexpected keyword argument 'proxies'"
+  },
+  {
+    "proxy": "http://user:pass@res-proxy-2.example:8000",
+    "ip": null,
+    "status": null,
+    "ok": false,
+    "ms": 0,
+    "err": "AsyncClient.__init__() got an unexpected keyword argument 'proxies'"
+  },
+  {
+    "proxy": "http://user:pass@res-proxy-3.example:8000",
+    "ip": null,
+    "status": null,
+    "ok": false,
+    "ms": 0,
+    "err": "AsyncClient.__init__() got an unexpected keyword argument 'proxies'"
+  }
+]
