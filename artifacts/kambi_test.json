@@ -1,0 +1,21 @@
+{
+  "__url": "test-replay-fresh-ts",
+  "betOffers": [
+    {
+      "eventId": 2025001,
+      "criterion": {"label": "Point Spread"},
+      "outcomes": [
+        {"label": "Test Eagles", "odds": 1900, "line": -6500, "status": "OPEN"},
+        {"label": "Test Cowboys", "odds": 1980, "line": 6500, "status": "OPEN"}
+      ]
+    },
+    {
+      "eventId": 2025002,
+      "criterion": {"label": "Moneyline"},
+      "outcomes": [
+        {"label": "Test Team A", "odds": 2100, "status": "OPEN"},
+        {"label": "Test Team B", "odds": 1800, "status": "OPEN"}
+      ]
+    }
+  ]
+}

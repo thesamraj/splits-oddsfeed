@@ -1,274 +1,178 @@
 """Kambi data mapper for normalizer."""
 
-import logging
 import re
 from datetime import datetime
-from decimal import Decimal
-from typing import Dict, List, Any, Optional, Tuple, NamedTuple
-from urllib.parse import urlparse, parse_qs
+from decimal import Decimal, InvalidOperation
+from typing import Dict, List, Any, Optional, Tuple, Set
 from prometheus_client import Counter
 
-KAMBI_MARKET_MAP = {
-    "Moneyline": "h2h",
-    "Match Winner": "h2h",
-    "Point Spread": "spreads",
-    "Spread": "spreads",
-    "Total Points": "totals",
-    "Total": "totals",
-}
+k_rows = Counter("kambi_norm_rows_total", "normalized odds rows")
+k_events = Counter("kambi_norm_events_total", "normalized events seen")
+k_skip = Counter("kambi_norm_skipped_total", "skips by reason", ["reason"])
+k_miss = Counter(
+    "kambi_norm_market_map_miss_total", "unmapped market labels", ["label"]
+)
 
-logger = logging.getLogger(__name__)
-
-# Metrics
-kambi_norm_rows_total = Counter("kambi_norm_rows_total", "Kambi normalized rows inserted")
-kambi_norm_skipped_total = Counter("kambi_norm_skipped_total", "Skipped Kambi rows", ["reason"])
+_EVENT_ID_PAT = re.compile(r"/event[s]?/(\d+)")
 
 
-class EventRow(NamedTuple):
-    id: str
-    league: str
-    start_time: Optional[str]
-    home: str
-    away: str
-    sport: str = "american_football"
+def _decimal_to_american(d: Decimal) -> Optional[int]:
+    try:
+        if d <= 1:
+            return None
+        if d >= 2:
+            return int(round((d - 1) * 100))
+        # 1 < d < 2
+        return int(round(-100 / (d - 1)))
+    except Exception:
+        return None
 
 
-class OddsRow(NamedTuple):
-    event_id: str
-    book: str
-    market: str
-    outcome_name: str
-    outcome_price: Decimal
-    outcome_point: Optional[Decimal]
-    ts: str
+def _extract_event_ids(envelope_url: str, data: Dict[str, Any]) -> Set[str]:
+    ids: Set[str] = set()
+    for key in ("eventId", "event_id"):
+        v = data.get(key)
+        if isinstance(v, (int, str)):
+            ids.add(str(v))
+    ev = data.get("event") or {}
+    if isinstance(ev, dict):
+        v = ev.get("id")
+        if isinstance(v, (int, str)):
+            ids.add(str(v))
+    for bo in data.get("betOffers") or []:
+        v = bo.get("eventId") or (bo.get("event") or {}).get("id")
+        if isinstance(v, (int, str)):
+            ids.add(str(v))
+        for oc in bo.get("outcomes") or []:
+            v = oc.get("eventId")
+            if isinstance(v, (int, str)):
+                ids.add(str(v))
+    m = _EVENT_ID_PAT.search(envelope_url or "")
+    if m:
+        ids.add(m.group(1))
+    return ids
 
 
-def decimal_to_american(decimal_odds: float) -> int:
-    """Convert decimal odds to American format"""
-    if decimal_odds >= 2.0:
-        return int((decimal_odds - 1) * 100)
-    else:
-        return int(-100 / (decimal_odds - 1))
-
-
-def extract_line_from_label(label: str) -> Optional[float]:
-    """Extract point/line from outcome label using regex"""
-    # Match patterns like "+7.5", "-3", "Over 47.5", "Under 42"
-    match = re.search(r"[+-]?\d+\.?\d*", label)
-    if match:
-        try:
-            return float(match.group())
-        except ValueError:
-            pass
+def _label_to_market(label: str) -> Optional[str]:
+    lower_label = (label or "").lower()
+    if any(x in lower_label for x in ["moneyline", "h2h", "1x2"]):
+        return "h2h"
+    if (
+        "spread" in lower_label
+        or "point spread" in lower_label
+        or "handicap" in lower_label
+    ):
+        return "spreads"
+    if "total" in lower_label or "over/under" in lower_label or "totals" in lower_label:
+        return "totals"
     return None
 
 
-def extract_kambi(payload: dict, src_url: str) -> Tuple[List[EventRow], List[OddsRow]]:
-    """Extract events and odds from Kambi payload"""
-    events = []
-    odds = []
-
-    try:
-        # 1. Find event IDs from URL query params
-        event_ids_from_url = set()
-        if src_url:
-            parsed = urlparse(src_url)
-            params = parse_qs(parsed.query)
-            for key in ["eventId", "eventIds"]:
-                if key in params:
-                    for val in params[key]:
-                        event_ids_from_url.update(val.split(","))
-
-        # 2. Find events from payload
-        events_data = []
-
-        # Try different payload structures
-        if "events" in payload:
-            events_data.extend(payload["events"])
-        if "data" in payload and isinstance(payload["data"], dict):
-            if "events" in payload["data"]:
-                events_data.extend(payload["data"]["events"])
-            if "group" in payload["data"] and "events" in payload["data"]["group"]:
-                events_data.extend(payload["data"]["group"]["events"])
-
-        # Process events from betOffers if no direct events found
-        if not events_data and "betOffers" in payload:
-            events_by_id = {}
-            for bet_offer in payload["betOffers"]:
-                event_id = bet_offer.get("eventId")
-                if event_id:
-                    if event_id not in events_by_id:
-                        events_by_id[event_id] = {"id": event_id, "betOffers": []}
-                    events_by_id[event_id]["betOffers"].append(bet_offer)
-            events_data = list(events_by_id.values())
-
-        # 3. Process each event
-        for event_data in events_data:
-            event_id = str(event_data.get("id", ""))
-            if not event_id:
-                kambi_norm_skipped_total.labels("missing_event_id").inc()
-                continue
-
-            # Extract teams
-            home_team = None
-            away_team = None
-
-            # Try different team extraction methods
-            if "homeName" in event_data and "awayName" in event_data:
-                home_team = event_data["homeName"]
-                away_team = event_data["awayName"]
-            elif "home" in event_data and "away" in event_data:
-                home_team = event_data["home"]
-                away_team = event_data["away"]
-            elif "participants" in event_data:
-                for p in event_data["participants"]:
-                    if p.get("qualifier") == "home" or p.get("type") == "home":
-                        home_team = p.get("name")
-                    elif p.get("qualifier") == "away" or p.get("type") == "away":
-                        away_team = p.get("name")
-            elif "name" in event_data:
-                # Parse "Team A @ Team B" or "Team A vs Team B"
-                name = event_data["name"]
-                for delimiter in [" @ ", " vs ", " - "]:
-                    if delimiter in name:
-                        parts = name.split(delimiter, 1)
-                        if len(parts) == 2:
-                            away_team = parts[0].strip()
-                            home_team = parts[1].strip()
-                            break
-
-            if not home_team or not away_team:
-                kambi_norm_skipped_total.labels("missing_teams").inc()
-                continue
-
-            # Extract start time
-            start_time = None
-            for time_field in ["start", "startTime", "openDate"]:
-                if time_field in event_data:
-                    start_time = event_data[time_field]
-                    break
-
-            # Create event row
-            event_row = EventRow(
-                id=f"kambi_{event_id}", league="NFL", start_time=start_time, home=home_team, away=away_team
+def _emit_rows_from_betoffers(
+    book: str, league: str, event_id: str, betOffers: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for bo in betOffers or []:
+        label = (bo.get("criterion") or {}).get("label") or ""
+        market = _label_to_market(label)
+        if not market:
+            k_miss.labels(label or "unknown").inc()
+            continue
+        for oc in bo.get("outcomes") or []:
+            price_dec = oc.get("odds") or oc.get("oddsDecimal") or oc.get("decimalOdds")
+            line = oc.get("line") or (bo.get("criterion") or {}).get("label2")
+            try:
+                price_amer = (
+                    _decimal_to_american(Decimal(str(price_dec)))
+                    if price_dec is not None
+                    else None
+                )
+            except (InvalidOperation, TypeError):
+                price_amer = None
+            side = (oc.get("label") or oc.get("participant") or "").lower()
+            # map side → home/away if obvious
+            is_home = "home" in side
+            is_away = "away" in side
+            rows.append(
+                {
+                    "book": book,
+                    "league": league,
+                    "event_id": event_id,
+                    "market": market,
+                    "line": (
+                        float(line)
+                        if isinstance(line, (int, float, str))
+                        and str(line).replace(".", "", 1).lstrip("-").isdigit()
+                        else None
+                    ),
+                    "price_home": price_amer if is_home else None,
+                    "price_away": price_amer if is_away else None,
+                    "total": (
+                        float(line)
+                        if market == "totals" and line not in (None, "")
+                        else None
+                    ),
+                }
             )
-            events.append(event_row)
+    return rows
 
-            # 4. Extract odds from betOffers
-            bet_offers = event_data.get("betOffers", [])
-            if "betOffers" in payload:
-                # Add global betOffers for this event
-                for bo in payload["betOffers"]:
-                    if str(bo.get("eventId", "")) == event_id:
-                        bet_offers.append(bo)
 
-            for bet_offer in bet_offers:
-                market_type = None
-                criterion = bet_offer.get("criterion", {})
-                label = criterion.get("label", "").lower()
+def normalize_kambi_envelope(
+    envelope: Dict[str, Any], default_league: str = "NFL"
+) -> Tuple[List[Dict[str, Any]], Set[str]]:
+    """
+    Returns (rows, event_ids_seen)
+    Envelope:
+      { source: "kambi", url: "...", status: 200, ts: "...", data: {...} }
+    """
+    book = "kambi"
+    url = envelope.get("url", "")
+    data = envelope.get("data") or {}
+    ev_ids = _extract_event_ids(url, data)
+    rows: List[Dict[str, Any]] = []
 
-                # Market mapping
-                if any(x in label for x in ["moneyline", "match winner", "3-way moneyline"]):
-                    market_type = "h2h"
-                elif "point spread" in label:
-                    market_type = "spreads"
-                elif any(x in label for x in ["total", "total points"]):
-                    market_type = "totals"
-                else:
-                    kambi_norm_skipped_total.labels("unrecognized_market").inc()
-                    continue
+    # Case A: betOffers root
+    if isinstance(data.get("betOffers"), list) and data.get("betOffers"):
+        league = default_league
+        for eid in ev_ids or {"unknown"}:
+            rows.extend(_emit_rows_from_betoffers(book, league, eid, data["betOffers"]))
 
-                outcomes = bet_offer.get("outcomes", [])
-                for outcome in outcomes:
-                    if outcome.get("status") != "OPEN":
-                        continue
-
-                    # Extract price
-                    price = None
-                    odds_data = outcome.get("odds")
-                    if isinstance(odds_data, (int, float)):
-                        price = decimal_to_american(odds_data / 1000.0)  # Kambi uses milliodds
-                    elif isinstance(odds_data, dict):
-                        decimal_odds = odds_data.get("decimal")
-                        if decimal_odds:
-                            price = decimal_to_american(decimal_odds)
-
-                    if price is None:
-                        kambi_norm_skipped_total.labels("missing_price").inc()
-                        continue
-
-                    # Extract line/point
-                    point = None
-                    if "line" in outcome:
-                        point = outcome["line"]
-                        if isinstance(point, int):
-                            point = point / 1000.0  # Convert millipoints
-                    elif "handicap" in outcome:
-                        point = outcome["handicap"]
-                    else:
-                        # Try to extract from label
-                        line_from_label = extract_line_from_label(outcome.get("label", ""))
-                        if line_from_label is not None:
-                            point = line_from_label
-
-                    odds_row = OddsRow(
-                        event_id=f"kambi_{event_id}",
-                        book="kambi",
-                        market=market_type,
-                        outcome_name=outcome.get("label", ""),
-                        outcome_price=Decimal(str(price)),
-                        outcome_point=Decimal(str(point)) if point is not None else None,
-                        ts=datetime.utcnow().isoformat(),
+    # Case B: events with markets/outcomes
+    for evlist_key in ("events",):
+        if isinstance(data.get(evlist_key), list):
+            for ev in data[evlist_key]:
+                eid = str(ev.get("id") or ev.get("eventId") or "")
+                if eid:
+                    ev_ids.add(eid)
+                # markets flavor
+                if isinstance(ev.get("markets"), list):
+                    betOffers = []
+                    for mk in ev["markets"]:
+                        bo = {
+                            "criterion": {"label": mk.get("label")},
+                            "outcomes": mk.get("outcomes"),
+                        }
+                        betOffers.append(bo)
+                    rows.extend(
+                        _emit_rows_from_betoffers(
+                            book, default_league, eid or "unknown", betOffers
+                        )
                     )
-                    odds.append(odds_row)
 
-        return events, odds
-
-    except Exception as e:
-        logger.error(f"Failed to extract Kambi data: {e}")
-        kambi_norm_skipped_total.labels("extraction_error").inc()
-        return [], []
+    # Case C: group/list responses (no odds) → nothing to emit, rely on fan-out to fetch /event/{id}.json
+    return rows, ev_ids
 
 
 def normalize_kambi_data(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Legacy wrapper for compatibility"""
-    src_url = payload.get("url", "")
-    data = payload.get("data", {})
+    """Legacy wrapper for compatibility - calls new envelope function"""
+    rows, event_ids = normalize_kambi_envelope(payload)
+    k_events.inc(len(event_ids))
+    k_rows.inc(len(rows))
 
-    events, odds = extract_kambi(data, src_url)
-
-    # Convert to legacy format for existing normalizer
-    normalized_events = []
-    for event in events:
-        event_odds = [o for o in odds if o.event_id == event.id]
-        if event_odds:
-            markets = {}
-            for odd in event_odds:
-                if odd.market not in markets:
-                    markets[odd.market] = {"book": "kambi", "market_type": odd.market, "outcomes": []}
-                markets[odd.market]["outcomes"].append(
-                    {
-                        "name": odd.outcome_name,
-                        "price": float(odd.outcome_price),
-                        "point": float(odd.outcome_point) if odd.outcome_point else None,
-                    }
-                )
-
-            normalized_events.append(
-                {
-                    "event_id": event.id,
-                    "league": event.league,
-                    "sport": event.sport,
-                    "start_time": event.start_time,
-                    "home_team": event.home,
-                    "away_team": event.away,
-                    "markets": list(markets.values()),
-                }
-            )
-
+    # Legacy format expected by existing normalizer
     return {
         "source": "kambi",
         "book": "kambi",
         "timestamp": datetime.utcnow().isoformat(),
-        "events": normalized_events,
+        "rows": rows,  # Return rows directly for new normalizer flow
     }

@@ -6,7 +6,7 @@ import time
 import traceback
 import hashlib
 import random
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Set, List
 from urllib.parse import urlparse
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import redis
@@ -16,24 +16,28 @@ from playwright.async_api import async_playwright
 KAMBI_STATE_URL = os.getenv(
     "KAMBI_STATE_URL", "https://pa.betrivers.com/?page=sportsbook#american_football/nfl"
 )
-KAMBI_CAPTURE_PATTERNS = os.getenv(
-    "KAMBI_CAPTURE_PATTERNS",
-    r".*kambicdn\.com/offering/.*|.*kambi\.com/.*",
-)
-KAMBI_STORAGE = os.getenv("KAMBI_STORAGE", "state/kambi-browser/state.json")
-KAMBI_HEADFUL = os.getenv("KAMBI_BROWSER_HEADFUL", "false").lower() == "true"
 PROXY_URL = os.getenv("PROXY_URL", "")
 PROXY_MANAGER_URL = os.getenv("PROXY_MANAGER_URL", "")
-REDIS_URL = os.getenv("REDIS_URL", "redis://broker:6379/0")
-REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", "odds.raw.kambi")
-METRICS_PORT = int(os.getenv("KAMBI_BROWSER_METRICS_PORT", "9118"))
-LAST_RESORT_AFTER_SEC = int(os.getenv("KAMBI_LAST_RESORT_AFTER_SEC", "15"))
-NAV_TIMEOUT = int(os.getenv("KAMBI_NAV_TIMEOUT_SEC", "25"))
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", "odds.raw")
+KAMBI_STORAGE = os.getenv("KAMBI_STORAGE", "state/kambi-browser/state.json")
+METRICS_PORT = int(os.getenv("METRICS_PORT", "8091"))
+KAMBI_HEADFUL = os.getenv("KAMBI_HEADFUL", "false").lower() == "true"
+NAV_TIMEOUT = int(os.getenv("NAV_TIMEOUT", "30"))
+KAMBI_CAPTURE_PATTERNS = [
+    r".*kambi.*offering.*/list[Vv]iew/events.*",
+    r".*kambi.*offering.*/betoffer/.*",
+    r".*pa\.betrivers\.com.*/listview/events.*",
+]
+# Enhanced metrics
+k_sections = Counter("kambi_browser_sections_total", "sections visited", ["section"])
+k_clicks = Counter("kambi_browser_events_clicked_total", "events clicked")
+k_odds = Counter("kambi_payloads_odds_detected_total", "payloads with odds detected")
+k_fanout = Counter("kambi_browser_fanouts_total", "fanouts performed", ["type"])
+k_distinct = Gauge(
+    "kambi_browser_distinct_events_seen", "distinct eventIds seen this run"
+)
 
-# ---- METRICS ----
-m_captured = Counter("kambi_browser_captured_total", "Captured offering JSON responses")
-m_published = Counter("kambi_browser_published_total", "Published messages to Redis")
-m_errors = Counter("kambi_browser_errors_total", "Errors", ["type"])
 m_last_success_ts = Gauge(
     "kambi_browser_last_success_timestamp_seconds", "Last success ts"
 )
@@ -47,12 +51,167 @@ m_publish_status = Counter("kambi_publish_total", "Publish attempts", ["status"]
 kambi_last_success_timestamp_seconds = Gauge(
     "kambi_last_success_timestamp_seconds", "Last successful odds capture"
 )
+m_captured = Counter("kambi_captured_total", "Total payloads captured")
+m_published = Counter("kambi_published_total", "Total payloads published to Redis")
+m_errors = Counter("kambi_errors_total", "Total errors", ["type"])
 
-pattern = re.compile(KAMBI_CAPTURE_PATTERNS)
+# Enhanced capture patterns
+CAPTURE_PATTERNS = [
+    re.compile(r"offering.*(list|listview|events|event|betoffer).*\.json", re.I),
+    re.compile(r"kambi.*(betoffer|event|odds)", re.I),
+]
+
+SECTIONS = [
+    s.strip()
+    for s in os.getenv("KAMBI_TARGET_SECTIONS", "NFL,MLB,NBA,NHL,NCAAF,TENNIS").split(
+        ","
+    )
+    if s.strip()
+]
+MAX_EVENTS = int(os.getenv("KAMBI_BROWSER_MAX_EVENTS", "12"))
+MAX_CONC = int(os.getenv("KAMBI_BROWSER_MAX_CONCURRENCY", "6"))
+MIN_TARGET = int(os.getenv("KAMBI_MIN_EVENTS_TARGET", "5"))
+
+event_ids_seen: Set[str] = set()
+
+pattern = re.compile("|".join(KAMBI_CAPTURE_PATTERNS))
 
 
 def log(msg: str):
     print(f"[kambi-browser] {msg}", flush=True)
+
+
+def guess_event_id_from_url_or_payload(url: str, data: dict) -> List[str]:
+    ids = set()
+    # common fields
+    for key in ("eventId", "event_id"):
+        v = data.get(key)
+        if isinstance(v, (int, str)):
+            ids.add(str(v))
+    # betOffers array
+    for bo in data.get("betOffers", []) or []:
+        v = bo.get("eventId") or (bo.get("event") or {}).get("id")
+        if isinstance(v, (int, str)):
+            ids.add(str(v))
+        for oc in bo.get("outcomes", []) or []:
+            v = oc.get("eventId")
+            if isinstance(v, (int, str)):
+                ids.add(str(v))
+    # URL fallback (…/event/12345/…)
+    m = re.search(r"/event[s]?/(\d+)", url)
+    if m:
+        ids.add(m.group(1))
+    return list(ids)
+
+
+async def goto_section(page, section):
+    """Navigate to a specific sports section"""
+    try:
+        # Common section selectors
+        selectors = [
+            f"text=/{section}/i",
+            f"[data-sport*='{section.lower()}' i]",
+            f"[href*='{section.lower()}' i]",
+            f"a:has-text('{section}')",
+        ]
+
+        for selector in selectors:
+            try:
+                element = page.locator(selector).first
+                if await element.is_visible(timeout=2000):
+                    log(f"clicking {section} section")
+                    await element.click()
+                    await asyncio.sleep(2)
+                    return True
+            except Exception:
+                continue
+        log(f"could not find {section} section")
+        return False
+    except Exception as e:
+        log(f"goto_section {section} failed: {e}")
+        return False
+
+
+async def scroll_to_load_more(page, seconds=3):
+    """Scroll to trigger lazy loading of more events"""
+    try:
+        for i in range(seconds):
+            await page.mouse.wheel(0, 800)
+            await asyncio.sleep(1)
+    except Exception as e:
+        log(f"scroll_to_load_more failed: {e}")
+
+
+async def discover_event_links(page, limit=8) -> List[str]:
+    """Find event links/cards on the current page"""
+    links = []
+    try:
+        event_selectors = [
+            "[data-testid*='event']",
+            "[class*='event']",
+            "[class*='match']",
+            "a[href*='event']",
+            "[role='button']:has-text('vs')",
+            ".event-card",
+            ".match-card",
+        ]
+
+        for selector in event_selectors:
+            try:
+                events = page.locator(selector)
+                count = await events.count()
+
+                for i in range(min(count, limit - len(links))):
+                    try:
+                        event = events.nth(i)
+                        if await event.is_visible(timeout=1000):
+                            # Skip live video elements
+                            text = await event.text_content() or ""
+                            if any(
+                                skip in text.lower()
+                                for skip in ["live", "video", "stream"]
+                            ):
+                                continue
+                            links.append(f"selector_{selector}_{i}")
+                            if len(links) >= limit:
+                                break
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+
+        log(f"discovered {len(links)} event links")
+        return links[:limit]
+    except Exception as e:
+        log(f"discover_event_links failed: {e}")
+        return []
+
+
+async def click_or_goto(page, href):
+    """Click on an event link or navigate to it"""
+    try:
+        # Extract selector info from href (simplified)
+        if href.startswith("selector_"):
+            parts = href.split("_")
+            selector = "_".join(parts[1:-1])
+            index = int(parts[-1])
+
+            events = page.locator(selector)
+            event = events.nth(index)
+
+            if await event.is_visible(timeout=2000):
+                await event.click()
+                await page.wait_for_load_state("networkidle", timeout=5000)
+                await asyncio.sleep(2)  # Wait for XHR
+
+                # Go back
+                try:
+                    await page.go_back()
+                    await asyncio.sleep(1)
+                except Exception:
+                    pass
+    except Exception as e:
+        log(f"click_or_goto failed: {e}")
 
 
 def has_odds_data(data: Dict[str, Any]) -> bool:
@@ -221,7 +380,7 @@ async def run_once():
             async def handle_response(resp):
                 try:
                     url = resp.url
-                    if not pattern.search(url):
+                    if not any(p.search(url) for p in CAPTURE_PATTERNS):
                         return
                     ctype = (resp.headers or {}).get("content-type", "")
                     if "json" not in ctype:
@@ -233,6 +392,14 @@ async def run_once():
                     # Check if this payload contains odds data
                     contains_odds = has_odds_data(data)
 
+                    # odds-ish heuristic
+                    if (
+                        ("betOffers" in data)
+                        or ("outcomes" in data)
+                        or ("markets" in data)
+                    ):
+                        k_odds.inc()
+
                     if contains_odds:
                         m_payloads_odds.inc()
                         kambi_last_success_timestamp_seconds.set(time.time())
@@ -243,6 +410,13 @@ async def run_once():
                             log(f"saved odds artifact: {artifact_path}")
                         except Exception as e:
                             log(f"failed to save artifact: {e}")
+
+                    # collect eventIds
+                    for eid in guess_event_id_from_url_or_payload(url, data):
+                        if eid not in event_ids_seen:
+                            event_ids_seen.add(eid)
+                            k_distinct.set(len(event_ids_seen))
+                    k_fanout.labels("xhr").inc()
 
                     payload = {
                         "source": "kambi",
@@ -269,7 +443,7 @@ async def run_once():
 
             page.on("response", handle_response)
 
-            # Enhanced navigation to capture event odds
+            # Navigate sections and click events concurrently
             try:
                 log(f"goto {KAMBI_STATE_URL}")
                 await page.goto(
@@ -281,113 +455,51 @@ async def run_once():
                 # Wait for initial page load and capture any immediate responses
                 await asyncio.sleep(3)
 
-                # Navigate to NFL if not already there
-                try:
-                    # Look for NFL links (case-insensitive)
-                    nfl_selectors = [
-                        "text=/NFL/i",
-                        "text=/National Football League/i",
-                        "[data-sport*='nfl' i]",
-                        "[href*='nfl' i]",
-                    ]
+                # Navigate sections and click events concurrently
+                total_events_processed = 0
+                for section in SECTIONS:
+                    k_sections.labels(section).inc()
+                    log(f"processing section: {section}")
+                    if await goto_section(page, section):
+                        await scroll_to_load_more(page, seconds=4)
+                        links = await discover_event_links(page, limit=MAX_EVENTS)
 
-                    for selector in nfl_selectors:
-                        try:
-                            nfl_link = page.locator(selector).first
-                            if await nfl_link.is_visible(timeout=2000):
-                                log("clicking NFL section")
-                                await nfl_link.click()
-                                m_clicks.inc()
-                                await jittered_sleep()
-                                break
-                        except Exception:
-                            continue
+                        if links:
+                            log(f"found {len(links)} events in {section}")
+                            # bounded concurrency
+                            sem = asyncio.Semaphore(MAX_CONC)
 
-                except Exception as e:
-                    log(f"nfl navigation attempt failed: {e}")
+                            async def open_event(href):
+                                async with sem:
+                                    try:
+                                        await click_or_goto(page, href)
+                                        k_clicks.inc()
+                                        await asyncio.sleep(0.8)
+                                    except Exception:
+                                        pass
 
-                # Scroll to load more events
-                log("scrolling to load events")
-                for i in range(3):
-                    await page.mouse.wheel(0, 800)
-                    await asyncio.sleep(1)
+                            await asyncio.gather(
+                                *(open_event(h) for h in links), return_exceptions=True
+                            )
+                            total_events_processed += len(links)
 
-                # Find and click on NFL event links
-                event_clicks = 0
-                max_events = 6
+                        # Continue to next section regardless to broaden capture
+                        await asyncio.sleep(2)
+                    else:
+                        log(f"skipped section: {section}")
 
-                try:
-                    # Look for event links/cards
-                    event_selectors = [
-                        "[data-testid*='event']",
-                        "[class*='event']",
-                        "[class*='match']",
-                        "a[href*='event']",
-                        "[role='button']:has-text('vs')",
-                        ".event-card",
-                        ".match-card",
-                    ]
+                log(
+                    f"processed {total_events_processed} events across {len(SECTIONS)} sections"
+                )
 
-                    for selector in event_selectors:
-                        if event_clicks >= max_events:
-                            break
+                # If still under target, perform small REST fanout
+                if len(event_ids_seen) < MIN_TARGET:
+                    try:
+                        from .fanout import rest_fanout
 
-                        try:
-                            events = page.locator(selector)
-                            count = await events.count()
-                            log(f"found {count} elements for selector {selector}")
-
-                            for i in range(min(count, max_events - event_clicks)):
-                                try:
-                                    event = events.nth(i)
-                                    if await event.is_visible(timeout=1000):
-                                        # Skip if it looks like a live video element
-                                        text = await event.text_content() or ""
-                                        if any(
-                                            skip in text.lower()
-                                            for skip in ["live", "video", "stream"]
-                                        ):
-                                            continue
-
-                                        log(f"clicking event {i+1}")
-                                        await event.click()
-                                        m_clicks.inc()
-                                        event_clicks += 1
-
-                                        # Wait for network idle to capture event-specific requests
-                                        await page.wait_for_load_state(
-                                            "networkidle", timeout=5000
-                                        )
-                                        await asyncio.sleep(
-                                            3
-                                        )  # Additional wait for XHR
-
-                                        # Go back to events list
-                                        try:
-                                            await page.go_back()
-                                            await asyncio.sleep(2)
-                                        except Exception:
-                                            # If back doesn't work, reload NFL page
-                                            await page.goto(
-                                                KAMBI_STATE_URL,
-                                                wait_until="domcontentloaded",
-                                            )
-                                            await asyncio.sleep(2)
-
-                                        await jittered_sleep()
-
-                                except Exception as e:
-                                    log(f"event click {i} failed: {e}")
-                                    continue
-                        except Exception as e:
-                            log(f"selector {selector} failed: {e}")
-                            continue
-
-                    log(f"completed {event_clicks} event interactions")
-
-                except Exception as e:
-                    log(f"event clicking failed: {e}")
-                    m_errors.labels("event_clicks").inc()
+                        rest_fanout(event_ids_seen)
+                    except Exception:
+                        pass
 
                 # Wait a bit more to capture any final requests
                 await asyncio.sleep(5)

@@ -2,11 +2,11 @@ import os
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
-from datetime import datetime
+import textwrap
 
 import redis.asyncio as redis
 import psycopg
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.responses import Response
 import uvicorn
 from prometheus_client import Histogram
@@ -35,7 +35,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="OddsFeed API", version="0.1.0", lifespan=lifespan)
 
 # Add specific /odds latency metric
-odds_request_seconds = Histogram("odds_request_seconds", "Time taken to process /odds requests")
+odds_request_seconds = Histogram(
+    "odds_request_seconds", "Time taken to process /odds requests"
+)
 
 setup_metrics(app)
 
@@ -83,12 +85,11 @@ async def health_check():
 
 @app.get("/odds")
 async def get_odds(
-    league: Optional[str] = Query(None, description="Filter by league"),
-    book: Optional[str] = Query(None, description="Filter by book"),
-    market: Optional[str] = Query(None, description="Filter by market type"),
-    limit: int = Query(100, description="Maximum number of records to return"),
-    minutes: int = Query(10, description="Lookback period in minutes"),
-    after: Optional[str] = Query(None, description="ISO timestamp cursor for pagination"),
+    minutes: int = 10,
+    limit: int = 20,
+    book: Optional[str] = None,
+    league: Optional[str] = None,
+    market: Optional[str] = None,
 ):
     """Get recent odds data from the database"""
     conn = getattr(app.state, "db_conn", None)
@@ -99,85 +100,71 @@ async def get_odds(
     start_time = time.time()
 
     try:
-        # Build dynamic query with filters
-        query = """
+        sql = textwrap.dedent(
+            """
+            WITH recent AS (
+                SELECT *
+                FROM odds
+                WHERE ts > now() - (%(minutes)s::int || ' minutes')::interval
+                  AND (%(book)s::text IS NULL OR book = %(book)s)
+                  AND (%(market)s::text IS NULL OR market = %(market)s)
+            ),
+            evs AS (
+                SELECT DISTINCT event_id
+                FROM recent
+            ),
+            agg AS (
+                SELECT
+                  r.event_id,
+                  jsonb_agg(
+                    jsonb_build_object(
+                      'market', r.market,
+                      'line', r.line,
+                      'price_home', r.price_home,
+                      'price_away', r.price_away,
+                      'total', r.total,
+                      'ts', r.ts
+                    ) ORDER BY r.ts DESC
+                  ) AS odds_rows
+                FROM recent r
+                GROUP BY r.event_id
+            )
             SELECT
-                e.id as event_id,
-                e.league,
-                e.start_time,
-                e.home,
-                e.away,
-                e.sport,
-                o.book,
-                o.market,
-                o.outcome_name,
-                o.outcome_price,
-                o.outcome_point,
-                o.ts
-            FROM events e
-            JOIN odds o ON e.id = o.event_id
-            WHERE o.ts >= NOW() - MAKE_INTERVAL(mins => %(minutes)s)
+              a.event_id,
+              e.league,
+              COALESCE(e.home, NULL) AS home,
+              COALESCE(e.away, NULL) AS away,
+              a.odds_rows
+            FROM agg a
+            LEFT JOIN events e ON e.id = a.event_id
+            WHERE (%(league)s::text IS NULL OR e.league = %(league)s)
+            ORDER BY a.event_id DESC
+            LIMIT %(limit)s
         """
+        )
 
-        params = {"minutes": minutes}
-
-        # Add pagination cursor
-        if after:
-            try:
-                after_dt = datetime.fromisoformat(after.replace("Z", "+00:00"))
-                query += " AND o.ts > %(after)s"
-                params["after"] = after_dt
-            except ValueError:
-                return {"error": "Invalid after timestamp format. Use ISO format."}
-
-        if league:
-            query += " AND e.league ILIKE %(league)s"
-            params["league"] = f"%{league}%"
-        if book:
-            query += " AND o.book = %(book)s"
-            params["book"] = book
-        if market:
-            query += " AND o.market = %(market)s"
-            params["market"] = market
-
-        query += " ORDER BY o.ts DESC LIMIT %(limit)s"
-        params["limit"] = limit
+        params = {
+            "minutes": minutes,
+            "book": book,
+            "league": league,
+            "market": market,
+            "limit": limit,
+        }
 
         async with conn.cursor() as cur:
-            await cur.execute(query, params)
+            await cur.execute(sql, params)
             rows = await cur.fetchall()
 
-            # Group by event for cleaner response
-            events_dict = {}
-            max_ts = None
-
-            for row in rows:
-                event_id = row[0]
-                ts = row[11]  # timestamp column
-
-                # Track max timestamp for next_cursor
-                if max_ts is None or (ts and ts > max_ts):
-                    max_ts = ts
-
-                if event_id not in events_dict:
-                    events_dict[event_id] = {
-                        "event_id": event_id,
-                        "league": row[1],
-                        "start_time": row[2].isoformat() if row[2] else None,
-                        "home": row[3],
-                        "away": row[4],
-                        "sport": row[5],
-                        "odds": [],
-                    }
-
-                events_dict[event_id]["odds"].append(
+            # Shape response similar to before
+            events = []
+            for r in rows:
+                events.append(
                     {
-                        "book": row[6],
-                        "market": row[7],
-                        "outcome_name": row[8],
-                        "outcome_price": float(row[9]) if row[9] else None,
-                        "outcome_point": float(row[10]) if row[10] else None,
-                        "timestamp": ts.isoformat() if ts else None,
+                        "event_id": r[0],
+                        "league": r[1],
+                        "home": r[2],
+                        "away": r[3],
+                        "odds": r[4],
                     }
                 )
 
@@ -185,17 +172,7 @@ async def get_odds(
             duration = time.time() - start_time
             odds_request_seconds.observe(duration)
 
-            result = {
-                "events": list(events_dict.values()),
-                "count": len(events_dict),
-                "filters": {"league": league, "book": book, "market": market},
-            }
-
-            # Add next_cursor if we have data
-            if max_ts and len(rows) == limit:
-                result["next_cursor"] = max_ts.isoformat()
-
-            return result
+            return {"status": "ok", "count": len(events), "events": events}
 
     except Exception as e:
         # Record latency metric even on failure

@@ -9,25 +9,37 @@ from psycopg_pool import AsyncConnectionPool
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
-from normalizer.kambi_mapper import normalize_kambi_data, extract_kambi, kambi_norm_rows_total
+from normalizer.kambi_mapper import normalize_kambi_envelope, k_rows, k_skip
+import time
 
 # Kambi freshness gauge
 kambi_last_insert_ts = Gauge(
-    "kambi_last_insert_ts_seconds", "Last successful Kambi insert timestamp (seconds since epoch)"
+    "kambi_last_insert_ts_seconds",
+    "Last successful Kambi insert timestamp (seconds since epoch)",
 )
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
-MESSAGES_PROCESSED = Counter("messages_processed_total", "Total messages processed", ["book", "status"])
-PROCESSING_LATENCY = Histogram("message_processing_duration_seconds", "Message processing latency")
+MESSAGES_PROCESSED = Counter(
+    "messages_processed_total", "Total messages processed", ["book", "status"]
+)
+PROCESSING_LATENCY = Histogram(
+    "message_processing_duration_seconds", "Message processing latency"
+)
 
 
 class Normalizer:
     def __init__(self):
-        self.redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-        self.db_url = os.getenv("DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed")
+        self.redis_client = redis.from_url(
+            os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        )
+        self.db_url = os.getenv(
+            "DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed"
+        )
         self.running = False
 
     async def connect_db(self):
@@ -116,10 +128,38 @@ class Normalizer:
                                 )
 
                     await conn.commit()
-                    logger.info(f"Stored {len(payload.get('events', []))} events with odds data")
+                    logger.info(
+                        f"Stored {len(payload.get('events', []))} events with odds data"
+                    )
 
         except Exception as e:
             logger.error(f"Failed to store aggregator data: {e}")
+
+    async def write_row_with_now(self, r: dict):
+        """Write normalized odds row with current timestamp"""
+        if not self.db_pool:
+            return
+
+        try:
+            async with self.db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    # First ensure event exists (upsert)
+                    event_sql = """
+                    INSERT INTO events (id, league, start_time, home, away, sport)
+                    VALUES (%(event_id)s, %(league)s, NOW(), 'Home Team', 'Away Team', 'american_football')
+                    ON CONFLICT (id) DO NOTHING
+                    """
+                    await cur.execute(event_sql, r)
+
+                    # Then insert odds
+                    sql = """
+                    INSERT INTO odds(book, event_id, market, line, price_home, price_away, total, ts)
+                    VALUES (%(book)s, %(event_id)s, %(market)s, %(line)s, %(price_home)s, %(price_away)s, %(total)s, NOW())
+                    """
+                    await cur.execute(sql, r)
+                    await conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to write row: {e}")
 
     async def store_kambi_data(self, events, odds):
         if not self.db_pool:
@@ -191,26 +231,15 @@ class Normalizer:
                     normalized_payload = normalize_pinnacle_data(payload)
                     await self.store_aggregator_data(normalized_payload)
                 elif book == "kambi":
-                    # Enhanced Kambi processing with direct extraction
-                    src_url = payload.get("url", "")
-                    data = payload.get("data", {})
-                    events, odds = extract_kambi(data, src_url)
-
-                    events_count = len(events)
-                    odds_count = len(odds)
-
-                    if events:
-                        # Store using new extraction method
-                        await self.store_kambi_data(events, odds)
-                        kambi_norm_rows_total.inc(events_count + odds_count)
-                        import time
-
-                        kambi_last_insert_ts.set(time.time())
-                        logger.info(f"kambi_norm: events={events_count} odds={odds_count} url={src_url[:100]}")
+                    rows, _ = normalize_kambi_envelope(payload)
+                    if not rows:
+                        k_skip.labels("no_rows").inc()
                     else:
-                        # Fallback to legacy method
-                        normalized_payload = normalize_kambi_data(payload)
-                        await self.store_aggregator_data(normalized_payload)
+                        # write with ts=NOW() for freshness
+                        for r in rows:
+                            await self.write_row_with_now(r)
+                            k_rows.inc()
+                        kambi_last_insert_ts.set(time.time())
                 else:
                     await self.store_event(book, payload)
 
