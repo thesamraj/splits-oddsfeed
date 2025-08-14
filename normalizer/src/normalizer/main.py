@@ -9,30 +9,20 @@ from psycopg_pool import AsyncConnectionPool
 from prometheus_client import Counter, Histogram, start_http_server
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
-from normalizer.kambi_mapper import normalize_kambi_data
+from normalizer.kambi_mapper import normalize_kambi_data, extract_kambi, kambi_norm_rows_total
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-MESSAGES_PROCESSED = Counter(
-    "messages_processed_total", "Total messages processed", ["book", "status"]
-)
-PROCESSING_LATENCY = Histogram(
-    "message_processing_duration_seconds", "Message processing latency"
-)
+MESSAGES_PROCESSED = Counter("messages_processed_total", "Total messages processed", ["book", "status"])
+PROCESSING_LATENCY = Histogram("message_processing_duration_seconds", "Message processing latency")
 
 
 class Normalizer:
     def __init__(self):
-        self.redis_client = redis.from_url(
-            os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        )
-        self.db_url = os.getenv(
-            "DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed"
-        )
+        self.redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        self.db_url = os.getenv("DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed")
         self.running = False
 
     async def connect_db(self):
@@ -121,12 +111,64 @@ class Normalizer:
                                 )
 
                     await conn.commit()
-                    logger.info(
-                        f"Stored {len(payload.get('events', []))} events with odds data"
-                    )
+                    logger.info(f"Stored {len(payload.get('events', []))} events with odds data")
 
         except Exception as e:
             logger.error(f"Failed to store aggregator data: {e}")
+
+    async def store_kambi_data(self, events, odds):
+        if not self.db_pool:
+            return
+
+        try:
+            async with self.db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    # Insert events
+                    for event in events:
+                        await cur.execute(
+                            """
+                            INSERT INTO events (id, league, start_time, home, away, sport)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (id) DO UPDATE SET
+                                league = EXCLUDED.league,
+                                start_time = EXCLUDED.start_time,
+                                home = EXCLUDED.home,
+                                away = EXCLUDED.away,
+                                sport = EXCLUDED.sport
+                        """,
+                            (
+                                event.id,
+                                event.league,
+                                event.start_time,
+                                event.home,
+                                event.away,
+                                event.sport,
+                            ),
+                        )
+
+                    # Insert odds
+                    for odd in odds:
+                        await cur.execute(
+                            """
+                            INSERT INTO odds (
+                                event_id, book, market, outcome_name,
+                                outcome_price, outcome_point
+                            ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                            (
+                                odd.event_id,
+                                odd.book,
+                                odd.market,
+                                odd.outcome_name,
+                                odd.outcome_price,
+                                odd.outcome_point,
+                            ),
+                        )
+
+                    await conn.commit()
+
+        except Exception as e:
+            logger.error(f"Failed to store Kambi data: {e}")
 
     async def process_message(self, channel: str, message: str):
         with PROCESSING_LATENCY.time():
@@ -144,9 +186,23 @@ class Normalizer:
                     normalized_payload = normalize_pinnacle_data(payload)
                     await self.store_aggregator_data(normalized_payload)
                 elif book == "kambi":
-                    # Normalize Kambi data and store as aggregator format
-                    normalized_payload = normalize_kambi_data(payload)
-                    await self.store_aggregator_data(normalized_payload)
+                    # Enhanced Kambi processing with direct extraction
+                    src_url = payload.get("url", "")
+                    data = payload.get("data", {})
+                    events, odds = extract_kambi(data, src_url)
+
+                    events_count = len(events)
+                    odds_count = len(odds)
+
+                    if events:
+                        # Store using new extraction method
+                        await self.store_kambi_data(events, odds)
+                        kambi_norm_rows_total.inc(events_count + odds_count)
+                        logger.info(f"kambi_norm: events={events_count} odds={odds_count} url={src_url[:100]}")
+                    else:
+                        # Fallback to legacy method
+                        normalized_payload = normalize_kambi_data(payload)
+                        await self.store_aggregator_data(normalized_payload)
                 else:
                     await self.store_event(book, payload)
 
