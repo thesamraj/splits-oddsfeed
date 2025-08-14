@@ -4,6 +4,8 @@ import os
 import re
 import time
 import traceback
+import hashlib
+import random
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
@@ -16,7 +18,7 @@ KAMBI_STATE_URL = os.getenv(
 )
 KAMBI_CAPTURE_PATTERNS = os.getenv(
     "KAMBI_CAPTURE_PATTERNS",
-    r"/offering/.*(v2018|events|selections)|e0-api\.kambi\.com/.*",
+    r".*kambicdn\.com/offering/.*|.*kambi\.com/.*",
 )
 KAMBI_STORAGE = os.getenv("KAMBI_STORAGE", "state/kambi-browser/state.json")
 KAMBI_HEADFUL = os.getenv("KAMBI_BROWSER_HEADFUL", "false").lower() == "true"
@@ -38,12 +40,96 @@ m_last_success_ts = Gauge(
 m_latency = Histogram(
     "kambi_browser_nav_latency_seconds", "Nav-to-first-capture latency"
 )
+m_clicks = Counter("kambi_browser_clicks_total", "Total clicks performed")
+m_payloads_seen = Counter("kambi_payloads_seen_total", "Total payloads intercepted")
+m_payloads_odds = Counter("kambi_payloads_odds_total", "Payloads containing odds data")
+m_publish_status = Counter("kambi_publish_total", "Publish attempts", ["status"])
+kambi_last_success_timestamp_seconds = Gauge(
+    "kambi_last_success_timestamp_seconds", "Last successful odds capture"
+)
 
 pattern = re.compile(KAMBI_CAPTURE_PATTERNS)
 
 
 def log(msg: str):
     print(f"[kambi-browser] {msg}", flush=True)
+
+
+def has_odds_data(data: Dict[str, Any]) -> bool:
+    """Heuristic to detect odds-bearing payloads"""
+
+    def check_recursive(obj, depth=0):
+        if depth > 10:  # Prevent infinite recursion
+            return False
+        if isinstance(obj, dict):
+            # Check for key patterns (case-insensitive)
+            for key in obj.keys():
+                key_lower = key.lower()
+                if any(
+                    pattern in key_lower
+                    for pattern in [
+                        "betoffers",
+                        "betoffer",
+                        "outcomes",
+                        "selections",
+                        "markets",
+                    ]
+                ):
+                    # Check if it contains actual odds data
+                    value = obj[key]
+                    if isinstance(value, list) and value:
+                        # Check first item for price/odds data
+                        first_item = value[0] if value else {}
+                        if isinstance(first_item, dict):
+                            if any(
+                                k.lower() in ["price", "odds", "outcome"]
+                                for k in first_item.keys()
+                            ):
+                                return True
+                    elif isinstance(value, dict) and any(
+                        k.lower() in ["price", "odds", "outcome"] for k in value.keys()
+                    ):
+                        return True
+            # Recursively check nested objects
+            for value in obj.values():
+                if check_recursive(value, depth + 1):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if check_recursive(item, depth + 1):
+                    return True
+        return False
+
+    return check_recursive(data)
+
+
+async def save_odds_artifact(data: Dict[str, Any], url: str) -> str:
+    """Save odds payload to artifacts directory"""
+    epoch = int(time.time())
+    url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+
+    # Ensure artifacts directory exists
+    artifacts_dir = "artifacts/kambi"
+    os.makedirs(artifacts_dir, exist_ok=True)
+
+    filename = f"odds-{epoch}-{url_hash}.json"
+    filepath = os.path.join(artifacts_dir, filename)
+
+    # Save the payload
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+
+    # Append to index
+    index_path = os.path.join(artifacts_dir, "odds_index.txt")
+    with open(index_path, "a") as f:
+        f.write(f"{filepath}\n")
+
+    return filepath
+
+
+async def jittered_sleep():
+    """Add jittered think time between interactions"""
+    await asyncio.sleep(random.uniform(0.7, 1.5))
 
 
 def _parse_proxy(url: str) -> Optional[Dict[str, Any]]:
@@ -96,9 +182,11 @@ async def publish(rconn, payload):
         msg = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
         rconn.publish(REDIS_CHANNEL, msg)
         m_published.inc()
+        m_publish_status.labels("ok").inc()
     except Exception as e:
         log(f"redis publish error: {e}")
         m_errors.labels("redis").inc()
+        m_publish_status.labels("error").inc()
 
 
 async def run_once():
@@ -138,7 +226,24 @@ async def run_once():
                     ctype = (resp.headers or {}).get("content-type", "")
                     if "json" not in ctype:
                         return
+
                     data = await resp.json()
+                    m_payloads_seen.inc()
+
+                    # Check if this payload contains odds data
+                    contains_odds = has_odds_data(data)
+
+                    if contains_odds:
+                        m_payloads_odds.inc()
+                        kambi_last_success_timestamp_seconds.set(time.time())
+
+                        # Save artifact
+                        try:
+                            artifact_path = await save_odds_artifact(data, url)
+                            log(f"saved odds artifact: {artifact_path}")
+                        except Exception as e:
+                            log(f"failed to save artifact: {e}")
+
                     payload = {
                         "source": "kambi",
                         "url": url,
@@ -146,18 +251,25 @@ async def run_once():
                         "ts": time.time(),
                         "data": data,
                     }
+
+                    # Publish all matching payloads (not just odds-bearing ones)
                     await publish(rconn, payload)
                     m_captured.inc()
+
                     if not first_capture.done():
                         first_capture.set_result(True)
                         m_last_success_ts.set(time.time())
-                    log(f"captured {resp.status} {url}")
+
+                    log(
+                        f"captured {resp.status} {url} {'(odds)' if contains_odds else ''}"
+                    )
                 except Exception as e:
                     log(f"response handler error: {e}")
                     m_errors.labels("resp_parse").inc()
 
             page.on("response", handle_response)
 
+            # Enhanced navigation to capture event odds
             try:
                 log(f"goto {KAMBI_STATE_URL}")
                 await page.goto(
@@ -165,14 +277,126 @@ async def run_once():
                     wait_until="domcontentloaded",
                     timeout=NAV_TIMEOUT * 1000,
                 )
+
+                # Wait for initial page load and capture any immediate responses
+                await asyncio.sleep(3)
+
+                # Navigate to NFL if not already there
+                try:
+                    # Look for NFL links (case-insensitive)
+                    nfl_selectors = [
+                        "text=/NFL/i",
+                        "text=/National Football League/i",
+                        "[data-sport*='nfl' i]",
+                        "[href*='nfl' i]",
+                    ]
+
+                    for selector in nfl_selectors:
+                        try:
+                            nfl_link = page.locator(selector).first
+                            if await nfl_link.is_visible(timeout=2000):
+                                log("clicking NFL section")
+                                await nfl_link.click()
+                                m_clicks.inc()
+                                await jittered_sleep()
+                                break
+                        except Exception:
+                            continue
+
+                except Exception as e:
+                    log(f"nfl navigation attempt failed: {e}")
+
+                # Scroll to load more events
+                log("scrolling to load events")
+                for i in range(3):
+                    await page.mouse.wheel(0, 800)
+                    await asyncio.sleep(1)
+
+                # Find and click on NFL event links
+                event_clicks = 0
+                max_events = 6
+
+                try:
+                    # Look for event links/cards
+                    event_selectors = [
+                        "[data-testid*='event']",
+                        "[class*='event']",
+                        "[class*='match']",
+                        "a[href*='event']",
+                        "[role='button']:has-text('vs')",
+                        ".event-card",
+                        ".match-card",
+                    ]
+
+                    for selector in event_selectors:
+                        if event_clicks >= max_events:
+                            break
+
+                        try:
+                            events = page.locator(selector)
+                            count = await events.count()
+                            log(f"found {count} elements for selector {selector}")
+
+                            for i in range(min(count, max_events - event_clicks)):
+                                try:
+                                    event = events.nth(i)
+                                    if await event.is_visible(timeout=1000):
+                                        # Skip if it looks like a live video element
+                                        text = await event.text_content() or ""
+                                        if any(
+                                            skip in text.lower()
+                                            for skip in ["live", "video", "stream"]
+                                        ):
+                                            continue
+
+                                        log(f"clicking event {i+1}")
+                                        await event.click()
+                                        m_clicks.inc()
+                                        event_clicks += 1
+
+                                        # Wait for network idle to capture event-specific requests
+                                        await page.wait_for_load_state(
+                                            "networkidle", timeout=5000
+                                        )
+                                        await asyncio.sleep(
+                                            3
+                                        )  # Additional wait for XHR
+
+                                        # Go back to events list
+                                        try:
+                                            await page.go_back()
+                                            await asyncio.sleep(2)
+                                        except Exception:
+                                            # If back doesn't work, reload NFL page
+                                            await page.goto(
+                                                KAMBI_STATE_URL,
+                                                wait_until="domcontentloaded",
+                                            )
+                                            await asyncio.sleep(2)
+
+                                        await jittered_sleep()
+
+                                except Exception as e:
+                                    log(f"event click {i} failed: {e}")
+                                    continue
+                        except Exception as e:
+                            log(f"selector {selector} failed: {e}")
+                            continue
+
+                    log(f"completed {event_clicks} event interactions")
+
+                except Exception as e:
+                    log(f"event clicking failed: {e}")
+                    m_errors.labels("event_clicks").inc()
+
+                # Wait a bit more to capture any final requests
+                await asyncio.sleep(5)
+
             except Exception as e:
                 log(f"nav error: {e}")
                 m_errors.labels("nav").inc()
 
-            try:
-                await asyncio.wait_for(first_capture, timeout=LAST_RESORT_AFTER_SEC)
-            except asyncio.TimeoutError:
-                # Last resort: in-page fetch with session cookies
+                # Fallback: try direct API call
                 try:
                     candidate = "https://e0-api.kambi.com/offering/v2018/pa/listView/american_football/nfl/all/all"
                     js = f"""
@@ -202,14 +426,12 @@ async def run_once():
                         await publish(rconn, payload)
                         m_captured.inc()
                         m_last_success_ts.set(time.time())
-                        log(
-                            f"last-resort captured {res.get('status')} {res.get('url')}"
-                        )
+                        log(f"fallback captured {res.get('status')} {res.get('url')}")
                     except Exception as e:
-                        log(f"last-resort parse error: {e}")
+                        log(f"fallback parse error: {e}")
                         m_errors.labels("last_resort_parse").inc()
                 except Exception as e:
-                    log(f"last-resort fetch error: {e}")
+                    log(f"fallback fetch error: {e}")
                     m_errors.labels("last_resort_fetch").inc()
 
             try:

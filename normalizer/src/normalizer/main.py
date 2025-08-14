@@ -9,6 +9,7 @@ from psycopg_pool import AsyncConnectionPool
 from prometheus_client import Counter, Histogram, start_http_server
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
+from normalizer.kambi_mapper import normalize_kambi_data
 
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,10 @@ class Normalizer:
                 elif book == "pinnacle":
                     # Normalize Pinnacle data and store as aggregator format
                     normalized_payload = normalize_pinnacle_data(payload)
+                    await self.store_aggregator_data(normalized_payload)
+                elif book == "kambi":
+                    # Normalize Kambi data and store as aggregator format
+                    normalized_payload = normalize_kambi_data(payload)
                     await self.store_aggregator_data(normalized_payload)
                 else:
                     await self.store_event(book, payload)
