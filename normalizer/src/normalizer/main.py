@@ -6,10 +6,15 @@ import logging
 
 import redis.asyncio as redis
 from psycopg_pool import AsyncConnectionPool
-from prometheus_client import Counter, Histogram, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
 from normalizer.kambi_mapper import normalize_kambi_data, extract_kambi, kambi_norm_rows_total
+
+# Kambi freshness gauge
+kambi_last_insert_ts = Gauge(
+    "kambi_last_insert_ts_seconds", "Last successful Kambi insert timestamp (seconds since epoch)"
+)
 
 
 logger = logging.getLogger(__name__)
@@ -152,8 +157,8 @@ class Normalizer:
                             """
                             INSERT INTO odds (
                                 event_id, book, market, outcome_name,
-                                outcome_price, outcome_point
-                            ) VALUES (%s, %s, %s, %s, %s, %s)
+                                outcome_price, outcome_point, ts
+                            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
                         """,
                             (
                                 odd.event_id,
@@ -198,6 +203,9 @@ class Normalizer:
                         # Store using new extraction method
                         await self.store_kambi_data(events, odds)
                         kambi_norm_rows_total.inc(events_count + odds_count)
+                        import time
+
+                        kambi_last_insert_ts.set(time.time())
                         logger.info(f"kambi_norm: events={events_count} odds={odds_count} url={src_url[:100]}")
                     else:
                         # Fallback to legacy method

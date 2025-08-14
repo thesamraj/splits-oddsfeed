@@ -1,0 +1,29 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: oddsfeed-kambi-freshness
+    interval: 1m
+    rules:
+      - uid: kambi-stale-data
+        title: kambi-stale-data
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 5m
+              to: 0m
+            datasourceUid: prometheus
+            model:
+              expr: time() - max_over_time(kambi_last_insert_ts_seconds[5m])
+              instant: true
+              intervalMs: 60000
+              legendFormat: ""
+              maxDataPoints: 43200
+        noDataState: NoData
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "Kambi data stale"
+          runbook_url: "https://github.com/thesamraj/splits-oddsfeed"
+        labels:
+          severity: warning

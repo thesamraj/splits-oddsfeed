@@ -8,6 +8,15 @@ from typing import Dict, List, Any, Optional, Tuple, NamedTuple
 from urllib.parse import urlparse, parse_qs
 from prometheus_client import Counter
 
+KAMBI_MARKET_MAP = {
+    "Moneyline": "h2h",
+    "Match Winner": "h2h",
+    "Point Spread": "spreads",
+    "Spread": "spreads",
+    "Total Points": "totals",
+    "Total": "totals",
+}
+
 logger = logging.getLogger(__name__)
 
 # Metrics
