@@ -1,0 +1,87 @@
+name: kambi-parity
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - 'normalizer/**'
+      - 'collector-kambi/**'
+      - 'bin/check_kambi_parity.sh'
+      - '.github/workflows/kambi-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Docker Compose (if needed)
+        run: |
+          docker --version
+          docker compose version || true
+
+      - name: Prepare CI .env (mock mode)
+        run: |
+          cp .env.example .env || true
+          # Force mock mode for deterministic CI
+          if grep -q '^KAMBI_USE_MOCK=' .env; then
+            sed -i.bak 's|^KAMBI_USE_MOCK=.*$|KAMBI_USE_MOCK=true|' .env
+          else
+            printf '\nKAMBI_USE_MOCK=true\n' >> .env
+          fi
+
+      - name: Bring up minimal stack for parity
+        run: |
+          docker compose up -d store broker normalizer api collector-kambi
+          # wait for health
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/health | grep -q '"status":"ok"'; then
+              echo "API healthy"
+              break
+            fi
+            echo "Waiting for API…"
+            sleep 2
+          done
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Add parity script
+        run: |
+          mkdir -p bin
+          cat > bin/check_kambi_parity.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          BOOK="${1:-kambi}"
+          MIN="${2:-5}"
+          TOL="${3:-0}"
+          DBE=$(docker compose exec -T store psql -U odds -d oddsfeed -tAc \
+            "SELECT COALESCE(COUNT(DISTINCT event_id),0) FROM odds WHERE book='${BOOK}' AND ts > now() - interval '${MIN} minutes';" \
+            | tr -d '[:space:]' || echo 0)
+          APIC=$(curl -fsS "http://localhost:8080/odds?book=${BOOK}&minutes=${MIN}&limit=500" \
+            | jq -r '.count // 0' || echo 0)
+          echo "DB distinct events (${MIN}m): ${DBE}"
+          echo "API count           (${MIN}m): ${APIC}"
+          if [[ "${DBE}" -gt "${APIC}" ]]; then diff=$(( DBE - APIC )); else diff=$(( APIC - DBE )); fi
+          echo "Abs diff: ${diff} (tolerance ${TOL})"
+          test "${diff}" -le "${TOL}"
+          SH
+          chmod +x bin/check_kambi_parity.sh
+
+      - name: Wait for mock data and run parity
+        run: |
+          # Give the mock collector a bit to publish
+          for i in {1..24}; do
+            COUNT=$(curl -fsS "http://localhost:8080/odds?book=kambi&minutes=5&limit=500" | jq -r '.count // 0')
+            echo "API count: ${COUNT}"
+            if [[ "${COUNT}" -gt 0 ]]; then break; fi
+            sleep 5
+          done
+          bin/check_kambi_parity.sh kambi 5 0
+
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
