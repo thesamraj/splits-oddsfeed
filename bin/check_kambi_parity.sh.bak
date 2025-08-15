@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BOOK="${1:-kambi}"
+MIN="${2:-15}"
+TOL="${3:-2}"
+
+# Count distinct events in DB over window
+DBE=$(docker compose exec -T store psql -U odds -d odds -tAc \
+  "SELECT COALESCE(COUNT(DISTINCT event_id),0) FROM odds WHERE book='${BOOK}' AND ts > now() - interval '${MIN} minutes';" \
+  | tr -d '[:space:]' || echo 0)
+
+# Count events in API over window
+APIC=$(curl -fsS "http://localhost:8080/odds?book=${BOOK}&minutes=${MIN}&limit=500" \
+  | jq -r '.count // 0' || echo 0)
+
+echo "DB distinct events (${MIN}m): ${DBE}"
+echo "API count           (${MIN}m): ${APIC}"
+
+# Absolute difference
+if [[ "${DBE}" -gt "${APIC}" ]]; then
+  diff=$(( DBE - APIC ))
+else
+  diff=$(( APIC - DBE ))
+fi
+
+echo "Abs diff: ${diff} (tolerance ${TOL})"
+if [[ "${diff}" -le "${TOL}" ]]; then
+  echo "PARITY OK"
+  exit 0
+else
+  echo "PARITY FAIL"
+  exit 1
+fi
