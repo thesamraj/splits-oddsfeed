@@ -1,10 +1,8 @@
 services:
-  collector-kambi:
-    build:
-      context: ./collector-kambi
-      dockerfile: Dockerfile
-    image: splits-oddsfeed-collector-kambi:dev
+  normalizer:
+    ports:
+      - "9200:9200"
     environment:
-      KAMBI_IMPERSONATE: chrome120
-      KAMBI_WARMUP: "true"
-      KAMBI_STATE_HOST: pa.betrivers.com
+      - KAMBI_ACCEPT_WS_ENVELOPE=1
+      - KAMBI_NORM_BATCH_MAX=${KAMBI_NORM_BATCH_MAX:-25}
+      - KAMBI_NORM_BATCH_FLUSH_MS=${KAMBI_NORM_BATCH_FLUSH_MS:-100}

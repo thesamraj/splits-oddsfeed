@@ -1,0 +1,39 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: kambi-latency
+    folder: OddsFeed
+    interval: 1m
+    rules:
+      - uid: kambi-p95-slow
+        title: "Kambi p95 latency > 5s"
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: {from: "5m", to: "0m"}
+            datasourceUid: Prometheus
+            model:
+              expr: histogram_quantile(0.95, sum(rate(kambi_e2e_latency_seconds_bucket[3m])) by (le)) > 5
+              instant: true
+              intervalMs: 60000
+              datasource: {type: prometheus, uid: Prometheus}
+        for: 3m
+        annotations:
+          severity: warning
+          runbook: "Look at browser relay & normalizer backlogs"
+      - uid: kambi-stale
+        title: "Kambi freshness > 30s"
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange: {from: "2m", to: "0m"}
+            datasourceUid: Prometheus
+            model:
+              expr: (time() - kambi_last_insert_ts_seconds) > 30
+              instant: true
+              intervalMs: 60000
+              datasource: {type: prometheus, uid: Prometheus}
+        for: 2m
+        annotations:
+          severity: critical
+          runbook: "Check proxy/cookies, capture health"
