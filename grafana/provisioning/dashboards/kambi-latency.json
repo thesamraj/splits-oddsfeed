@@ -1,0 +1,45 @@
+{
+"title": "Kambi Latency & Freshness",
+"timezone": "browser",
+"schemaVersion": 39,
+"version": 1,
+"panels": [
+{
+"type": "stat",
+"title": "Kambi events (API, 15m)",
+"gridPos": {"h":4,"w":6,"x":0,"y":0},
+"targets": [
+{"expr":"sum(increase(kambi_norm_rows_total[15m])) > 0"},
+{"expr":"sum by (event_id) (count_over_time(kambi_norm_rows_total[15m]))","refId":"B"}
+],
+"options": {"reduceOptions":{"calcs":["lastNotNull"]}}
+},
+{
+"type": "timeseries",
+"title": "End-to-end latency (p50/p95)",
+"gridPos": {"h":8,"w":12,"x":6,"y":0},
+"targets": [
+{"expr":"histogram_quantile(0.5, sum(rate(kambi_e2e_latency_seconds_bucket[5m])) by (le))","refId":"A"},
+{"expr":"histogram_quantile(0.95, sum(rate(kambi_e2e_latency_seconds_bucket[5m])) by (le))","refId":"B"}
+]
+},
+{
+"type": "stat",
+"title": "Freshness (seconds since last insert)",
+"gridPos": {"h":4,"w":6,"x":0,"y":4},
+"targets": [
+{"expr":"time() - kambi_last_insert_ts_seconds","refId":"A"}
+],
+"options":{"reduceOptions":{"calcs":["lastNotNull"]}}
+},
+{
+"type": "timeseries",
+"title": "API vs DB event count (15m)",
+"gridPos": {"h":8,"w":12,"x":0,"y":8},
+"targets": [
+{"expr":"sum(kambi_api_event_count_15m)","refId":"A"},
+{"expr":"sum(kambi_db_event_count_15m)","refId":"B"}
+]
+}
+]
+}

@@ -3,12 +3,22 @@ import json
 import asyncio
 from datetime import datetime
 import logging
+from collections import defaultdict
+import hashlib
 
 import redis.asyncio as redis
 from psycopg_pool import AsyncConnectionPool
-from prometheus_client import Counter, Histogram, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
-from .pinnacle_mapper import normalize_pinnacle_data
+from normalizer.pinnacle_mapper import normalize_pinnacle_data
+from normalizer.kambi_mapper import normalize_kambi_envelope, k_rows, k_skip
+import time
+
+# Kambi freshness gauge
+kambi_last_insert_ts = Gauge(
+    "kambi_last_insert_ts_seconds",
+    "Last successful Kambi insert timestamp (seconds since epoch)",
+)
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +33,23 @@ PROCESSING_LATENCY = Histogram(
     "message_processing_duration_seconds", "Message processing latency"
 )
 
+# New latency metrics
+kambi_publish_to_normalize_ms = Histogram(
+    "kambi_publish_to_normalize_ms", "Time from publish to normalize start (ms)",
+    buckets=[10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+)
+kambi_normalize_to_db_ms = Histogram(
+    "kambi_normalize_to_db_ms", "Time from normalize to DB commit (ms)",
+    buckets=[10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+)
+kambi_e2e_latency_ms = Histogram(
+    "kambi_e2e_latency_ms", "End-to-end latency from source to DB (ms)",
+    buckets=[100, 250, 500, 1000, 2000, 5000, 10000, 15000, 30000]
+)
+kambi_norm_backlog = Gauge(
+    "kambi_norm_backlog", "Normalizer queue depth"
+)
+
 
 class Normalizer:
     def __init__(self):
@@ -33,6 +60,14 @@ class Normalizer:
             "DATABASE_URL", "postgresql://odds:odds@localhost:5432/oddsfeed"
         )
         self.running = False
+        # Dedupe cache: key -> expiry_time
+        self.dedupe_cache = {}
+        self.dedupe_ttl_ms = 250
+        # Batch accumulator
+        self.batch_rows = []
+        self.batch_start_time = None
+        self.batch_max_size = 50
+        self.batch_max_delay_ms = 200
 
     async def connect_db(self):
         try:
@@ -127,6 +162,190 @@ class Normalizer:
         except Exception as e:
             logger.error(f"Failed to store aggregator data: {e}")
 
+    def make_dedupe_key(self, r: dict) -> str:
+        """Create deduplication key for a normalized row"""
+        key_parts = [
+            r.get('book', ''),
+            r.get('event_id', ''),
+            r.get('market', ''),
+            str(r.get('line', '')),
+            str(r.get('price_home', '')),
+            str(r.get('price_away', '')),
+            str(r.get('total', ''))
+        ]
+        key_str = '|'.join(key_parts)
+        return hashlib.md5(key_str.encode()).hexdigest()
+
+    def is_duplicate(self, r: dict) -> bool:
+        """Check if row is a recent duplicate"""
+        now = time.time() * 1000
+        # Clean expired entries
+        expired_keys = [k for k, exp_time in self.dedupe_cache.items() if exp_time < now]
+        for k in expired_keys:
+            del self.dedupe_cache[k]
+
+        key = self.make_dedupe_key(r)
+        if key in self.dedupe_cache:
+            return True
+
+        self.dedupe_cache[key] = now + self.dedupe_ttl_ms
+        return False
+
+    async def flush_batch(self):
+        """Flush accumulated batch to database"""
+        if not self.batch_rows or not self.db_pool:
+            return
+
+        commit_time = time.time() * 1000
+
+        try:
+            async with self.db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    # Batch insert events
+                    event_data = []
+                    seen_events = set()
+                    for r in self.batch_rows:
+                        event_id = r.get('event_id')
+                        if event_id and event_id not in seen_events:
+                            seen_events.add(event_id)
+                            event_data.append((
+                                event_id,
+                                r.get('league', 'unknown'),
+                                'Home Team',
+                                'Away Team',
+                                'american_football'
+                            ))
+
+                    if event_data:
+                        await cur.executemany(
+                            """
+                            INSERT INTO events (id, league, start_time, home, away, sport)
+                            VALUES (%s, %s, NOW(), %s, %s, %s)
+                            ON CONFLICT (id) DO NOTHING
+                            """,
+                            event_data
+                        )
+
+                    # Batch insert odds
+                    odds_data = []
+                    for r in self.batch_rows:
+                        odds_data.append((
+                            r.get('book'),
+                            r.get('event_id'),
+                            r.get('market'),
+                            r.get('line'),
+                            r.get('price_home'),
+                            r.get('price_away'),
+                            r.get('total')
+                        ))
+
+                    await cur.executemany(
+                        """
+                        INSERT INTO odds(book, event_id, market, line, price_home, price_away, total, ts)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                        """,
+                        odds_data
+                    )
+
+                    await conn.commit()
+
+                    # Emit metrics for batch
+                    for r in self.batch_rows:
+                        source_ts_ms = r.get('_source_ts_ms')
+                        if source_ts_ms:
+                            normalize_latency = commit_time - source_ts_ms
+                            kambi_normalize_to_db_ms.observe(max(0, normalize_latency))
+                            kambi_e2e_latency_ms.observe(max(0, normalize_latency))
+
+                    logger.info(f"Flushed batch of {len(self.batch_rows)} rows")
+
+        except Exception as e:
+            logger.error(f"Failed to flush batch: {e}")
+        finally:
+            self.batch_rows = []
+            self.batch_start_time = None
+
+    async def add_to_batch(self, r: dict):
+        """Add row to batch, flushing if needed"""
+        if self.is_duplicate(r):
+            return
+
+        now = time.time() * 1000
+
+        # Initialize batch timing
+        if not self.batch_start_time:
+            self.batch_start_time = now
+
+        self.batch_rows.append(r)
+        kambi_norm_backlog.set(len(self.batch_rows))
+
+        # Flush if batch is full or timeout reached
+        should_flush = (
+            len(self.batch_rows) >= self.batch_max_size or
+            (now - self.batch_start_time) >= self.batch_max_delay_ms
+        )
+
+        if should_flush:
+            await self.flush_batch()
+
+    async def write_row_with_now(self, r: dict):
+        """Write normalized odds row with current timestamp (legacy)"""
+        await self.add_to_batch(r)
+
+    async def store_kambi_data(self, events, odds):
+        if not self.db_pool:
+            return
+
+        try:
+            async with self.db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    # Insert events
+                    for event in events:
+                        await cur.execute(
+                            """
+                            INSERT INTO events (id, league, start_time, home, away, sport)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (id) DO UPDATE SET
+                                league = EXCLUDED.league,
+                                start_time = EXCLUDED.start_time,
+                                home = EXCLUDED.home,
+                                away = EXCLUDED.away,
+                                sport = EXCLUDED.sport
+                        """,
+                            (
+                                event.id,
+                                event.league,
+                                event.start_time,
+                                event.home,
+                                event.away,
+                                event.sport,
+                            ),
+                        )
+
+                    # Insert odds
+                    for odd in odds:
+                        await cur.execute(
+                            """
+                            INSERT INTO odds (
+                                event_id, book, market, outcome_name,
+                                outcome_price, outcome_point, ts
+                            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        """,
+                            (
+                                odd.event_id,
+                                odd.book,
+                                odd.market,
+                                odd.outcome_name,
+                                odd.outcome_price,
+                                odd.outcome_point,
+                            ),
+                        )
+
+                    await conn.commit()
+
+        except Exception as e:
+            logger.error(f"Failed to store Kambi data: {e}")
+
     async def process_message(self, channel: str, message: str):
         with PROCESSING_LATENCY.time():
             try:
@@ -142,6 +361,45 @@ class Normalizer:
                     # Normalize Pinnacle data and store as aggregator format
                     normalized_payload = normalize_pinnacle_data(payload)
                     await self.store_aggregator_data(normalized_payload)
+                elif book == "kambi":
+                    now_ms = time.time() * 1000
+
+                    # Check if this is new envelope format
+                    if 'capture_id' in payload and 'source_ts_ms' in payload:
+                        # New envelope format
+                        source_ts_ms = payload.get('source_ts_ms', now_ms)
+                        received_ts_ms = payload.get('received_ts_ms', now_ms)
+
+                        # Emit publish->normalize latency
+                        pub_to_norm_latency = now_ms - received_ts_ms
+                        kambi_publish_to_normalize_ms.observe(max(0, pub_to_norm_latency))
+
+                        # Parse the payload JSON
+                        raw_payload = payload.get('payload', '{}')
+                        try:
+                            parsed_data = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
+                        except json.JSONDecodeError:
+                            parsed_data = {}
+
+                        rows, _ = normalize_kambi_envelope(parsed_data)
+
+                        # Add source timestamp to rows for e2e metrics
+                        for r in rows:
+                            r['_source_ts_ms'] = source_ts_ms
+                    else:
+                        # Legacy format
+                        rows, _ = normalize_kambi_envelope(payload)
+                        for r in rows:
+                            r['_source_ts_ms'] = now_ms
+
+                    if not rows:
+                        k_skip.labels("no_rows").inc()
+                    else:
+                        # Add to batch for efficient DB writes
+                        for r in rows:
+                            await self.add_to_batch(r)
+                            k_rows.inc()
+                        kambi_last_insert_ts.set(time.time())
                 else:
                     await self.store_event(book, payload)
 
@@ -172,14 +430,38 @@ class Normalizer:
 
         self.running = True
         try:
-            await self.start_consuming()
+            # Start periodic batch flush task
+            flush_task = asyncio.create_task(self.periodic_flush())
+            consume_task = asyncio.create_task(self.start_consuming())
+
+            # Wait for either task to complete
+            done, pending = await asyncio.wait(
+                [flush_task, consume_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Cancel pending tasks
+            for task in pending:
+                task.cancel()
+
         except KeyboardInterrupt:
             logger.info("Received shutdown signal")
         finally:
             self.running = False
+            # Flush any remaining batch
+            await self.flush_batch()
             await self.redis_client.close()
             if self.db_pool:
                 await self.db_pool.close()
+
+    async def periodic_flush(self):
+        """Periodically flush batches to prevent stale data"""
+        while self.running:
+            await asyncio.sleep(0.1)  # Check every 100ms
+            if self.batch_rows and self.batch_start_time:
+                now = time.time() * 1000
+                if (now - self.batch_start_time) >= self.batch_max_delay_ms:
+                    await self.flush_batch()
 
 
 async def main():

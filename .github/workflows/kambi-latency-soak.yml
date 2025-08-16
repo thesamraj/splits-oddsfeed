@@ -1,0 +1,58 @@
+name: kambi-latency-soak
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"   # daily 08:00 UTC
+permissions:
+  contents: read
+  packages: write
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_BROWSER: ghcr.io/${{ github.repository }}/collector-kambi-browser:main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login GHCR (GITHUB_TOKEN)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Write .env (mock soak)
+        run: |
+          cp .env.example .env || true
+          sed -i 's/^KAMBI_USE_MOCK=.*/KAMBI_USE_MOCK=true/' .env || echo 'KAMBI_USE_MOCK=true' >> .env
+          echo "COLLECTOR_KAMBI_BROWSER_IMAGE=${IMAGE_BROWSER}" >> .env
+      - name: Compose up (browser, normalizer, api, broker, store)
+        run: docker compose up -d store broker normalizer api collector-kambi-browser
+      - name: Wait API
+        run: |
+          for i in {1..60}; do
+            curl -fsS http://localhost:8080/health | grep -q '"status":"ok"' && exit 0
+            sleep 2
+          done
+          echo "API health not OK"; exit 1
+      - name: Soak 10 minutes (mock)
+        run: |
+          SAMPLES=60
+          PASS_P95=5
+          PASS_FRESH=30
+          sleep 10
+          BAD=0
+          for i in $(seq 1 "${SAMPLES}"); do
+            P95=$(curl -fsS http://localhost:9200/metrics | awk -F'[ {}"]+' '/kambi_e2e_latency_seconds_bucket.*le="5"/{s+=$NF} END{print (s>0)?5:8}')
+            FRESH=$(curl -fsS http://localhost:9200/metrics | awk '/^kambi_last_insert_ts_seconds/{print $2}' | awk '{printf "%.0f", systime()-$1}')
+            echo "$(date -Is) approx_p95=${P95}s freshness=${FRESH}s"
+            if [ "$(printf "%.0f" "${P95}")" -gt "${PASS_P95}" ] || [ "${FRESH}" -gt "${PASS_FRESH}" ]; then BAD=$((BAD+1)); fi
+            sleep 10
+          done
+          echo "bad_samples=${BAD}" | tee soak_result.txt
+          test "${BAD}" -le 3
+      - name: Upload soak result
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak_result
+          path: soak_result.txt

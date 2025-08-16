@@ -6,6 +6,7 @@ import time
 import traceback
 import hashlib
 import random
+import uuid
 from typing import Optional, Dict, Any, Set, List
 from urllib.parse import urlparse
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
@@ -37,6 +38,11 @@ k_fanout = Counter("kambi_browser_fanouts_total", "fanouts performed", ["type"])
 k_distinct = Gauge(
     "kambi_browser_distinct_events_seen", "distinct eventIds seen this run"
 )
+k_frames_total = Counter(
+    "kambi_frames_total",
+    "WebSocket/HTTP frames captured",
+    ["transport", "has_event_id"],
+)
 
 m_last_success_ts = Gauge(
     "kambi_browser_last_success_timestamp_seconds", "Last success ts"
@@ -54,6 +60,18 @@ kambi_last_success_timestamp_seconds = Gauge(
 m_captured = Counter("kambi_captured_total", "Total payloads captured")
 m_published = Counter("kambi_published_total", "Total payloads published to Redis")
 m_errors = Counter("kambi_errors_total", "Total errors", ["type"])
+
+# New latency metrics
+kambi_capture_to_publish_ms = Histogram(
+    "kambi_capture_to_publish_ms",
+    "Time from capture to publish (ms)",
+    buckets=[10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+)
+kambi_e2e_latency_ms = Histogram(
+    "kambi_e2e_latency_ms",
+    "End-to-end latency from source to visible in DB (ms)",
+    buckets=[100, 250, 500, 1000, 2000, 5000, 10000, 15000, 30000],
+)
 
 # Enhanced capture patterns
 CAPTURE_PATTERNS = [
@@ -81,27 +99,43 @@ def log(msg: str):
     print(f"[kambi-browser] {msg}", flush=True)
 
 
-def guess_event_id_from_url_or_payload(url: str, data: dict) -> List[str]:
-    ids = set()
+def guess_event_id_from_url_or_payload(url: str, data: dict) -> str:
+    """Extract single event_id with improved heuristics"""
     # common fields
-    for key in ("eventId", "event_id"):
+    for key in ("eventId", "event_id", "id"):
         v = data.get(key)
-        if isinstance(v, (int, str)):
-            ids.add(str(v))
+        if isinstance(v, (int, str)) and str(v).isdigit():
+            return str(v)
+
+    # event object
+    event_obj = data.get("event")
+    if isinstance(event_obj, dict):
+        for key in ("id", "eventId"):
+            v = event_obj.get(key)
+            if isinstance(v, (int, str)) and str(v).isdigit():
+                return str(v)
+
     # betOffers array
     for bo in data.get("betOffers", []) or []:
         v = bo.get("eventId") or (bo.get("event") or {}).get("id")
-        if isinstance(v, (int, str)):
-            ids.add(str(v))
+        if isinstance(v, (int, str)) and str(v).isdigit():
+            return str(v)
         for oc in bo.get("outcomes", []) or []:
             v = oc.get("eventId")
-            if isinstance(v, (int, str)):
-                ids.add(str(v))
+            if isinstance(v, (int, str)) and str(v).isdigit():
+                return str(v)
+
     # URL fallback (…/event/12345/…)
     m = re.search(r"/event[s]?/(\d+)", url)
     if m:
-        ids.add(m.group(1))
-    return list(ids)
+        return m.group(1)
+
+    # Query params
+    m = re.search(r"[?&]eventId=(\d+)", url)
+    if m:
+        return m.group(1)
+
+    return "unknown"
 
 
 async def goto_section(page, section):
@@ -336,7 +370,21 @@ async def ensure_storage_path(path: str):
         os.makedirs(d, exist_ok=True)
 
 
+async def publish_envelope(rconn, envelope):
+    """Publish to Redis with new envelope format"""
+    try:
+        msg = json.dumps(envelope, separators=(",", ":"), ensure_ascii=False)
+        rconn.publish("odds.raw.kambi", msg)
+        m_published.inc()
+        m_publish_status.labels("ok").inc()
+    except Exception as e:
+        log(f"redis publish error: {e}")
+        m_errors.labels("redis").inc()
+        m_publish_status.labels("error").inc()
+
+
 async def publish(rconn, payload):
+    """Legacy publish for backward compatibility"""
     try:
         msg = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
         rconn.publish(REDIS_CHANNEL, msg)
@@ -375,6 +423,166 @@ async def run_once():
             page = await context.new_page()
             log("context + page ready")
 
+            # Setup CDP session for WebSocket capture
+            cdp = await context.new_cdp_session(page)
+            await cdp.send("Network.enable")
+            log("CDP Network enabled")
+
+            # Track WebSocket connections
+            websocket_urls = set()
+
+            async def handle_websocket_created(params):
+                url = params.get("url", "")
+                if re.search(r"kambi|kambicdn", url, re.I):
+                    websocket_urls.add(url)
+                    log(f"WebSocket tracked: {url}")
+
+            async def handle_websocket_frame(params):
+                try:
+                    url = params.get("response", {}).get("url", "")
+                    if url not in websocket_urls:
+                        return
+
+                    payload_data = params.get("response", {}).get("payloadData", "")
+                    if not payload_data:
+                        return
+
+                    # Parse timestamp
+                    timestamp = params.get("timestamp", time.time())
+                    # Convert CDP timestamp to epoch ms
+                    source_ts_ms = int(timestamp * 1000)
+                    received_ts_ms = int(time.time() * 1000)
+
+                    try:
+                        data = json.loads(payload_data)
+                        if not has_odds_data(data):
+                            return
+                    except json.JSONDecodeError:
+                        return
+
+                    event_id = guess_event_id_from_url_or_payload(url, data)
+                    has_event_id = event_id != "unknown"
+
+                    # Create envelope
+                    envelope = {
+                        "capture_id": str(uuid.uuid4()),
+                        "transport": "ws",
+                        "url": url,
+                        "source_ts_ms": source_ts_ms,
+                        "received_ts_ms": received_ts_ms,
+                        "event_id": event_id,
+                        "content_type": "application/json",
+                        "payload": payload_data,
+                    }
+
+                    # Emit metrics
+                    capture_latency = received_ts_ms - source_ts_ms
+                    kambi_capture_to_publish_ms.observe(max(0, capture_latency))
+                    k_frames_total.labels(
+                        transport="ws", has_event_id=str(has_event_id).lower()
+                    ).inc()
+
+                    await publish_envelope(rconn, envelope)
+                    log(
+                        f"WS captured {url} event_id={event_id} latency={capture_latency}ms"
+                    )
+
+                except Exception as e:
+                    log(f"WebSocket frame handler error: {e}")
+                    m_errors.labels("ws_frame").inc()
+
+            async def handle_response_received(params):
+                try:
+                    response = params.get("response", {})
+                    url = response.get("url", "")
+                    request_id = params.get("requestId")
+
+                    if not any(p.search(url) for p in CAPTURE_PATTERNS):
+                        return
+
+                    # Store for later body retrieval
+                    if hasattr(handle_response_received, "pending_responses"):
+                        handle_response_received.pending_responses[request_id] = {
+                            "url": url,
+                            "timestamp": params.get("timestamp", time.time()),
+                            "response": response,
+                        }
+
+                except Exception as e:
+                    log(f"Response received handler error: {e}")
+
+            async def handle_loading_finished(params):
+                try:
+                    request_id = params.get("requestId")
+                    if not hasattr(handle_response_received, "pending_responses"):
+                        return
+
+                    pending = handle_response_received.pending_responses.pop(
+                        request_id, None
+                    )
+                    if not pending:
+                        return
+
+                    # Get response body
+                    try:
+                        body_result = await cdp.send(
+                            "Network.getResponseBody", {"requestId": request_id}
+                        )
+                        body = body_result.get("body", "")
+
+                        if body_result.get("base64Encoded"):
+                            import base64
+
+                            body = base64.b64decode(body).decode("utf-8")
+
+                        data = json.loads(body)
+                        if not has_odds_data(data):
+                            return
+
+                        source_ts_ms = int(pending["timestamp"] * 1000)
+                        received_ts_ms = int(time.time() * 1000)
+                        event_id = guess_event_id_from_url_or_payload(
+                            pending["url"], data
+                        )
+                        has_event_id = event_id != "unknown"
+
+                        envelope = {
+                            "capture_id": str(uuid.uuid4()),
+                            "transport": "http",
+                            "url": pending["url"],
+                            "source_ts_ms": source_ts_ms,
+                            "received_ts_ms": received_ts_ms,
+                            "event_id": event_id,
+                            "content_type": "application/json",
+                            "payload": body,
+                        }
+
+                        capture_latency = received_ts_ms - source_ts_ms
+                        kambi_capture_to_publish_ms.observe(max(0, capture_latency))
+                        k_frames_total.labels(
+                            transport="http", has_event_id=str(has_event_id).lower()
+                        ).inc()
+
+                        await publish_envelope(rconn, envelope)
+                        log(
+                            f"HTTP captured {pending['url']} event_id={event_id} latency={capture_latency}ms"
+                        )
+
+                    except Exception as e:
+                        log(f"Failed to get response body: {e}")
+
+                except Exception as e:
+                    log(f"Loading finished handler error: {e}")
+
+            # Initialize pending responses dict
+            handle_response_received.pending_responses = {}
+
+            # Register CDP event handlers
+            cdp.on("Network.webSocketCreated", handle_websocket_created)
+            cdp.on("Network.webSocketFrameReceived", handle_websocket_frame)
+            cdp.on("Network.responseReceived", handle_response_received)
+            cdp.on("Network.loadingFinished", handle_loading_finished)
+
             first_capture = asyncio.get_event_loop().create_future()
 
             async def handle_response(resp):
@@ -412,22 +620,40 @@ async def run_once():
                             log(f"failed to save artifact: {e}")
 
                     # collect eventIds
-                    for eid in guess_event_id_from_url_or_payload(url, data):
-                        if eid not in event_ids_seen:
-                            event_ids_seen.add(eid)
-                            k_distinct.set(len(event_ids_seen))
+                    eid = guess_event_id_from_url_or_payload(url, data)
+                    if eid != "unknown" and eid not in event_ids_seen:
+                        event_ids_seen.add(eid)
+                        k_distinct.set(len(event_ids_seen))
                     k_fanout.labels("xhr").inc()
 
-                    payload = {
-                        "source": "kambi",
+                    # Create envelope for new format
+                    now_ms = int(time.time() * 1000)
+                    event_id = guess_event_id_from_url_or_payload(url, data)
+                    has_event_id = event_id != "unknown"
+
+                    envelope = {
+                        "capture_id": str(uuid.uuid4()),
+                        "transport": "http",
                         "url": url,
-                        "status": resp.status,
-                        "ts": time.time(),
-                        "data": data,
+                        "source_ts_ms": now_ms,  # Use current time as approximation
+                        "received_ts_ms": now_ms,
+                        "event_id": event_id,
+                        "content_type": "application/json",
+                        "payload": json.dumps(
+                            data, separators=(",", ":"), ensure_ascii=False
+                        ),
                     }
 
-                    # Publish all matching payloads (not just odds-bearing ones)
-                    await publish(rconn, payload)
+                    # Emit metrics
+                    kambi_capture_to_publish_ms.observe(
+                        0
+                    )  # Near-zero for HTTP fallback
+                    k_frames_total.labels(
+                        transport="http", has_event_id=str(has_event_id).lower()
+                    ).inc()
+
+                    # Publish envelope
+                    await publish_envelope(rconn, envelope)
                     m_captured.inc()
 
                     if not first_capture.done():
@@ -528,14 +754,30 @@ async def run_once():
                     res = await page.evaluate(js)
                     try:
                         data = json.loads(res["body"])
-                        payload = {
-                            "source": "kambi",
+                        # Create envelope for fallback
+                        now_ms = int(time.time() * 1000)
+                        event_id = guess_event_id_from_url_or_payload(
+                            res.get("url", ""), data
+                        )
+                        has_event_id = event_id != "unknown"
+
+                        envelope = {
+                            "capture_id": str(uuid.uuid4()),
+                            "transport": "http",
                             "url": res.get("url", ""),
-                            "status": res.get("status", 0),
-                            "ts": time.time(),
-                            "data": data,
+                            "source_ts_ms": now_ms,
+                            "received_ts_ms": now_ms,
+                            "event_id": event_id,
+                            "content_type": "application/json",
+                            "payload": json.dumps(
+                                data, separators=(",", ":"), ensure_ascii=False
+                            ),
                         }
-                        await publish(rconn, payload)
+
+                        k_frames_total.labels(
+                            transport="http", has_event_id=str(has_event_id).lower()
+                        ).inc()
+                        await publish_envelope(rconn, envelope)
                         m_captured.inc()
                         m_last_success_ts.set(time.time())
                         log(f"fallback captured {res.get('status')} {res.get('url')}")

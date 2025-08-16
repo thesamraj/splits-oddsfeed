@@ -207,6 +207,7 @@ services:
       KAMBI_NAV_TIMEOUT_SEC: ${KAMBI_NAV_TIMEOUT_SEC:-25}
       PROXY_URL: ${PROXY_URL:-}
       PROXY_MANAGER_URL: ${PROXY_MANAGER_URL:-}
+      METRICS_PORT: 9118
     volumes:
       - ./state/kambi-browser:/app/state/kambi-browser
       - ./artifacts:/app/artifacts

@@ -3,7 +3,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Any, Optional, Tuple, Set
+from typing import Dict, List, Any, Optional, Set
 from prometheus_client import Counter
 
 k_rows = Counter("kambi_norm_rows_total", "normalized odds rows")
@@ -117,56 +117,128 @@ def _emit_rows_from_betoffers(
     return rows
 
 
-def normalize_kambi_envelope(
-    envelope: Dict[str, Any], default_league: str = "NFL"
-) -> Tuple[List[Dict[str, Any]], Set[str]]:
-    """
-    Returns (rows, event_ids_seen)
-    Envelope:
-      { source: "kambi", url: "...", status: 200, ts: "...", data: {...} }
-    """
-    book = "kambi"
-    url = envelope.get("url", "")
-    data = envelope.get("data") or {}
-    ev_ids = _extract_event_ids(url, data)
-    rows: List[Dict[str, Any]] = []
+def normalize_kambi_envelope(envelope, now_ts_func):
+    import json as _json
 
-    # Case A: betOffers root
-    if isinstance(data.get("betOffers"), list) and data.get("betOffers"):
-        league = default_league
-        for eid in ev_ids or {"unknown"}:
-            rows.extend(_emit_rows_from_betoffers(book, league, eid, data["betOffers"]))
+    rows = []
+    raw = envelope.get("payload") or envelope.get("data")
+    if isinstance(raw, str):
+        try:
+            payload = _json.loads(raw)
+        except Exception:
+            return rows
+    else:
+        payload = raw or {}
 
-    # Case B: events with markets/outcomes
-    for evlist_key in ("events",):
-        if isinstance(data.get(evlist_key), list):
-            for ev in data[evlist_key]:
-                eid = str(ev.get("id") or ev.get("eventId") or "")
-                if eid:
-                    ev_ids.add(eid)
-                # markets flavor
-                if isinstance(ev.get("markets"), list):
-                    betOffers = []
-                    for mk in ev["markets"]:
-                        bo = {
-                            "criterion": {"label": mk.get("label")},
-                            "outcomes": mk.get("outcomes"),
-                        }
-                        betOffers.append(bo)
-                    rows.extend(
-                        _emit_rows_from_betoffers(
-                            book, default_league, eid or "unknown", betOffers
-                        )
-                    )
+    ts_now = now_ts_func()  # CALL function (bug fix)
+    event_id = extract_event_id(envelope, payload) or ""
 
-    # Case C: group/list responses (no odds) → nothing to emit, rely on fan-out to fetch /event/{id}.json
-    return rows, ev_ids
+    def add_row(market, line, price, side_hint=None):
+        row = {
+            "book": "kambi",
+            "event_id": str(event_id),
+            "market": market,
+            "line": float(line) if line not in (None, "") else None,
+            "price_home": None,
+            "price_away": None,
+            "total": (
+                float(line) if market == "totals" and line not in (None, "") else None
+            ),
+            "ts": ts_now,
+        }
+        # distribute price to home/away if possible
+        if side_hint == "home":
+            row["price_home"] = price
+        elif side_hint == "away":
+            row["price_away"] = price
+        else:
+            if row["price_home"] is None:
+                row["price_home"] = price
+            else:
+                row["price_away"] = price
+        rows.append(row)
+
+    # Shape A: betOffers[]
+    for bo in payload.get("betOffers") or []:
+        crit = (bo.get("criterion") or {}).get("label")
+        market = map_market_label(crit)
+        if not market:
+            continue
+        for oc in bo.get("outcomes") or []:
+            price = price_from_odds_obj(oc.get("odds") or {})
+            if price is None:
+                continue
+            line = oc.get("line")
+            label = (
+                oc.get("label") or oc.get("participant") or oc.get("name") or ""
+            ).lower()
+            side = "home" if "home" in label else ("away" if "away" in label else None)
+            add_row(market, line, price, side)
+
+    # Shape B: liveEvents[] with mainBetOffer + betOffers
+    for le in payload.get("liveEvents") or []:
+        ev = (le or {}).get("event") or {}
+        if ev.get("id") and not event_id:
+            event_id = str(ev.get("id"))
+        mbo = le.get("mainBetOffer")
+        bos = []
+        if mbo and isinstance(mbo, dict):
+            bos.append(mbo)
+        bos.extend(le.get("betOffers") or [])
+        for bo in bos:
+            market = map_market_label((bo.get("criterion") or {}).get("label"))
+            if not market:
+                continue
+            for oc in bo.get("outcomes") or []:
+                price = price_from_odds_obj(oc.get("odds") or {})
+                if price is None:
+                    continue
+                line = oc.get("line")
+                label = (
+                    oc.get("label") or oc.get("participant") or oc.get("name") or ""
+                ).lower()
+                side = (
+                    "home" if "home" in label else ("away" if "away" in label else None)
+                )
+                add_row(market, line, price, side)
+
+    # Shape C: events[] with markets/outcomes
+    for ev in payload.get("events") or []:
+        if (not event_id) and isinstance(ev, dict):
+            eid = ev.get("id") or ev.get("eventId") or ev.get("event_id")
+            if eid:
+                event_id = str(eid)
+        for mk in ev.get("markets") or []:
+            market = map_market_label(mk.get("name") or mk.get("label"))
+            if not market:
+                continue
+            for oc in mk.get("outcomes") or []:
+                price = price_from_odds_obj(oc.get("odds") or {})
+                if price is None:
+                    continue
+                line = oc.get("line")
+                label = (
+                    oc.get("label") or oc.get("participant") or oc.get("name") or ""
+                ).lower()
+                side = (
+                    "home" if "home" in label else ("away" if "away" in label else None)
+                )
+                add_row(market, line, price, side)
+
+    # FLAT result only
+    return [r for r in rows if r.get("book") == "kambi" and r.get("event_id")]
 
 
 def normalize_kambi_data(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Legacy wrapper for compatibility - calls new envelope function"""
-    rows, event_ids = normalize_kambi_envelope(payload)
-    k_events.inc(len(event_ids))
+
+    def legacy_now_ts():
+        import datetime
+
+        return datetime.datetime.utcnow().isoformat()
+
+    rows = normalize_kambi_envelope(payload, legacy_now_ts)
+    k_events.inc(len(set(r.get("event_id", "") for r in rows)))
     k_rows.inc(len(rows))
 
     # Legacy format expected by existing normalizer
@@ -176,3 +248,88 @@ def normalize_kambi_data(payload: Dict[str, Any]) -> Dict[str, Any]:
         "timestamp": datetime.utcnow().isoformat(),
         "rows": rows,  # Return rows directly for new normalizer flow
     }
+
+
+def extract_event_id(envelope, payload):
+    # envelope event_id first
+    ev = envelope.get("event_id")
+    if ev:
+        return str(ev)
+    # Kambi betOffers/event structures
+    try:
+        if isinstance(payload, dict):
+            # common places:
+            # payload['event']['id'], or payload['betOffers'][0]['event']['id']
+            if (
+                "event" in payload
+                and isinstance(payload["event"], dict)
+                and "id" in payload["event"]
+            ):
+                return str(payload["event"]["id"])
+            if "betOffers" in payload and isinstance(payload["betOffers"], list):
+                for bo in payload["betOffers"]:
+                    try:
+                        e = bo.get("event") or {}
+                        if "id" in e:
+                            return str(e["id"])
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    return None
+
+
+def decimal_to_american(dec):
+    try:
+        d = float(dec)
+        if d <= 1.0:
+            return 0
+        if d >= 2.0:
+            return int(round((d - 1) * 100))
+        return int(round(-100 / (d - 1)))
+    except Exception:
+        return 0
+
+
+def parse_american(v):
+    if v is None:
+        return None
+    try:
+        if isinstance(v, (int, float)):
+            return int(v)
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("+"):
+                v = v[1:]
+            return int(v)
+    except Exception:
+        return None
+
+
+def price_from_odds_obj(odds):
+    if not isinstance(odds, dict):
+        return None
+    am = parse_american(odds.get("american"))
+    if am is not None:
+        return am
+    # Support decimal as float or scaled int
+    dec = odds.get("decimal")
+    return decimal_to_american(dec)
+
+
+def map_market_label(label: str):
+    lab = (label or "").lower()
+    if "spread" in lab or "handicap" in lab:
+        return "spreads"
+    if "total" in lab or "over/under" in lab or "over under" in lab:
+        return "totals"
+    if (
+        "moneyline" in lab
+        or "money line" in lab
+        or "moneyline 3-way" in lab
+        or "3way" in lab
+        or "match winner" in lab
+        or "h2h" in lab
+    ):
+        return "h2h"
+    return None
