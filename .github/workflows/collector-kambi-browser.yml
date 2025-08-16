@@ -1,18 +1,13 @@
 name: collector-kambi-browser
 on:
   push:
-    branches: ['**']        # run on ANY branch push
-  tags:
-    - '*'                   # run on any tag
+    branches: ['**']     # run on ANY branch push
+  workflow_dispatch: {}
   release:
     types: [published]
-  workflow_dispatch:
 permissions:
   contents: read
   packages: write
-concurrency:
-  group: collector-kambi-browser-${{ github.ref }}
-  cancel-in-progress: true
 env:
   IMAGE: ghcr.io/${{ github.repository }}/collector-kambi-browser
 jobs:
@@ -20,12 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Show ref & changed files
+      - name: Show ref & last commit files
         run: |
           echo "ref=${GITHUB_REF} sha=${GITHUB_SHA}"
           git --no-pager show --name-only --oneline -1
-
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
@@ -36,7 +29,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
-
       - name: Login GHCR (GITHUB_TOKEN fallback)
         if: ${{ secrets.GHCR_PAT == '' }}
         uses: docker/login-action@v3
@@ -44,8 +36,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Auth mode used (no secrets)
+      - name: Auth mode used
         run: |
           if [ -n "${{ secrets.GHCR_PAT }}" ]; then echo "auth=PAT"; else echo "auth=GITHUB_TOKEN"; fi
 
