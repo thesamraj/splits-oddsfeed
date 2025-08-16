@@ -1,10 +1,12 @@
 name: collector-kambi-browser
 on:
   push:
-    branches: [main]
+    branches: ['**']             # build on any branch
     paths:
       - 'collector-kambi-browser/**'
       - '.github/workflows/collector-kambi-browser.yml'
+  tags:
+    - '*'                         # also build on any tag
   release:
     types: [published]
   workflow_dispatch:
