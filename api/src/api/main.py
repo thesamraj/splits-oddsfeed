@@ -7,7 +7,7 @@ import textwrap
 import redis.asyncio as redis
 import psycopg
 from fastapi import FastAPI
-from fastapi.responses import Response
+from fastapi.responses import Response, HTMLResponse
 import uvicorn
 from prometheus_client import Histogram
 
@@ -35,9 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="OddsFeed API", version="0.1.0", lifespan=lifespan)
 
 # Add specific /odds latency metric
-odds_request_seconds = Histogram(
-    "odds_request_seconds", "Time taken to process /odds requests"
-)
+odds_request_seconds = Histogram("odds_request_seconds", "Time taken to process /odds requests")
 
 setup_metrics(app)
 
@@ -319,6 +317,141 @@ async def get_odds(
         duration = time.time() - start_time
         odds_request_seconds.observe(duration)
         return {"error": f"Failed to fetch odds: {str(e)}"}
+
+
+@app.get("/demo/kambi", response_class=HTMLResponse)
+async def demo_kambi():
+    """Demo page showing latest Kambi odds in HTML table format."""
+    try:
+        # Get latest Kambi odds using same logic as /odds endpoint
+        odds_data = await get_odds(minutes=60, limit=100, book="kambi", format="pretty", last=True)
+
+        if not odds_data or odds_data.get("count", 0) == 0:
+            return HTMLResponse(
+                content="""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Kambi Odds Demo</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .no-data { text-align: center; color: #666; margin-top: 50px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Kambi Odds Demo</h1>
+                    <div class="no-data">No odds yet.</div>
+                </body>
+                </html>
+            """
+            )
+
+        # Build HTML table
+        html_rows = []
+        for event in odds_data.get("events", []):
+            event_id = event.get("event_id", "")
+            sport = event.get("sport", "")
+            league = event.get("league", "")
+            home = event.get("home", "")
+            away = event.get("away", "")
+            event_display = f"{home} vs {away}" if home and away else event_id
+
+            for odd in event.get("odds", []):
+                market = odd.get("market", "")
+                ts = odd.get("ts", "")
+
+                # Format market-specific columns
+                if market == "h2h":
+                    line_total = "-"
+                    prices = f"Home: {odd.get('home', '-')}, Away: {odd.get('away', '-')}"
+                elif market == "spreads":
+                    line_total = str(odd.get("line", "-"))
+                    prices = f"Line: {line_total}, Home: {odd.get('home', '-')}, Away: {odd.get('away', '-')}"
+                elif market == "totals":
+                    line_total = str(odd.get("total", "-"))
+                    prices = f"Total: {line_total}, Over: {odd.get('over', '-')}, Under: {odd.get('under', '-')}"
+                else:
+                    line_total = "-"
+                    prices = str(odd)
+
+                html_rows.append(
+                    f"""
+                    <tr>
+                        <td>{ts[:19] if ts else '-'}</td>
+                        <td>{sport}</td>
+                        <td>{league}</td>
+                        <td>{event_display}</td>
+                        <td>{market}</td>
+                        <td>{line_total}</td>
+                        <td>{prices}</td>
+                    </tr>
+                """
+                )
+
+        table_content = "".join(html_rows)
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Kambi Odds Demo</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                table {{ border-collapse: collapse; width: 100%; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                th {{ background-color: #f2f2f2; }}
+                tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                .header {{ margin-bottom: 20px; }}
+                .count {{ color: #666; font-size: 14px; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Kambi Odds Demo</h1>
+                <p class="count">Showing {odds_data.get("count", 0)} events with latest odds</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Sport</th>
+                        <th>League</th>
+                        <th>Event</th>
+                        <th>Market</th>
+                        <th>Line/Total</th>
+                        <th>Prices</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_content}
+                </tbody>
+            </table>
+        </body>
+        </html>
+        """
+
+        return HTMLResponse(content=html_content)
+
+    except Exception as e:
+        # Defensive error handling
+        return HTMLResponse(
+            content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Kambi Odds Demo - Error</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    .error {{ color: red; text-align: center; margin-top: 50px; }}
+                </style>
+            </head>
+            <body>
+                <h1>Kambi Odds Demo</h1>
+                <div class="error">Error loading odds: {str(e)}</div>
+            </body>
+            </html>
+        """
+        )
 
 
 @app.get("/metrics")
