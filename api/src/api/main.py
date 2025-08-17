@@ -320,26 +320,36 @@ async def get_odds(
 
 
 @app.get("/demo/kambi", response_class=HTMLResponse)
-async def demo_kambi():
+async def demo_kambi(minutes: int = 60, limit: int = 100):
     """Demo page showing latest Kambi odds in HTML table format."""
     try:
-        # Get latest Kambi odds using same logic as /odds endpoint
-        odds_data = await get_odds(minutes=60, limit=100, book="kambi", format="pretty", last=True)
+        # Get current timestamp for "Last updated" display
+        from datetime import datetime
+
+        last_updated = datetime.now().strftime("%H:%M:%S")
+
+        # Get latest Kambi odds using same logic as /odds endpoint with query params
+        odds_data = await get_odds(minutes=minutes, limit=limit, book="kambi", format="pretty", last=True)
 
         if not odds_data or odds_data.get("count", 0) == 0:
             return HTMLResponse(
-                content="""
+                content=f"""
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>Kambi Odds Demo</title>
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        .no-data { text-align: center; color: #666; margin-top: 50px; }
+                        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                        .no-data {{ text-align: center; color: #666; margin-top: 50px; }}
+                        .last-updated {{ color: #888; font-size: 14px; margin-bottom: 20px; }}
                     </style>
+                    <script>
+                        setTimeout(function() {{ location.reload(); }}, 2000);
+                    </script>
                 </head>
                 <body>
                     <h1>Kambi Odds Demo</h1>
+                    <div class="last-updated">Last updated: {last_updated}</div>
                     <div class="no-data">No odds yet.</div>
                 </body>
                 </html>
@@ -403,12 +413,17 @@ async def demo_kambi():
                 tr:nth-child(even) {{ background-color: #f9f9f9; }}
                 .header {{ margin-bottom: 20px; }}
                 .count {{ color: #666; font-size: 14px; }}
+                .last-updated {{ color: #888; font-size: 14px; margin-bottom: 10px; }}
             </style>
+            <script>
+                setTimeout(function() {{ location.reload(); }}, 2000);
+            </script>
         </head>
         <body>
             <div class="header">
                 <h1>Kambi Odds Demo</h1>
-                <p class="count">Showing {odds_data.get("count", 0)} events with latest odds</p>
+                <div class="last-updated">Last updated: {last_updated}</div>
+                <p class="count">Showing {odds_data.get("count", 0)} events with latest odds (minutes={minutes}, limit={limit})</p>
             </div>
             <table>
                 <thead>
@@ -434,6 +449,9 @@ async def demo_kambi():
 
     except Exception as e:
         # Defensive error handling
+        from datetime import datetime
+
+        error_time = datetime.now().strftime("%H:%M:%S")
         return HTMLResponse(
             content=f"""
             <!DOCTYPE html>
@@ -443,10 +461,15 @@ async def demo_kambi():
                 <style>
                     body {{ font-family: Arial, sans-serif; margin: 20px; }}
                     .error {{ color: red; text-align: center; margin-top: 50px; }}
+                    .last-updated {{ color: #888; font-size: 14px; margin-bottom: 20px; }}
                 </style>
+                <script>
+                    setTimeout(function() {{ location.reload(); }}, 2000);
+                </script>
             </head>
             <body>
                 <h1>Kambi Odds Demo</h1>
+                <div class="last-updated">Last updated: {error_time}</div>
                 <div class="error">Error loading odds: {str(e)}</div>
             </body>
             </html>
