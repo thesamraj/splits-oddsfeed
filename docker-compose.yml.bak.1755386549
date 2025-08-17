@@ -1,3 +1,4 @@
+
 services:
   broker:
     image: redis:7.2
@@ -60,8 +61,6 @@ services:
         condition: service_healthy
       store:
         condition: service_healthy
-    ports:
-      - "9200:9200"
     restart: unless-stopped
   collector-dk:
     build: ./collector-dk
@@ -196,7 +195,7 @@ services:
       - "9117:9107"
     restart: unless-stopped
   collector-kambi-browser:
-    image: ${COLLECTOR_KAMBI_BROWSER_IMAGE:-ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser:latest}
+    build: ./collector-kambi-browser
     environment:
       REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
       REDIS_CHANNEL: ${REDIS_CHANNEL_KAMBI:-odds.raw.kambi}
@@ -217,30 +216,6 @@ services:
         condition: service_healthy
     ports:
       - "9118:9118"
-    restart: unless-stopped
-
-  collector-kambi-browser-2:
-    image: ${COLLECTOR_KAMBI_BROWSER_IMAGE:-ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser:latest}
-    environment:
-      REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
-      REDIS_CHANNEL: ${REDIS_CHANNEL_KAMBI:-odds.raw.kambi}
-      KAMBI_STATE_URL: ${KAMBI_STATE_URL_SUGARHOUSE:-https://pa.sugarhouse.com/?page=sportsbook#american_football/nfl}
-      KAMBI_CAPTURE_PATTERNS: ${KAMBI_CAPTURE_PATTERNS:-/offering/.*(v2018|events|selections)|e0-api.kambi.com/.*}
-      KAMBI_STORAGE: ${KAMBI_STORAGE_SUGARHOUSE:-/app/state/kambi-browser/state.json}
-      KAMBI_BROWSER_HEADFUL: ${KAMBI_BROWSER_HEADFUL:-false}
-      KAMBI_LAST_RESORT_AFTER_SEC: ${KAMBI_LAST_RESORT_AFTER_SEC:-15}
-      KAMBI_NAV_TIMEOUT_SEC: ${KAMBI_NAV_TIMEOUT_SEC:-25}
-      PROXY_URL: ${PROXY_URL:-}
-      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL:-}
-      METRICS_PORT: 9118
-    volumes:
-      - ./state/kambi-browser-2:/app/state/kambi-browser
-      - ./artifacts/kambi-browser-2:/app/artifacts
-    depends_on:
-      broker:
-        condition: service_healthy
-    ports:
-      - "9120:9118"
     restart: unless-stopped
 
   collector-pinnacle:

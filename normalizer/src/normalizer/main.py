@@ -248,14 +248,16 @@ class Normalizer:
                                 r.get("line"),
                                 r.get("price_home"),
                                 r.get("price_away"),
+                                r.get("price_over"),
+                                r.get("price_under"),
                                 r.get("total"),
                             )
                         )
 
                     await cur.executemany(
                         """
-                        INSERT INTO odds(book, event_id, market, line, price_home, price_away, total, ts)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                        INSERT INTO odds(book, event_id, market, line, price_home, price_away, price_over, price_under, total, ts)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         """,
                         odds_data,
                     )
@@ -307,6 +309,68 @@ class Normalizer:
     async def write_row_with_now(self, r: dict):
         """Write normalized odds row with current timestamp (legacy)"""
         await self.add_to_batch(r)
+
+    async def upsert_event_metadata(self, event_metadata):
+        """Upsert event metadata to events table (best effort)."""
+        if not self.db_pool or not event_metadata.get("event_id"):
+            return
+
+        try:
+            async with self.db_pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    # Build upsert query - only update if we have actual values
+                    fields = []
+                    values = [event_metadata["event_id"]]
+
+                    if event_metadata.get("sport"):
+                        fields.append("sport = %s")
+                        values.append(event_metadata["sport"])
+
+                    if event_metadata.get("league"):
+                        fields.append("league = %s")
+                        values.append(event_metadata["league"])
+
+                    if event_metadata.get("home"):
+                        fields.append("home = %s")
+                        values.append(event_metadata["home"])
+
+                    if event_metadata.get("away"):
+                        fields.append("away = %s")
+                        values.append(event_metadata["away"])
+
+                    # Use a default start_time if not provided
+                    start_time = (
+                        event_metadata.get("start_time") or "1970-01-01T00:00:00+00:00"
+                    )
+
+                    if fields:
+                        # Only do upsert if we have fields to update
+                        fields_str = ", ".join(fields)
+                        await cur.execute(
+                            f"""
+                            INSERT INTO events (id, league, start_time, home, away, sport)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (id) DO UPDATE SET
+                                {fields_str},
+                                updated_at = NOW()
+                        """,
+                            [
+                                event_metadata["event_id"],
+                                event_metadata.get("league", "Unknown"),
+                                start_time,
+                                event_metadata.get("home", "Unknown"),
+                                event_metadata.get("away", "Unknown"),
+                                event_metadata.get("sport", "unknown"),
+                            ]
+                            + values[1:],
+                        )  # Skip event_id from values
+
+                        await conn.commit()
+        except Exception as e:
+            # Best effort - don't fail odds processing if event upsert fails
+            logger.warning(
+                f"Failed to upsert event metadata for {event_metadata.get('event_id')}: {e}"
+            )
 
     async def store_kambi_data(self, events, odds):
         if not self.db_pool:
@@ -443,7 +507,9 @@ class Normalizer:
                                 f"DEBUG_KAMBI_ENVELOPE: About to call normalize_kambi_envelope with payload type: {type(payload)}"
                             )
                         try:
-                            rows = normalize_kambi_envelope(payload, self.now_ts_func)
+                            rows, event_metadata = normalize_kambi_envelope(
+                                payload, self.now_ts_func
+                            )
                             if DBG:
                                 logger.info(
                                     f"DEBUG_KAMBI_ENVELOPE: normalize_kambi_envelope returned {len(rows)} rows"
@@ -462,6 +528,10 @@ class Normalizer:
                         # Add source timestamp to rows for e2e metrics
                         for r in rows:
                             r["_source_ts_ms"] = source_ts_ms
+
+                        # Upsert event metadata (best effort)
+                        if event_metadata and event_metadata.get("event_id"):
+                            await self.upsert_event_metadata(event_metadata)
                     else:
                         # Legacy format
                         if DBG:
@@ -469,9 +539,15 @@ class Normalizer:
                                 f"DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: {type(payload)}"
                             )
                         try:
-                            rows = normalize_kambi_envelope(payload, self.now_ts_func)
+                            rows, event_metadata = normalize_kambi_envelope(
+                                payload, self.now_ts_func
+                            )
                             for r in rows:
                                 r["_source_ts_ms"] = now_ms
+
+                            # Upsert event metadata (best effort)
+                            if event_metadata and event_metadata.get("event_id"):
+                                await self.upsert_event_metadata(event_metadata)
                         except Exception as e:
                             if DBG:
                                 logger.error(
