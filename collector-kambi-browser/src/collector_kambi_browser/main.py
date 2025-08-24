@@ -12,11 +12,20 @@ from urllib.parse import urlparse
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import redis
 from playwright.async_api import async_playwright
+from .enhanced_scroll import (
+    enhanced_scroll_and_click_more,
+    enhanced_discover_events_with_scroll,
+)
 
 # ---- ENV ----
 KAMBI_STATE_URL = os.getenv(
     "KAMBI_STATE_URL", "https://pa.betrivers.com/?page=sportsbook#american_football/nfl"
 )
+# Add a rotation list; browser will cycle these if provided.
+KAMBI_ROTATE_URLS = [
+    u.strip() for u in os.getenv("KAMBI_ROTATE_URLS", "").split(",") if u.strip()
+]
+KAMBI_ROTATE_DWELL_SEC = float(os.getenv("KAMBI_ROTATE_DWELL_SEC", "25"))
 PROXY_URL = os.getenv("PROXY_URL", "")
 PROXY_MANAGER_URL = os.getenv("PROXY_MANAGER_URL", "")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -99,6 +108,42 @@ def log(msg: str):
     print(f"[kambi-browser] {msg}", flush=True)
 
 
+def infer_brand_hint_from_url(url: str) -> str:
+    """Infer brand hint from URL using token mapping"""
+    if not url:
+        return "kambi"
+
+    token_map = {
+        "rsi2uspa": "betrivers",
+        "rsi2usnj": "betrivers",
+        "rsiusnj": "betrivers",
+        "rsi2uson": "betrivers",
+        "sg2uspa": "sugarhouse",
+        "sg2usnj": "sugarhouse",
+        "bp2uspa": "betparx",
+        "bp2usnj": "betparx",
+        "ub2uspa": "unibet",
+        "ub2usnj": "unibet",
+    }
+
+    for token, brand in token_map.items():
+        if token in url:
+            return brand
+
+    # Host fallback
+    host = urlparse(url).netloc.lower()
+    if "betrivers" in host:
+        return "betrivers"
+    elif "sugarhouse" in host:
+        return "sugarhouse"
+    elif "betparx" in host:
+        return "betparx"
+    elif "unibet" in host:
+        return "unibet"
+
+    return "kambi"
+
+
 def guess_event_id_from_url_or_payload(url: str, data: dict) -> str:
     """Extract single event_id with improved heuristics"""
     # common fields
@@ -167,58 +212,70 @@ async def goto_section(page, section):
 
 
 async def scroll_to_load_more(page, seconds=3):
-    """Scroll to trigger lazy loading of more events"""
+    """Enhanced scroll to trigger lazy loading and click 'Show More' buttons"""
     try:
-        for i in range(seconds):
-            await page.mouse.wheel(0, 800)
-            await asyncio.sleep(1)
+        # Use enhanced scrolling if enabled, otherwise fall back to original
+        total_clicks = await enhanced_scroll_and_click_more(page, max_passes=seconds)
+        if total_clicks > 0:
+            log(f"enhanced scroll completed with {total_clicks} buttons clicked")
+        else:
+            # Fallback to original scrolling if enhanced is disabled
+            for i in range(seconds):
+                await page.mouse.wheel(0, 800)
+                await asyncio.sleep(1)
     except Exception as e:
         log(f"scroll_to_load_more failed: {e}")
 
 
 async def discover_event_links(page, limit=8) -> List[str]:
-    """Find event links/cards on the current page"""
-    links = []
+    """Find event links/cards on the current page with enhanced discovery"""
     try:
-        event_selectors = [
-            "[data-testid*='event']",
-            "[class*='event']",
-            "[class*='match']",
-            "a[href*='event']",
-            "[role='button']:has-text('vs')",
-            ".event-card",
-            ".match-card",
-        ]
-
-        for selector in event_selectors:
-            try:
-                events = page.locator(selector)
-                count = await events.count()
-
-                for i in range(min(count, limit - len(links))):
-                    try:
-                        event = events.nth(i)
-                        if await event.is_visible(timeout=1000):
-                            # Skip live video elements
-                            text = await event.text_content() or ""
-                            if any(
-                                skip in text.lower()
-                                for skip in ["live", "video", "stream"]
-                            ):
-                                continue
-                            links.append(f"selector_{selector}_{i}")
-                            if len(links) >= limit:
-                                break
-                    except Exception:
-                        continue
-            except Exception:
-                continue
-
-        log(f"discovered {len(links)} event links")
-        return links[:limit]
+        # Use enhanced discovery which includes scrolling and show-more clicking
+        return await enhanced_discover_events_with_scroll(page, limit)
     except Exception as e:
-        log(f"discover_event_links failed: {e}")
-        return []
+        log(f"enhanced discovery failed, falling back to basic: {e}")
+        # Fallback to original logic
+        links = []
+        try:
+            event_selectors = [
+                "[data-testid*='event']",
+                "[class*='event']",
+                "[class*='match']",
+                "a[href*='event']",
+                "[role='button']:has-text('vs')",
+                ".event-card",
+                ".match-card",
+            ]
+
+            for selector in event_selectors:
+                try:
+                    events = page.locator(selector)
+                    count = await events.count()
+
+                    for i in range(min(count, limit - len(links))):
+                        try:
+                            event = events.nth(i)
+                            if await event.is_visible(timeout=1000):
+                                # Skip live video elements
+                                text = await event.text_content() or ""
+                                if any(
+                                    skip in text.lower()
+                                    for skip in ["live", "video", "stream"]
+                                ):
+                                    continue
+                                links.append(f"selector_{selector}_{i}")
+                                if len(links) >= limit:
+                                    break
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+
+            log(f"discovered {len(links)} event links")
+            return links[:limit]
+        except Exception as e:
+            log(f"discover_event_links failed: {e}")
+            return []
 
 
 async def click_or_goto(page, href):
@@ -428,8 +485,13 @@ async def run_once():
             await cdp.send("Network.enable")
             log("CDP Network enabled")
 
-            # Track WebSocket connections
+            # If ROTATE_URLS provided: cycle through them; else use STATE_URL.
+            urls = KAMBI_ROTATE_URLS or [KAMBI_STATE_URL]
+            url_idx = 0
+
+            # Track WebSocket connections and current URL
             websocket_urls = set()
+            current_url = urls[0]  # Initialize with first URL
 
             async def handle_websocket_created(params):
                 url = params.get("url", "")
@@ -463,11 +525,18 @@ async def run_once():
                     event_id = guess_event_id_from_url_or_payload(url, data)
                     has_event_id = event_id != "unknown"
 
-                    # Create envelope
+                    # Create envelope with brand attribution fields
                     envelope = {
                         "capture_id": str(uuid.uuid4()),
                         "transport": "ws",
                         "url": url,
+                        "page_url": current_url,
+                        "page_host": (
+                            urlparse(current_url).netloc if current_url else ""
+                        ),
+                        "ws_url": url,
+                        "offering_url": url,
+                        "brand_hint": infer_brand_hint_from_url(current_url or url),
                         "source_ts_ms": source_ts_ms,
                         "received_ts_ms": received_ts_ms,
                         "event_id": event_id,
@@ -550,6 +619,15 @@ async def run_once():
                             "capture_id": str(uuid.uuid4()),
                             "transport": "http",
                             "url": pending["url"],
+                            "page_url": current_url,
+                            "page_host": (
+                                urlparse(current_url).netloc if current_url else ""
+                            ),
+                            "ws_url": "",
+                            "offering_url": pending["url"],
+                            "brand_hint": infer_brand_hint_from_url(
+                                current_url or pending["url"]
+                            ),
                             "source_ts_ms": source_ts_ms,
                             "received_ts_ms": received_ts_ms,
                             "event_id": event_id,
@@ -635,6 +713,13 @@ async def run_once():
                         "capture_id": str(uuid.uuid4()),
                         "transport": "http",
                         "url": url,
+                        "page_url": current_url,
+                        "page_host": (
+                            urlparse(current_url).netloc if current_url else ""
+                        ),
+                        "ws_url": "",
+                        "offering_url": url,
+                        "brand_hint": infer_brand_hint_from_url(current_url or url),
                         "source_ts_ms": now_ms,  # Use current time as approximation
                         "received_ts_ms": now_ms,
                         "event_id": event_id,
@@ -670,124 +755,147 @@ async def run_once():
             page.on("response", handle_response)
 
             # Navigate sections and click events concurrently
-            try:
-                log(f"goto {KAMBI_STATE_URL}")
-                await page.goto(
-                    KAMBI_STATE_URL,
-                    wait_until="domcontentloaded",
-                    timeout=NAV_TIMEOUT * 1000,
-                )
-
-                # Wait for initial page load and capture any immediate responses
-                await asyncio.sleep(3)
-
-                # Navigate sections and click events concurrently
-                total_events_processed = 0
-                for section in SECTIONS:
-                    k_sections.labels(section).inc()
-                    log(f"processing section: {section}")
-                    if await goto_section(page, section):
-                        await scroll_to_load_more(page, seconds=4)
-                        links = await discover_event_links(page, limit=MAX_EVENTS)
-
-                        if links:
-                            log(f"found {len(links)} events in {section}")
-                            # bounded concurrency
-                            sem = asyncio.Semaphore(MAX_CONC)
-
-                            async def open_event(href):
-                                async with sem:
-                                    try:
-                                        await click_or_goto(page, href)
-                                        k_clicks.inc()
-                                        await asyncio.sleep(0.8)
-                                    except Exception:
-                                        pass
-
-                            await asyncio.gather(
-                                *(open_event(h) for h in links), return_exceptions=True
-                            )
-                            total_events_processed += len(links)
-
-                        # Continue to next section regardless to broaden capture
-                        await asyncio.sleep(2)
-                    else:
-                        log(f"skipped section: {section}")
-
-                log(
-                    f"processed {total_events_processed} events across {len(SECTIONS)} sections"
-                )
-
-                # If still under target, perform small REST fanout
-                if len(event_ids_seen) < MIN_TARGET:
-                    try:
-                        from .fanout import rest_fanout
-
-                        rest_fanout(event_ids_seen)
-                    except Exception:
-                        pass
-
-                # Wait a bit more to capture any final requests
-                await asyncio.sleep(5)
-
-            except Exception as e:
-                log(f"nav error: {e}")
-                m_errors.labels("nav").inc()
-
-                # Fallback: try direct API call
+            while True:
                 try:
-                    candidate = "https://e0-api.kambi.com/offering/v2018/pa/listView/american_football/nfl/all/all"
-                    js = f"""
-                    async () => {{
-                      const r = await fetch("{candidate}", {{
-                        credentials: "include",
-                        headers: {{
-                          "Accept": "application/json",
-                          "Referer": "https://pa.betrivers.com/",
-                          "Origin": "https://pa.betrivers.com"
-                        }}
-                      }});
-                      const text = await r.text();
-                      return {{status: r.status, url: r.url, body: text}};
-                    }}
-                    """
-                    res = await page.evaluate(js)
-                    try:
-                        data = json.loads(res["body"])
-                        # Create envelope for fallback
-                        now_ms = int(time.time() * 1000)
-                        event_id = guess_event_id_from_url_or_payload(
-                            res.get("url", ""), data
-                        )
-                        has_event_id = event_id != "unknown"
+                    current_url = urls[url_idx % len(urls)]
+                    url_idx += 1
+                    log(f"goto {current_url}")
+                    await page.goto(
+                        current_url,
+                        wait_until="domcontentloaded",
+                        timeout=NAV_TIMEOUT * 1000,
+                    )
 
-                        envelope = {
-                            "capture_id": str(uuid.uuid4()),
-                            "transport": "http",
-                            "url": res.get("url", ""),
-                            "source_ts_ms": now_ms,
-                            "received_ts_ms": now_ms,
-                            "event_id": event_id,
-                            "content_type": "application/json",
-                            "payload": json.dumps(
-                                data, separators=(",", ":"), ensure_ascii=False
-                            ),
-                        }
+                    # Wait for initial page load and capture any immediate responses
+                    await asyncio.sleep(3)
 
-                        k_frames_total.labels(
-                            transport="http", has_event_id=str(has_event_id).lower()
-                        ).inc()
-                        await publish_envelope(rconn, envelope)
-                        m_captured.inc()
-                        m_last_success_ts.set(time.time())
-                        log(f"fallback captured {res.get('status')} {res.get('url')}")
-                    except Exception as e:
-                        log(f"fallback parse error: {e}")
-                        m_errors.labels("last_resort_parse").inc()
+                    # Navigate sections and click events concurrently
+                    total_events_processed = 0
+                    for section in SECTIONS:
+                        k_sections.labels(section).inc()
+                        log(f"processing section: {section}")
+                        if await goto_section(page, section):
+                            await scroll_to_load_more(page, seconds=4)
+                            links = await discover_event_links(page, limit=MAX_EVENTS)
+
+                            if links:
+                                log(f"found {len(links)} events in {section}")
+                                # bounded concurrency
+                                sem = asyncio.Semaphore(MAX_CONC)
+
+                                async def open_event(href):
+                                    async with sem:
+                                        try:
+                                            await click_or_goto(page, href)
+                                            k_clicks.inc()
+                                            await asyncio.sleep(0.8)
+                                        except Exception:
+                                            pass
+
+                                await asyncio.gather(
+                                    *(open_event(h) for h in links),
+                                    return_exceptions=True,
+                                )
+                                total_events_processed += len(links)
+
+                            # Continue to next section regardless to broaden capture
+                            await asyncio.sleep(2)
+                        else:
+                            log(f"skipped section: {section}")
+
+                    log(
+                        f"processed {total_events_processed} events across {len(SECTIONS)} sections"
+                    )
+
+                    # If still under target, perform small REST fanout
+                    if len(event_ids_seen) < MIN_TARGET:
+                        try:
+                            from .fanout import rest_fanout
+
+                            rest_fanout(event_ids_seen)
+                        except Exception:
+                            pass
+
+                    # Wait a bit more to capture any final requests
+                    await asyncio.sleep(5)
+
+                    # Brief dwell to let WS frames flow before rotating to next URL
+                    log(f"dwell for {KAMBI_ROTATE_DWELL_SEC}s before next URL rotation")
+                    await asyncio.sleep(KAMBI_ROTATE_DWELL_SEC)
+
                 except Exception as e:
-                    log(f"fallback fetch error: {e}")
-                    m_errors.labels("last_resort_fetch").inc()
+                    log(f"nav error: {e}")
+                    m_errors.labels("nav").inc()
 
+                    # Fallback: try direct API call
+                    try:
+                        candidate = "https://e0-api.kambi.com/offering/v2018/pa/listView/american_football/nfl/all/all"
+                        js = f"""
+                        async () => {{
+                          const r = await fetch("{candidate}", {{
+                            credentials: "include",
+                            headers: {{
+                              "Accept": "application/json",
+                              "Referer": "https://pa.betrivers.com/",
+                              "Origin": "https://pa.betrivers.com"
+                            }}
+                          }});
+                          const text = await r.text();
+                          return {{status: r.status, url: r.url, body: text}};
+                        }}
+                        """
+                        res = await page.evaluate(js)
+                        try:
+                            data = json.loads(res["body"])
+                            # Create envelope for fallback
+                            now_ms = int(time.time() * 1000)
+                            event_id = guess_event_id_from_url_or_payload(
+                                res.get("url", ""), data
+                            )
+                            has_event_id = event_id != "unknown"
+
+                            envelope = {
+                                "capture_id": str(uuid.uuid4()),
+                                "transport": "http",
+                                "url": res.get("url", ""),
+                                "page_url": current_url,
+                                "page_host": (
+                                    urlparse(current_url).netloc if current_url else ""
+                                ),
+                                "ws_url": "",
+                                "offering_url": res.get("url", ""),
+                                "brand_hint": infer_brand_hint_from_url(
+                                    current_url or res.get("url", "")
+                                ),
+                                "source_ts_ms": now_ms,
+                                "received_ts_ms": now_ms,
+                                "event_id": event_id,
+                                "content_type": "application/json",
+                                "payload": json.dumps(
+                                    data, separators=(",", ":"), ensure_ascii=False
+                                ),
+                            }
+
+                            k_frames_total.labels(
+                                transport="http", has_event_id=str(has_event_id).lower()
+                            ).inc()
+                            await publish_envelope(rconn, envelope)
+                            m_captured.inc()
+                            m_last_success_ts.set(time.time())
+                            log(
+                                f"fallback captured {res.get('status')} {res.get('url')}"
+                            )
+                        except Exception as e:
+                            log(f"fallback parse error: {e}")
+                            m_errors.labels("last_resort_parse").inc()
+                    except Exception as e:
+                        log(f"fallback fetch error: {e}")
+                        m_errors.labels("last_resort_fetch").inc()
+
+                    # Continue to next URL in rotation
+                    continue
+
+            # This code will only be reached if we break out of the while loop
             try:
                 await context.storage_state(path=KAMBI_STORAGE)
                 log("storage saved")
@@ -814,6 +922,17 @@ async def run_once():
 
 
 def main():
+    # Check if we should run SugarHouse polite collector mode
+    collector_mode = os.getenv("COLLECTOR_MODE", "browser")
+
+    if collector_mode == "sugarhouse":
+        # Import and run SugarHouse polite collector
+        from .sugarhouse import main as sugarhouse_main
+
+        sugarhouse_main()
+        return
+
+    # Default browser mode
     # Start metrics server first, before any async operations
     try:
         start_http_server(METRICS_PORT)

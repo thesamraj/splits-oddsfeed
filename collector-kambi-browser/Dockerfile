@@ -25,7 +25,8 @@ RUN python -m pip install --no-cache-dir -U \
       playwright \
       httpx \
       uvloop \
-      orjson
+      orjson \
+      requests
 
 # App source
 COPY src/ ./src/
