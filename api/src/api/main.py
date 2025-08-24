@@ -161,6 +161,8 @@ def format_odds_pretty(odds_rows):
 
 @app.get("/health")
 async def health_check():
+    # CANARY LOG to prove new build deployment
+    print("CANARY_BUILD api:1756064600")
 
     try:
         await app.state.redis.ping()

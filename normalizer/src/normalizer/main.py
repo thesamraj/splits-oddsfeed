@@ -209,6 +209,9 @@ class Normalizer:
         if not self.batch_rows or not self.db_pool:
             return
 
+        # CANARY LOG to prove new build deployment
+        logger.info("CANARY_BUILD normalizer:1756064600")
+
         commit_time = time.time() * 1000
 
         try:
