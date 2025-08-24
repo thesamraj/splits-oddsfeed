@@ -35,72 +35,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="OddsFeed API", version="0.1.0", lifespan=lifespan)
 
 # Add specific /odds latency metric
-odds_request_seconds = Histogram(
-    "odds_request_seconds", "Time taken to process /odds requests"
-)
+odds_request_seconds = Histogram("odds_request_seconds", "Time taken to process /odds requests")
 
 setup_metrics(app)
-
-
-@app.get("/debug/brand_counts")
-async def debug_brand_counts(minutes: int = 60, brand: Optional[str] = None):
-    """Simple brand counts endpoint to prove database connectivity"""
-    conn = getattr(app.state, "db_conn", None)
-    if not conn:
-        return {"error": "Database not available"}
-
-    try:
-        sql = """
-        SELECT COUNT(*) AS count
-        FROM odds o
-        JOIN events e ON e.id = o.event_id
-        WHERE o.ts >= now() - (%s || ' minutes')::interval
-          AND (%s::text IS NULL OR COALESCE(e.brand, '') = %s)
-        """
-
-        async with conn.cursor() as cur:
-            await cur.execute(sql, (minutes, brand, brand))
-            result = await cur.fetchone()
-            count = result[0] if result else 0
-
-        return {"brand": brand or "ALL", "minutes": minutes, "count": count}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/debug/brand_table")
-async def debug_brand_table(minutes: int = 60):
-    """Simple brand breakdown table to prove database connectivity"""
-    conn = getattr(app.state, "db_conn", None)
-    if not conn:
-        return {"error": "Database not available"}
-
-    try:
-        sql = """
-        SELECT
-            COALESCE(e.brand, 'unknown') AS brand,
-            COUNT(*) AS count
-        FROM odds o
-        JOIN events e ON e.id = o.event_id
-        WHERE o.ts >= now() - (%s || ' minutes')::interval
-        GROUP BY COALESCE(e.brand, 'unknown')
-        ORDER BY count DESC
-        """
-
-        async with conn.cursor() as cur:
-            await cur.execute(sql, (minutes,))
-            results = await cur.fetchall()
-
-        brands = {}
-        total = 0
-        for row in results:
-            brand_name, count = row
-            brands[brand_name] = count
-            total += count
-
-        return {"minutes": minutes, "total_rows": total, "brands": brands}
-    except Exception as e:
-        return {"error": str(e)}
 
 
 def format_odds_pretty(odds_rows):
@@ -237,14 +174,8 @@ async def get_odds(
         # Build different query based on last and fill parameters
         if last and fill:
             # For last=true AND fill=true, use side-specific queries to carry forward latest non-null values
-            brand_filter = (
-                "AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)"
-                if brand
-                else ""
-            )
-            sport_filter = (
-                "AND (%(sport)s::text IS NULL OR e.sport = %(sport)s)" if sport else ""
-            )
+            brand_filter = "AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)" if brand else ""
+            sport_filter = "AND (%(sport)s::text IS NULL OR e.sport = %(sport)s)" if sport else ""
 
             sql = textwrap.dedent(
                 f"""
@@ -499,12 +430,8 @@ async def get_odds(
         print(f"DEBUG: params={params}")
 
         async with conn.cursor() as cur:
-            print(f"DEBUG: Executing SQL with params: {params}")
             await cur.execute(sql, params)
             rows = await cur.fetchall()
-            print(f"DEBUG: Query returned {len(rows)} rows")
-            if rows:
-                print(f"DEBUG: First row: {rows[0]}")
 
             # Shape response based on format parameter
             events = []
@@ -524,8 +451,6 @@ async def get_odds(
 
                 events.append(event_data)
 
-            print(f"DEBUG: Shaped {len(events)} events")
-
             # Record latency metric
             duration = time.time() - start_time
             odds_request_seconds.observe(duration)
@@ -538,8 +463,8 @@ async def get_odds(
                     "brand": brand,
                     "sport": sport,
                     "league": league,
-                    "params": params,
-                },
+                    "params": params
+                }
             }
 
     except Exception as e:
@@ -567,55 +492,43 @@ async def get_odds_timeline(
     start_time = time.time()
 
     try:
-        # Fixed query with proper decimal handling and Kambi scaling
+        # Simplified query to test basic functionality first
         sql = textwrap.dedent(
             """
-            select
-              to_char(o.ts,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as ts_iso,
-              o.event_id,
+            SELECT
+              o.ts,
               o.market,
-              case when o.line  is null then null else (o.line  / 1000.0)::double precision end as line,
-              case when o.total is null then null else (o.total / 1000.0)::double precision end as total,
-              (o.price_home )::double precision as price_home,
-              (o.price_away )::double precision as price_away,
-              (o.price_over )::double precision as price_over,
-              (o.price_under)::double precision as price_under
-            from odds o
-            left join events e on e.id = o.event_id
-            where o.book = %s
-              and o.ts > now() - %s * INTERVAL '1 minute'
-              and (
-                coalesce(o.price_home,0) <> 0 or
-                coalesce(o.price_away,0) <> 0 or
-                coalesce(o.price_over,0) <> 0 or
-                coalesce(o.price_under,0) <> 0
-              )
-              and o.event_id = %s
-            order by o.ts asc
+              o.line,
+              o.total,
+              o.price_home,
+              o.price_away,
+              o.price_over,
+              o.price_under
+            FROM odds o
+            WHERE o.book = %s
+              AND o.event_id = %s
+              AND o.ts >= now() - %s * INTERVAL '1 minute'
+            ORDER BY o.ts DESC
+            LIMIT 20
             """
         )
 
         async with conn.cursor() as cur:
-            await cur.execute(sql, (book, minutes, event_id))
+            await cur.execute(sql, (book, event_id, minutes))
             rows = await cur.fetchall()
 
-            # Format timeline data - columns are now pre-scaled and cast to double precision
+            # Format timeline data
             timeline = []
             for r in rows:
                 entry = {
-                    "ts": r[0],  # Already formatted as ISO string
-                    "event_id": r[1],
-                    "market": r[2],
-                    "line": r[
-                        3
-                    ],  # Already scaled by /1000.0 and cast to double precision
-                    "total": r[
-                        4
-                    ],  # Already scaled by /1000.0 and cast to double precision
-                    "price_home": r[5],  # Already cast to double precision
-                    "price_away": r[6],  # Already cast to double precision
-                    "price_over": r[7],  # Already cast to double precision
-                    "price_under": r[8],  # Already cast to double precision
+                    "ts": r[0].isoformat() if r[0] else None,
+                    "market": r[1],
+                    "line": r[2] / 1000.0 if r[2] else None,
+                    "total": r[3] / 1000.0 if r[3] else None,
+                    "price_home": r[4],
+                    "price_away": r[5],
+                    "price_over": r[6],
+                    "price_under": r[7],
                 }
                 timeline.append(entry)
 
@@ -629,7 +542,7 @@ async def get_odds_timeline(
                 "book": book,
                 "market": market,
                 "line_or_total": line_or_total,
-                "timeline": timeline,
+                "timeline": timeline
             }
 
     except Exception as e:
@@ -644,7 +557,7 @@ async def demo_kambi(
     minutes: int = 60,
     limit: int = 100,
     brand: Optional[str] = None,
-    sport: Optional[str] = None,
+    sport: Optional[str] = None
 ):
     """Demo page showing latest Kambi odds in HTML table format."""
     try:
@@ -662,7 +575,7 @@ async def demo_kambi(
             sport=sport,
             format="pretty",
             last=True,
-            fill=True,
+            fill=True
         )
 
         if not odds_data or odds_data.get("count", 0) == 0:
@@ -707,9 +620,7 @@ async def demo_kambi(
                 # Format market-specific columns
                 if market == "h2h":
                     line_total = "-"
-                    prices = (
-                        f"Home: {odd.get('home', '-')}, Away: {odd.get('away', '-')}"
-                    )
+                    prices = f"Home: {odd.get('home', '-')}, Away: {odd.get('away', '-')}"
                 elif market == "spreads":
                     line_total = str(odd.get("line", "-"))
                     prices = f"Line: {line_total}, Home: {odd.get('home', '-')}, Away: {odd.get('away', '-')}"
@@ -850,6 +761,7 @@ async def demo_kambi(
             </html>
         """
         )
+
 
 
 @app.get("/metrics")

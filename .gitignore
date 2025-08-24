@@ -1,23 +1,96 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+.Python
 .venv/
-.env
-*.env
-.pytest_cache/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+dist/
+build/
+develop-eggs/
+downloads/
+wheels/
+share/python-wheels/
+*.egg
+MANIFEST
 .mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pyre/
+.hypothesis/
+.pytype/
+.pyright/
+.ruff_cache/
 
-# macOS
-.DS_Store
-
-# Docker / data
-pgdata/
-redis-data/
-grafana-data/
-prometheus-data/
-*.log
-
-# Playwright/Node (just in case)
+# Node
 node_modules/
-.playwright/
-proxy-manager/proxies.json
+.pnp.*
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn/patches/
+.yarn/plugins/
+.parcel-cache/
+.next/
+out/
+.nuxt/
+.turbo/
+.vercel/
+coverage/
+.eslintcache
+.cache/
+.vite/
+*.tsbuildinfo
+storybook-static/
+.svelte-kit/
+
+# Env files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Docker
+.docker/
+docker-data/
+docker-compose.override.yml
+
+# Project-specific (odds-feed)
+artifacts/
+state/
+tmp/
+playwright-report/
+test-results/
+playwright/.cache/
+data/
+pgdata/
+prometheus-data/
+grafana-data/
+.env.local

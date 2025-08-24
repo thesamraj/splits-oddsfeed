@@ -921,15 +921,180 @@ async def run_once():
     return 0
 
 
+# SugarHouse polite collector implementation
+def run_sugarhouse_collector():
+    """SugarHouse polite collector with rate limiting and healthz"""
+    import requests
+    import json
+    import time
+    import random
+    import redis
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from threading import Thread
+    
+    # Configuration
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+    REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", "odds.raw.kambi") 
+    SUGARHOUSE_BASE_URL = "https://e0-api.kambi.com/offering/v2018/sg2uspa"
+    REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "10"))
+    MIN_INTERVAL_SEC = int(os.getenv("MIN_INTERVAL_SEC", "30"))
+    MAX_BACKOFF_SEC = int(os.getenv("MAX_BACKOFF_SEC", "300"))
+    HEALTHZ_PORT = int(os.getenv("HEALTHZ_PORT", "9133"))
+    METRICS_PORT = int(os.getenv("METRICS_PORT", "9132"))
+    
+    # Health state
+    health_state = {
+        "status": "initializing", 
+        "last_status": None,
+        "last_200_ts": None,
+        "last_429_ts": None, 
+        "backoff_seconds": 0
+    }
+    
+    # Health endpoint handler
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/healthz":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(health_state).encode())
+            else:
+                self.send_error(404)
+        def log_message(self, format, *args): pass  # Suppress logs
+    
+    # Start health server
+    def start_health_server():
+        server = HTTPServer(("0.0.0.0", HEALTHZ_PORT), HealthHandler) 
+        log(f"health server starting on port {HEALTHZ_PORT}")
+        server.serve_forever()
+    
+    health_thread = Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    
+    # Start metrics server
+    start_http_server(METRICS_PORT)
+    log(f"metrics server started on port {METRICS_PORT}")
+    
+    # Main collector logic
+    redis_client = redis.from_url(REDIS_URL)
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9", 
+        "Referer": "https://pa.sugarhouse.com/",
+        "Origin": "https://pa.sugarhouse.com"
+    })
+    
+    backoff_attempt = 0
+    next_request_time = 0
+    
+    log("starting SugarHouse polite collector")
+    
+    while True:
+        try:
+            # Check backoff
+            if time.time() < next_request_time:
+                wait_time = next_request_time - time.time()
+                log(f"backoff waiting {wait_time:.1f}s")
+                time.sleep(min(wait_time, 5))  # Sleep in chunks
+                continue
+                
+            # Make request
+            endpoint = f"{SUGARHOUSE_BASE_URL}/listView/american_football/nfl/all/matches.json?lang=en_US&market=US&client_id=2&channel_id=1&ncid=1000&useCombined=true"
+            log(f"requesting {endpoint}")
+            
+            response = session.get(endpoint, timeout=REQUEST_TIMEOUT)
+            
+            if response.status_code == 200:
+                # Success
+                health_state.update({
+                    "status": "active",
+                    "last_status": 200, 
+                    "last_200_ts": time.time(),
+                    "backoff_seconds": 0
+                })
+                backoff_attempt = 0
+                next_request_time = time.time() + MIN_INTERVAL_SEC
+                
+                # Create envelope and publish
+                data = response.json()
+                if data:
+                    now_ms = int(time.time() * 1000)
+                    envelope = {
+                        "capture_id": f"sugarhouse_{now_ms}",
+                        "transport": "http", 
+                        "url": endpoint,
+                        "page_url": "https://pa.sugarhouse.com",
+                        "page_host": "pa.sugarhouse.com",
+                        "ws_url": "",
+                        "offering_url": endpoint, 
+                        "brand_hint": "sugarhouse",
+                        "source_ts_ms": now_ms,
+                        "received_ts_ms": now_ms,
+                        "event_id": "unknown",
+                        "content_type": "application/json",
+                        "payload": json.dumps(data, separators=(",", ":"))
+                    }
+                    
+                    message = json.dumps(envelope, separators=(",", ":"))
+                    redis_client.publish(REDIS_CHANNEL, message)
+                    log(f"published SugarHouse data ({len(message)} bytes)")
+                    
+            elif response.status_code == 429:
+                # Rate limited
+                retry_after = response.headers.get("Retry-After", "60")
+                backoff_sec = int(retry_after) if retry_after.isdigit() else 60
+                backoff_attempt += 1
+                
+                health_state.update({
+                    "status": "rate_limited",
+                    "last_status": 429,
+                    "last_429_ts": time.time(), 
+                    "backoff_seconds": backoff_sec
+                })
+                
+                next_request_time = time.time() + backoff_sec
+                log(f"rate limited (429), backing off {backoff_sec}s")
+                
+            else:
+                # Other error
+                backoff_attempt += 1 
+                backoff_sec = min(MIN_INTERVAL_SEC * (2 ** backoff_attempt), MAX_BACKOFF_SEC)
+                backoff_sec = int(backoff_sec * random.uniform(0.8, 1.2))  # Add jitter
+                
+                health_state.update({
+                    "status": "idle",
+                    "last_status": response.status_code,
+                    "backoff_seconds": backoff_sec
+                })
+                
+                next_request_time = time.time() + backoff_sec
+                log(f"HTTP {response.status_code}, backing off {backoff_sec}s")
+                
+        except requests.exceptions.Timeout:
+            backoff_attempt += 1
+            backoff_sec = min(MIN_INTERVAL_SEC * (2 ** backoff_attempt), MAX_BACKOFF_SEC) 
+            next_request_time = time.time() + backoff_sec
+            log(f"timeout, backing off {backoff_sec}s")
+            health_state["status"] = "idle"
+            
+        except KeyboardInterrupt:
+            log("shutting down")
+            break
+        except Exception as e:
+            log(f"error: {e}")
+            time.sleep(30)
+
+
 def main():
     # Check if we should run SugarHouse polite collector mode
     collector_mode = os.getenv("COLLECTOR_MODE", "browser")
 
     if collector_mode == "sugarhouse":
-        # Import and run SugarHouse polite collector
-        from .sugarhouse import main as sugarhouse_main
-
-        sugarhouse_main()
+        # Run SugarHouse polite collector
+        run_sugarhouse_collector()
         return
 
     # Default browser mode

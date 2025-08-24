@@ -1,583 +1,484 @@
-"""Kambi data mapper for normalizer."""
-
+# -*- coding: utf-8 -*-
+from __future__ import annotations
 import re
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Any, Optional, Set
-from prometheus_client import Counter
+from typing import Any, Dict, Iterable, List, Optional
 
-k_rows = Counter("kambi_norm_rows_total", "normalized odds rows")
-k_events = Counter("kambi_norm_events_total", "normalized events seen")
-k_skip = Counter("kambi_norm_skipped_total", "skips by reason", ["reason"])
-k_miss = Counter(
-    "kambi_norm_market_map_miss_total", "unmapped market labels", ["label"]
-)
+# Hostname -> brand map (extend as needed)
+BRAND_HOST_MAP = {
+    "pa.betrivers.com": "betrivers",
+    "on.betrivers.com": "betrivers",
+    "pa.sugarhouse.com": "sugarhouse",
+    "pa.betparx.com": "betparx",
+    "nj.betparx.com": "betparx",
+    "betrivers.com": "betrivers",
+    "sugarhouse.com": "sugarhouse",
+    "kambi.com": "kambi",
+}
 
-_EVENT_ID_PAT = re.compile(r"/event[s]?/(\d+)")
+
+def _infer_brand_from_host(host: str) -> str:
+    if not host:
+        return "unknown"
+    # Exact map first
+    if host in BRAND_HOST_MAP:
+        return BRAND_HOST_MAP[host]
+    # Wildcard-ish suffix handling
+    if host.endswith(".betparx.com"):
+        return "betparx"
+    if host.endswith(".betrivers.com") or host.endswith(".on.betrivers.com"):
+        return "betrivers"
+    if host.endswith(".sugarhouse.com"):
+        return "sugarhouse"
+    return "unknown"
 
 
-def _decimal_to_american(d: Decimal) -> Optional[int]:
-    """Convert Kambi decimal odds (scaled by 1000) to American odds."""
-    try:
-        # Kambi uses scaled integers (multiply by 1000), so convert back to decimal
-        if isinstance(d, (int, float)) and d > 100:
-            d = d / 1000.0
-        d = float(d)
-        if d <= 1:
-            return None
-        if d >= 2:
-            result = int(round((d - 1) * 100))
-        else:
-            # 1 < d < 2
-            result = int(round(-100 / (d - 1)))
+# ---------- Helpers ----------
 
-        return result
-    except Exception:
+
+def _to_american_from_decimal(decimal_odds: Optional[float]) -> Optional[int]:
+    if not decimal_odds or decimal_odds <= 1.0:
         return None
+    # American from decimal
+    if decimal_odds >= 2.0:
+        return int(round((decimal_odds - 1.0) * 100))
+    else:
+        return int(round(-100 / (decimal_odds - 1.0)))
 
 
-def _extract_event_ids(envelope_url: str, data: Dict[str, Any]) -> Set[str]:
-    ids: Set[str] = set()
-    for key in ("eventId", "event_id"):
-        v = data.get(key)
-        if isinstance(v, (int, str)):
-            ids.add(str(v))
-    ev = data.get("event") or {}
-    if isinstance(ev, dict):
-        v = ev.get("id")
-        if isinstance(v, (int, str)):
-            ids.add(str(v))
-    for bo in data.get("betOffers") or []:
-        v = bo.get("eventId") or (bo.get("event") or {}).get("id")
-        if isinstance(v, (int, str)):
-            ids.add(str(v))
-        for oc in bo.get("outcomes") or []:
-            v = oc.get("eventId")
-            if isinstance(v, (int, str)):
-                ids.add(str(v))
-    m = _EVENT_ID_PAT.search(envelope_url or "")
-    if m:
-        ids.add(m.group(1))
-    return ids
+def _to_american_from_kambi_scaled(value: Optional[int]) -> Optional[int]:
+    # Kambi sometimes provides integer odds scaled by 1000 for decimal
+    if value is None:
+        return None
+    dec = value / 1000.0
+    return _to_american_from_decimal(dec)
 
 
-def _label_to_market(label: str) -> Optional[str]:
-    lower_label = (label or "").lower()
-    if any(x in lower_label for x in ["moneyline", "h2h", "1x2"]):
-        return "h2h"
-    if (
-        "spread" in lower_label
-        or "point spread" in lower_label
-        or "handicap" in lower_label
-    ):
+def _clean_str(x: Optional[str], default: str = "unknown") -> str:
+    x = (x or "").strip()
+    return x if x else default
+
+
+def _market_name(criterion_label: str) -> Optional[str]:
+    s = (criterion_label or "").lower()
+    if "point spread" in s or "spread" in s or "handicap" in s:
         return "spreads"
-    if "total" in lower_label or "over/under" in lower_label or "totals" in lower_label:
+    if "total" in s or "over/under" in s or "o/u" in s:
         return "totals"
+    if "moneyline" in s or "1x2" in s or "match winner" in s or "winner" in s:
+        return "h2h"
     return None
 
 
-def _emit_rows_from_betoffers(
-    book: str, league: str, event_id: str, betOffers: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
-    for bo in betOffers or []:
-        label = (bo.get("criterion") or {}).get("label") or ""
-        market = _label_to_market(label)
-        if not market:
-            k_miss.labels(label or "unknown").inc()
-            continue
-        for oc in bo.get("outcomes") or []:
-            price_dec = oc.get("odds") or oc.get("oddsDecimal") or oc.get("decimalOdds")
-            line = oc.get("line") or (bo.get("criterion") or {}).get("label2")
-            try:
-                price_amer = (
-                    _decimal_to_american(Decimal(str(price_dec)))
-                    if price_dec is not None
-                    else None
+def _side_from_label(lbl: str, index: int = 0) -> str:
+    s = (lbl or "").lower()
+    if "over" in s:
+        return "over"
+    if "under" in s:
+        return "under"
+    if "home" in s:
+        return "home"
+    if "away" in s:
+        return "away"
+    # For spreads/moneyline, often first outcome is home, second is away
+    # This is a common Kambi pattern
+    if index == 0:
+        return "home"
+    if index == 1:
+        return "away"
+    return "unknown"
+
+
+def _iter_betoffers_anywhere(obj: Any) -> Iterable[Dict[str, Any]]:
+    """
+    Walk dict/list and yield any bet-offer like objects:
+    - arrays under 'betOffers'
+    - single 'mainBetOffer'
+    - listView/listview/selections style
+    - any dict with 'criterion' and 'outcomes'
+    """
+    stack = [obj]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            # direct bet offer
+            if "criterion" in cur and "outcomes" in cur:
+                yield cur
+            # containers
+            for k, v in cur.items():
+                if k in ("betOffers", "betoffers") and isinstance(v, list):
+                    for it in v:
+                        if isinstance(it, dict):
+                            yield it
+                elif k in ("mainBetOffer", "mainBetoffer") and isinstance(v, dict):
+                    yield v
+                else:
+                    stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+
+
+def _event_meta_from_payload(payload: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Try multiple shapes:
+    - payload.get('event')
+    - any dict with keys 'homeName'/'awayName'
+    - competition/league names in various nests
+    - liveEvents[] with 'event'
+    """
+    home, away, league, sport = None, None, None, None
+
+    # Common shapes
+    ev = payload.get("event") if isinstance(payload, dict) else None
+    if isinstance(ev, dict):
+        home = ev.get("homeName") or ev.get("home") or ev.get("homeTeam")
+        away = ev.get("awayName") or ev.get("away") or ev.get("awayTeam")
+        comp = ev.get("competition") or ev.get("tournament") or {}
+        league = comp.get("name") if isinstance(comp, dict) else league
+        # Sometimes sport nested under event.sport or competition.sport
+        sport_obj = (
+            ev.get("sport") or comp.get("sport") if isinstance(comp, dict) else None
+        )
+        if isinstance(sport_obj, dict):
+            sport = sport_obj.get("name") or sport
+
+    # liveEvents shape
+    if not home or not away:
+        live = payload.get("liveEvents")
+        if isinstance(live, list) and live:
+            e = live[0].get("event") if isinstance(live[0], dict) else None
+            if isinstance(e, dict):
+                home = home or e.get("homeName") or e.get("home")
+                away = away or e.get("awayName") or e.get("away")
+                comp = e.get("competition") or {}
+                league = league or (
+                    comp.get("name") if isinstance(comp, dict) else None
                 )
-            except (InvalidOperation, TypeError):
-                price_amer = None
-            side = (oc.get("label") or oc.get("participant") or "").lower()
-            # map side → home/away if obvious
-            is_home = "home" in side
-            is_away = "away" in side
-            rows.append(
-                {
-                    "book": book,
-                    "league": league,
-                    "event_id": event_id,
-                    "market": market,
-                    "line": (
-                        float(line)
-                        if isinstance(line, (int, float, str))
-                        and str(line).replace(".", "", 1).lstrip("-").isdigit()
-                        else None
-                    ),
-                    "price_home": price_amer if is_home else None,
-                    "price_away": price_amer if is_away else None,
-                    "total": (
-                        float(line)
-                        if market == "totals" and line not in (None, "")
-                        else None
-                    ),
-                }
-            )
-    return rows
+                s2 = e.get("sport") or {}
+                if isinstance(s2, dict):
+                    sport = sport or s2.get("name")
 
+    # listview / events arrays
+    if not league or not (home and away):
+        arr = (
+            payload.get("events") or payload.get("listview") or payload.get("listView")
+        )
+        if isinstance(arr, list) and arr:
+            e = arr[0]
+            if isinstance(e, dict):
+                home = home or e.get("homeName") or e.get("home")
+                away = away or e.get("awayName") or e.get("away")
+                comp = e.get("competition") or {}
+                if isinstance(comp, dict):
+                    league = league or comp.get("name")
+                    s2 = comp.get("sport")
+                    if isinstance(s2, dict):
+                        sport = sport or s2.get("name")
 
-def extract_event_metadata(envelope, payload, event_id):
-    """Extract event metadata from Kambi payload."""
-    metadata = {
-        "event_id": event_id,
-        "sport": None,
-        "league": None,
-        "home": None,
-        "away": None,
-        "start_time": None,
+    # Fall back safely for NOT NULL
+    return {
+        "home": _clean_str(home, "Home Team"),
+        "away": _clean_str(away, "Away Team"),
+        "league": _clean_str(league, "unknown"),
+        "sport": _clean_str(sport, "unknown"),
     }
 
-    if not event_id or event_id == "unknown":
-        return metadata
 
+def extract_event_id(payload: dict, url: str = "") -> str | None:
+    """Bulletproof event ID extraction with comprehensive fallback strategies"""
+    # Try many common Kambi shapes
+    key_paths = [
+        ("event", "id"),
+        ("mainBetOffer", "event", "id"),
+        ("liveEvent", "id"),
+        ("liveEvents", 0, "id"),
+        ("events", 0, "id"),
+        ("listView", "events", 0, "id"),
+        ("id",),
+        ("eventId",),
+        ("openEventId",),
+    ]
+    for path in key_paths:
+        try:
+            v = payload
+            for k in path:
+                v = v[k]
+            if v:
+                return str(v)
+        except Exception:
+            pass
+
+    # Offers/outcomes shapes
     try:
-        # Look for event metadata in various places in Kambi payload
-
-        # Shape A: Direct event object
-        event_obj = payload.get("event") or {}
-
-        # Shape B: liveEvents[].event
-        if not event_obj and payload.get("liveEvents"):
-            for le in payload.get("liveEvents") or []:
-                ev = (le or {}).get("event") or {}
-                if str(ev.get("id", "")) == event_id:
-                    event_obj = ev
-                    break
-
-        # Shape C: events[] array
-        if not event_obj and payload.get("events"):
-            for ev in payload.get("events") or []:
-                if (
-                    str(
-                        ev.get("id", "")
-                        or ev.get("eventId", "")
-                        or ev.get("event_id", "")
-                    )
-                    == event_id
-                ):
-                    event_obj = ev
-                    break
-
-        # Extract metadata from event object
-        if event_obj:
-            # Sport - try multiple fields
-            sport = event_obj.get("sport") or event_obj.get("sportName")
-            if sport:
-                metadata["sport"] = str(sport).lower()
-
-            # League/competition
-            league = (
-                (event_obj.get("group") or {}).get("name")
-                or event_obj.get("league")
-                or event_obj.get("competition")
-            )
-            if league:
-                metadata["league"] = str(league)
-
-            # Teams
-            home_name = (
-                event_obj.get("homeName")
-                or event_obj.get("home")
-                or event_obj.get("homeTeam")
-            )
-            away_name = (
-                event_obj.get("awayName")
-                or event_obj.get("away")
-                or event_obj.get("awayTeam")
-            )
-
-            if home_name:
-                metadata["home"] = str(home_name)
-            if away_name:
-                metadata["away"] = str(away_name)
-
-            # Start time
-            start_time = (
-                event_obj.get("start")
-                or event_obj.get("startTime")
-                or event_obj.get("start_time")
-            )
-            if start_time:
-                metadata["start_time"] = str(start_time)
-
-        # Try to extract from group context if available
-        if not metadata["league"] and payload.get("group"):
-            group = payload.get("group") or {}
-            group_name = group.get("name") or group.get("label")
-            if group_name:
-                metadata["league"] = str(group_name)
-
-        # Infer sport from context if missing
-        if not metadata["sport"]:
-            # Try to infer from URL or envelope context
-            envelope_url = envelope.get("url", "")
-            if "american_football" in envelope_url or "nfl" in envelope_url.lower():
-                metadata["sport"] = "american_football"
-            elif "basketball" in envelope_url or "nba" in envelope_url.lower():
-                metadata["sport"] = "basketball"
-            elif "baseball" in envelope_url or "mlb" in envelope_url.lower():
-                metadata["sport"] = "baseball"
-
-        # Default league based on sport if missing
-        if metadata["sport"] and not metadata["league"]:
-            sport_to_league = {
-                "american_football": "NFL",
-                "basketball": "NBA",
-                "baseball": "MLB",
-                "hockey": "NHL",
-            }
-            metadata["league"] = sport_to_league.get(metadata["sport"])
-
+        for bo in payload.get("betOffers") or []:
+            ev = bo.get("event") or {}
+            if "id" in ev:
+                return str(ev["id"])
+            if "eventId" in bo:
+                return str(bo["eventId"])
+            for oc in bo.get("outcomes") or []:
+                if "eventId" in oc:
+                    return str(oc["eventId"])
     except Exception:
-        # Best effort - don't fail if metadata extraction fails
         pass
 
-    return metadata
+    # Outcomes at root
+    try:
+        for oc in payload.get("outcomes") or []:
+            if "eventId" in oc:
+                return str(oc["eventId"])
+    except Exception:
+        pass
+
+    # URL fallback: last 6+ digits anywhere in path/query
+    try:
+        import re
+
+        m = re.search(r"/events?/(\d+)", url) or re.search(r"(?<!\d)(\d{6,})", url)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+
+    # Deterministic synthetic ID as LAST resort (to avoid 'unknown')
+    try:
+        brand = infer_brand_from_url(url) or ""
+        league = (
+            (payload.get("league") or {}).get("name") or payload.get("leagueName") or ""
+        )
+        home = (
+            (payload.get("home") or {}).get("name") or payload.get("homeName") or ""
+        ).strip()
+        away = (
+            (payload.get("away") or {}).get("name") or payload.get("awayName") or ""
+        ).strip()
+        start = (
+            payload.get("start")
+            or payload.get("startTime")
+            or payload.get("startDate")
+            or ""
+        )
+        s = f"{brand}|{league}|{home}|{away}|{start}"
+        import hashlib
+
+        if home or away:
+            return "kambi_" + hashlib.sha1(s.encode()).hexdigest()[:16]
+    except Exception:
+        pass
+
+    return None
 
 
-def normalize_kambi_envelope(envelope, now_ts_func):
-    import json as _json
-    from collections import defaultdict
+def _event_id_from_any(obj: Any) -> Optional[str]:
+    """Legacy wrapper for backward compatibility"""
+    if isinstance(obj, dict):
+        return extract_event_id(obj, "")
+    return None
 
-    rows = []
-    raw = envelope.get("payload") or envelope.get("data")
-    if isinstance(raw, str):
-        try:
-            payload = _json.loads(raw)
-        except Exception:
-            return rows
+
+def infer_brand_from_url(url: str) -> str:
+    try:
+        # First try hostname mapping
+        host = re.sub(r"^https?://", "", url).split("/")[0]
+        brand = _infer_brand_from_host(host)
+        if brand != "unknown":
+            return brand
+
+        # For Kambi CDN URLs, check path tokens
+        if "kambicdn.com" in host or "kambi.com" in host:
+            # Brand token mapping for Kambi paths
+            brand_tokens = {
+                "rsi2uspa": "betrivers",  # BetRivers PA
+                "rsi2usnj": "betrivers",  # BetRivers NJ
+                "rsi2uson": "betrivers",  # BetRivers ON
+                "sg2uspa": "sugarhouse",  # SugarHouse PA
+                "sg2usnj": "sugarhouse",  # SugarHouse NJ
+                "bp2uspa": "betparx",  # BetParx PA
+                "bp2usnj": "betparx",  # BetParx NJ
+            }
+
+            # Check for any brand token in the URL
+            for token, brand_name in brand_tokens.items():
+                if token in url:
+                    return brand_name
+
+        return "kambi"
+    except Exception:
+        return "kambi"
+
+
+# ---------- Public API ----------
+
+
+def extract_event_metadata(envelope: Dict[str, Any]) -> Dict[str, str]:
+    url = str(envelope.get("url", ""))
+    brand = infer_brand_from_url(url)
+    payload = envelope.get("payload") or envelope.get("data") or {}
+    meta = _event_meta_from_payload(payload if isinstance(payload, dict) else {})
+    meta["brand"] = _clean_str(brand, "kambi")
+
+    # Require a valid event_id - skip if None and no teams
+    event_id = extract_event_id(payload, url)
+    if event_id:
+        meta["event_id"] = event_id
     else:
-        payload = raw or {}
+        # Check if we have team data to justify synthetic ID
+        home = meta.get("home", "")
+        away = meta.get("away", "")
+        if not home or not away or home == "Home Team" or away == "Away Team":
+            # No meaningful data - mark for skipping
+            meta["event_id"] = None
+        else:
+            # Last resort synthetic ID
+            import hashlib
 
-    ts_now = now_ts_func()  # CALL function (bug fix)
-    event_id = extract_event_id(envelope, payload) or ""
+            s = f"{brand}|{home}|{away}|{url}"
+            meta["event_id"] = "kambi_" + hashlib.sha1(s.encode()).hexdigest()[:16]
 
-    # Extract event metadata for upsert
-    event_metadata = extract_event_metadata(envelope, payload, event_id)
+    return meta
 
-    def safe_price_conversion(odds_obj):
-        """Convert odds to American, return None if invalid or 0."""
-        price = price_from_odds_obj(odds_obj or {})
-        return price if price not in (None, 0) else None
 
-    def process_bet_offers(bet_offers):
-        """Process bet offers and group outcomes appropriately by market type."""
-        # Group outcomes by market and line for proper pairing
-        market_groups = defaultdict(lambda: defaultdict(list))
+def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Return list of row dicts with fields:
+      event_id, market, line, total, price_home, price_away, price_over, price_under, ts
+    """
+    # now_iso = None  # ts added at DB layer if desired
+    payload = envelope.get("payload") or envelope.get("data") or {}
+    if not isinstance(payload, dict):
+        return []
 
-        for bo in bet_offers or []:
-            crit = (bo.get("criterion") or {}).get("label")
-            market = map_market_label(crit)
-            if not market:
+    url = str(envelope.get("url", ""))
+    event_id = envelope.get("event_id") or extract_event_id(payload, url)
+    if not event_id:
+        # Skip processing if we can't extract a valid event_id
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    for bo in _iter_betoffers_anywhere(payload):
+        try:
+            crit = bo.get("criterion") or {}
+            mkt = _market_name(_clean_str(crit.get("label", "")))
+            if not mkt:
                 continue
 
-            for oc in bo.get("outcomes") or []:
-                price = safe_price_conversion(oc.get("odds"))
-                if price is None:
+            # line / total from betOffer or outcome (Kambi often uses "line"/"criterion" or "variant")
+            line = None
+            total = None
+            # common places - try bet offer level first
+            if "line" in bo and isinstance(bo["line"], (int, float)):
+                # If looks scaled (thousands), preserve raw here; pretty API will scale
+                line = (
+                    int(bo["line"])
+                    if isinstance(bo["line"], int)
+                    else int(round(float(bo["line"])))
+                )
+            # totals frequently put number as "line" too; we set total for totals market
+            if mkt == "totals":
+                total = line
+                line = None
+
+            outs = bo.get("outcomes") or []
+            for idx, oc in enumerate(outs):
+                # Check for line/total at outcome level if not found at bet offer level
+                outcome_line = line
+                outcome_total = total
+                if (
+                    outcome_line is None
+                    and "line" in oc
+                    and isinstance(oc["line"], (int, float))
+                ):
+                    outcome_line = (
+                        int(oc["line"])
+                        if isinstance(oc["line"], int)
+                        else int(round(float(oc["line"])))
+                    )
+                    if mkt == "totals":
+                        outcome_total = outcome_line
+                        outcome_line = None
+
+                # figure side and odds
+                side = _side_from_label(_clean_str(oc.get("label", "")), idx)
+                american = None
+
+                # Many shapes: oc.get('odds', {'american': int, 'decimal': float or scaled int})
+                odds_obj = oc.get("odds")
+                if isinstance(odds_obj, dict):
+                    if "american" in odds_obj and odds_obj["american"] not in (None, 0):
+                        american = int(odds_obj["american"])
+                    elif "decimal" in odds_obj and odds_obj["decimal"] not in (None, 0):
+                        if isinstance(odds_obj["decimal"], int):
+                            american = _to_american_from_kambi_scaled(
+                                odds_obj["decimal"]
+                            )
+                        else:
+                            american = _to_american_from_decimal(
+                                float(odds_obj["decimal"])
+                            )
+                elif isinstance(odds_obj, (int, float)) and odds_obj > 0:
+                    # Direct Kambi scaled odds (common case)
+                    american = _to_american_from_kambi_scaled(int(odds_obj))
+
+                # Also check outcome oddsAmerican field directly
+                if american is None:
+                    odds_american = oc.get("oddsAmerican")
+                    if odds_american and odds_american not in (None, 0):
+                        try:
+                            american = int(odds_american)
+                        except (ValueError, TypeError):
+                            pass
+
+                # Some feeds provide 'fraction' or scaled int elsewhere — try generic scaled value
+                if american is None:
+                    scaled = oc.get("oddsAmericanScaled") or oc.get("oddsDecimalScaled")
+                    if isinstance(scaled, int):
+                        american = _to_american_from_kambi_scaled(scaled)
+
+                # Skip if still invalid
+                if american is None:
                     continue
 
-                line = oc.get("line")
-                label = (
-                    oc.get("label") or oc.get("participant") or oc.get("name") or ""
-                ).lower()
-
-                # Store outcome info for grouping
-                outcome_info = {
-                    "price": price,
-                    "line": line,
-                    "label": label,
-                    "original_line": line,  # preserve original for totals
+                row = {
+                    "event_id": str(event_id),
+                    "market": mkt,
+                    "line": outcome_line,
+                    "total": outcome_total,
+                    "price_home": None,
+                    "price_away": None,
+                    "price_over": None,
+                    "price_under": None,
                 }
 
-                if market == "spreads":
-                    # Group by absolute line value for spreads
-                    abs_line = abs(float(line)) if line not in (None, "") else 0
-                    market_groups[market][abs_line].append(outcome_info)
-                elif market == "totals":
-                    # Group by line value for totals
-                    total_line = float(line) if line not in (None, "") else 0
-                    market_groups[market][total_line].append(outcome_info)
-                else:  # h2h
-                    # Group all h2h outcomes together
-                    market_groups[market][0].append(outcome_info)
+                if mkt == "h2h":
+                    if side == "home":
+                        row["price_home"] = american
+                    elif side == "away":
+                        row["price_away"] = american
+                    else:
+                        # If we can't tell, skip ambiguous h2h outcome
+                        continue
+                elif mkt == "spreads":
+                    # spreads: two sides by absolute line; assume home/away
+                    if side == "home":
+                        row["price_home"] = american
+                    elif side == "away":
+                        row["price_away"] = american
+                    else:
+                        continue
+                elif mkt == "totals":
+                    if side == "over":
+                        row["price_over"] = american
+                    elif side == "under":
+                        row["price_under"] = american
+                    else:
+                        continue
+                else:
+                    continue
 
-        # Convert grouped outcomes to rows
-        for market, line_groups in market_groups.items():
-            for line_key, outcomes in line_groups.items():
-                if market == "totals":
-                    # Create one row per total line with over/under prices
-                    row = {
-                        "book": "kambi",
-                        "event_id": str(event_id),
-                        "market": market,
-                        "line": None,
-                        "price_home": None,
-                        "price_away": None,
-                        "price_over": None,
-                        "price_under": None,
-                        "total": float(line_key) if line_key else None,
-                        "ts": ts_now,
-                    }
+                rows.append(row)
+        except Exception:
+            # skip malformed bet offer safely
+            continue
 
-                    for oc in outcomes:
-                        label = oc["label"]
-                        if "over" in label:
-                            row["price_over"] = oc["price"]
-                        elif "under" in label:
-                            row["price_under"] = oc["price"]
-
-                    # Only add row if we have at least one price
-                    if row["price_over"] is not None or row["price_under"] is not None:
-                        rows.append(row)
-
-                elif market == "spreads":
-                    # Create one row per absolute line with home/away prices
-                    row = {
-                        "book": "kambi",
-                        "event_id": str(event_id),
-                        "market": market,
-                        "line": None,
-                        "price_home": None,
-                        "price_away": None,
-                        "price_over": None,
-                        "price_under": None,
-                        "total": None,
-                        "ts": ts_now,
-                    }
-
-                    # Determine home/away from original line signs and labels
-                    for oc in outcomes:
-                        label = oc["label"]
-                        original_line = oc["original_line"]
-
-                        # Set the line from the first outcome (should be consistent)
-                        if row["line"] is None and original_line not in (None, ""):
-                            row["line"] = float(original_line)
-
-                        # Determine if this is home or away based on label and line sign
-                        if "home" in label or (
-                            "away" not in label
-                            and original_line
-                            and float(original_line) >= 0
-                        ):
-                            row["price_home"] = oc["price"]
-                        elif (
-                            "away" in label
-                            or original_line
-                            and float(original_line) < 0
-                        ):
-                            row["price_away"] = oc["price"]
-
-                    # Only add row if we have at least one price
-                    if row["price_home"] is not None or row["price_away"] is not None:
-                        rows.append(row)
-
-                else:  # h2h
-                    # Create one row with home/away prices
-                    row = {
-                        "book": "kambi",
-                        "event_id": str(event_id),
-                        "market": market,
-                        "line": None,
-                        "price_home": None,
-                        "price_away": None,
-                        "price_over": None,
-                        "price_under": None,
-                        "total": None,
-                        "ts": ts_now,
-                    }
-
-                    for oc in outcomes:
-                        label = oc["label"]
-                        if "home" in label:
-                            row["price_home"] = oc["price"]
-                        elif "away" in label:
-                            row["price_away"] = oc["price"]
-
-                    # Only add row if we have at least one price
-                    if row["price_home"] is not None or row["price_away"] is not None:
-                        rows.append(row)
-
-    # Shape A: betOffers[]
-    process_bet_offers(payload.get("betOffers"))
-
-    # Shape B: liveEvents[] with mainBetOffer + betOffers
-    for le in payload.get("liveEvents") or []:
-        ev = (le or {}).get("event") or {}
-        if ev.get("id") and not event_id:
-            event_id = str(ev.get("id"))
-
-        bos = []
-        mbo = le.get("mainBetOffer")
-        if mbo and isinstance(mbo, dict):
-            bos.append(mbo)
-        bos.extend(le.get("betOffers") or [])
-
-        process_bet_offers(bos)
-
-    # Shape C: events[] with markets/outcomes - convert to betOffers format
-    for ev in payload.get("events") or []:
-        if (not event_id) and isinstance(ev, dict):
-            eid = ev.get("id") or ev.get("eventId") or ev.get("event_id")
-            if eid:
-                event_id = str(eid)
-
-        # Convert markets to betOffers format
-        bet_offers = []
-        for mk in ev.get("markets") or []:
-            bo = {
-                "criterion": {"label": mk.get("name") or mk.get("label")},
-                "outcomes": mk.get("outcomes") or [],
-            }
-            bet_offers.append(bo)
-
-        process_bet_offers(bet_offers)
-
-    # FLAT result only - filter out any rows without prices
-    filtered_rows = [
-        r
-        for r in rows
-        if r.get("book") == "kambi"
-        and r.get("event_id")
-        and any(
-            [
-                r.get("price_home"),
-                r.get("price_away"),
-                r.get("price_over"),
-                r.get("price_under"),
-            ]
-        )
-    ]
-
-    return filtered_rows, event_metadata
-
-
-def normalize_kambi_data(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Legacy wrapper for compatibility - calls new envelope function"""
-
-    def legacy_now_ts():
-        import datetime
-
-        return datetime.datetime.utcnow().isoformat()
-
-    rows, event_metadata = normalize_kambi_envelope(payload, legacy_now_ts)
-    k_events.inc(len(set(r.get("event_id", "") for r in rows)))
-    k_rows.inc(len(rows))
-
-    # Legacy format expected by existing normalizer
-    return {
-        "source": "kambi",
-        "book": "kambi",
-        "timestamp": datetime.utcnow().isoformat(),
-        "rows": rows,  # Return rows directly for new normalizer flow
-        "event_metadata": event_metadata,  # Include event metadata
-    }
-
-
-def extract_event_id(envelope, payload):
-    # envelope event_id first
-    ev = envelope.get("event_id")
-    if ev:
-        return str(ev)
-    # Kambi betOffers/event structures
-    try:
-        if isinstance(payload, dict):
-            # common places:
-            # payload['event']['id'], or payload['betOffers'][0]['event']['id']
-            if (
-                "event" in payload
-                and isinstance(payload["event"], dict)
-                and "id" in payload["event"]
-            ):
-                return str(payload["event"]["id"])
-            if "betOffers" in payload and isinstance(payload["betOffers"], list):
-                for bo in payload["betOffers"]:
-                    try:
-                        e = bo.get("event") or {}
-                        if "id" in e:
-                            return str(e["id"])
-                    except Exception:
-                        pass
-    except Exception:
-        pass
-    return None
-
-
-def decimal_to_american(dec):
-    """Convert decimal odds to American odds, never return 0."""
-    try:
-        # Handle Kambi scaled integers
-        if isinstance(dec, (int, float)) and dec > 100:
-            dec = dec / 1000.0
-        d = float(dec)
-        if d <= 1.0:
-            return None
-        if d >= 2.0:
-            result = int(round((d - 1) * 100))
-        else:
-            result = int(round(-100 / (d - 1)))
-
-        return result
-    except Exception:
-        return None
-
-
-def parse_american(v):
-    if v is None:
-        return None
-    try:
-        if isinstance(v, (int, float)):
-            return int(v)
-        if isinstance(v, str):
-            v = v.strip()
-            if v.startswith("+"):
-                v = v[1:]
-            return int(v)
-    except Exception:
-        return None
-
-
-def price_from_odds_obj(odds):
-    """Extract price from odds object, never return 0."""
-    if not isinstance(odds, dict):
-        return None
-
-    # Try American odds first
-    am = parse_american(odds.get("american"))
-    if am is not None and am != 0:
-        return am
-
-    # Support decimal as float or scaled int (Kambi uses scaled by 1000)
-    dec = odds.get("decimal") or odds.get("trueOdds")
-    if dec is not None:
-        result = decimal_to_american(dec)
-        return result if result not in (None, 0) else None
-
-    return None
-
-
-def map_market_label(label: str):
-    lab = (label or "").lower()
-    if "spread" in lab or "handicap" in lab:
-        return "spreads"
-    if "total" in lab or "over/under" in lab or "over under" in lab:
-        return "totals"
-    if (
-        "moneyline" in lab
-        or "money line" in lab
-        or "moneyline 3-way" in lab
-        or "3way" in lab
-        or "match winner" in lab
-        or "h2h" in lab
-    ):
-        return "h2h"
-    return None
+    # If we generated rows where only one side appeared (e.g., only price_home),
+    # we still keep them — API can filter empties, but DB wants actual prices.
+    return rows

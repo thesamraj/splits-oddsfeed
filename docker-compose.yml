@@ -355,14 +355,14 @@ services:
       MIN_INTERVAL_SEC: 30
       MAX_BACKOFF_SEC: 300
       REQUEST_TIMEOUT: 10
-      METRICS_PORT: 9118
-      HEALTHZ_PORT: 9122
+      METRICS_PORT: 9132
+      HEALTHZ_PORT: 9133
     depends_on:
       broker:
         condition: service_healthy
     ports:
-      - "9122:9122"  # Health endpoint
-      - "9118:9118"  # Metrics endpoint
+      - "9133:9133"  # Health endpoint  
+      - "9132:9132"  # Metrics endpoint
     restart: unless-stopped
 
   collector-pinnacle:

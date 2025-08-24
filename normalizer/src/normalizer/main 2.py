@@ -10,11 +10,7 @@ from psycopg_pool import AsyncConnectionPool
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
-from normalizer.kambi_mapper import (
-    normalize_kambi_envelope,
-    extract_event_metadata,
-    extract_brand,
-)
+from normalizer.kambi_mapper import normalize_kambi_envelope, extract_event_metadata
 import time
 
 # Kambi freshness gauge
@@ -546,20 +542,6 @@ class Normalizer:
                             }
                             rows = normalize_kambi_envelope(envelope)
                             event_metadata = extract_event_metadata(envelope)
-
-                            # Extract brand and add BRAND_EVAL logging
-                            brand = extract_brand(envelope)
-                            event_metadata["brand"] = brand
-
-                            # BRAND_EVAL logging as specified
-                            url = envelope.get("url", "")
-                            page_url = payload.get("page_url", "")
-                            logger.info(
-                                "BRAND_EVAL brand=%s url=%s page_url=%s",
-                                brand,
-                                url[:100],
-                                page_url[:100],
-                            )
                             if DBG:
                                 logger.info(
                                     f"DEBUG_KAMBI_ENVELOPE: normalize_kambi_envelope returned {len(rows)} rows"
@@ -613,16 +595,6 @@ class Normalizer:
                         try:
                             rows = normalize_kambi_envelope(payload)
                             event_metadata = extract_event_metadata(payload)
-
-                            # Extract brand and add BRAND_EVAL logging for legacy format
-                            brand = extract_brand(payload)
-                            event_metadata["brand"] = brand
-
-                            # BRAND_EVAL logging as specified
-                            url = payload.get("url", "")
-                            logger.info(
-                                "BRAND_EVAL brand=%s url=%s page_url=", brand, url[:100]
-                            )
                             for r in rows:
                                 r["_source_ts_ms"] = now_ms
 
@@ -792,15 +764,11 @@ class Normalizer:
                 return
 
             # Source ts candidates (first non-null): source_ts_ms, timestamp_ms, ts (epoch ms)
-            # Debug what keys are available
-            logger.info(f"E2E_DEBUG: envelope keys={list(env.keys())}")
-
             src_ts = None
             for key in ["source_ts_ms", "timestamp_ms", "ts"]:
                 candidate = env.get(key)
                 if isinstance(candidate, (int, float)) and candidate > 0:
                     src_ts = candidate
-                    logger.info(f"E2E_DEBUG: using timestamp key={key} value={src_ts}")
                     break
 
             if not src_ts:
@@ -815,34 +783,14 @@ class Normalizer:
             kambi_e2e_latency_seconds.observe(latency)
             kambi_rows_written_total.inc(rows_inserted)
 
-            # Always log E2E latency with rolling timer as specified
-            logger.info(
-                f"E2E: Observed {latency:.3f}s latency for {rows_inserted} rows [src_ts={src_ts}, now_ms={now_ms}]"
-            )
+            if latency > 10:  # Log only high latencies to reduce noise
+                logger.info(
+                    f"E2E: Observed {latency:.3f}s latency for {rows_inserted} rows"
+                )
 
         except Exception as e:
             KAMBI_E2E_SKIPPED.labels(reason="exception").inc()
             logger.warning(f"E2E: Error observing latency: {e}")
-
-    async def periodic_e2e_logging(self):
-        """Periodic E2E logging every 10 seconds for rolling timer"""
-        while self.running:
-            try:
-                await asyncio.sleep(10.0)
-                if self.running:
-                    # Log current metrics and status
-                    batch_size = len(self.batch_rows)
-                    last_insert = getattr(kambi_last_insert_ts, "_value", 0)
-                    now = time.time()
-                    since_last = now - last_insert if last_insert > 0 else -1
-
-                    logger.info(
-                        f"E2E_TIMER: batch_size={batch_size} last_insert={since_last:.1f}s_ago now={now:.0f}"
-                    )
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"E2E_TIMER: Error in periodic logging: {e}")
 
     async def run(self):
         await self.connect_db()
@@ -850,15 +798,13 @@ class Normalizer:
 
         self.running = True
         try:
-            # Start periodic tasks
+            # Start periodic batch flush task
             flush_task = asyncio.create_task(self.periodic_flush())
-            e2e_task = asyncio.create_task(self.periodic_e2e_logging())
             consume_task = asyncio.create_task(self.start_consuming())
 
-            # Wait for any task to complete
+            # Wait for either task to complete
             done, pending = await asyncio.wait(
-                [flush_task, e2e_task, consume_task],
-                return_when=asyncio.FIRST_COMPLETED,
+                [flush_task, consume_task], return_when=asyncio.FIRST_COMPLETED
             )
 
             # Cancel pending tasks
@@ -901,18 +847,8 @@ if __name__ == "__main__":
 
 
 def process_kambi_envelope(conn, env: dict, now_ts_func):
-    # Extract metadata and brand using new extract_brand function
+    # Extract metadata and ensure events row exists with non-null fields
     meta = extract_event_metadata(env)
-    brand = extract_brand(env)
-
-    # BRAND_EVAL logging as specified
-    url = env.get("url", "")
-    page_url = env.get("page_url", "")
-    logger.info("BRAND_EVAL brand=%s url=%s page_url=%s", brand, url, page_url)
-
-    # Override brand in metadata
-    meta["brand"] = brand
-
     ev_id = env.get("event_id")
     if not ev_id:
         # Try derive from payload
