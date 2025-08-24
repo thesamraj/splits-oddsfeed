@@ -347,7 +347,7 @@ services:
   # Additional SugarHouse collector for scaling
   # Single polite SugarHouse collector with /healthz endpoint
   sugarhouse-1:
-    image: ${COLLECTOR_KAMBI_BROWSER_IMAGE:-ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser:latest}
+    build: ./collector-kambi-browser
     environment:
       REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
       REDIS_CHANNEL: ${REDIS_CHANNEL_KAMBI:-odds.raw.kambi}

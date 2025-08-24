@@ -482,3 +482,39 @@ def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     # If we generated rows where only one side appeared (e.g., only price_home),
     # we still keep them — API can filter empties, but DB wants actual prices.
     return rows
+
+
+def extract_brand(envelope: Dict[str, Any]) -> str:
+    """Extract brand from envelope using token and host fallback"""
+    # Token-based mapping with precedence
+    token_map = {
+        "rsi2uspa": "betrivers", "rsi2usnj": "betrivers", "rsiusnj": "betrivers", "rsi2uson": "betrivers",
+        "sg2uspa": "sugarhouse", "sg2usnj": "sugarhouse", 
+        "bp2uspa": "betparx", "bp2usnj": "betparx",
+        "ub2uspa": "unibet", "ub2usnj": "unibet"
+    }
+    
+    # Try to extract token from URL
+    url = envelope.get("offering_url") or envelope.get("url") or ""
+    for token, brand in token_map.items():
+        if token in url:
+            return brand
+    
+    # Fallback to host-based mapping
+    page_host = envelope.get("page_host", "")
+    if page_host:
+        return _infer_brand_from_host(page_host)
+    
+    # Last resort - extract from any URL in envelope
+    for url_field in ["page_url", "ws_url", "offering_url"]:
+        url_val = envelope.get(url_field, "")
+        if url_val and "//" in url_val:
+            try:
+                host = url_val.split("//")[1].split("/")[0].split("?")[0].lower()
+                brand = _infer_brand_from_host(host)
+                if brand != "unknown":
+                    return brand
+            except:
+                pass
+    
+    return envelope.get("brand_hint", "kambi")
