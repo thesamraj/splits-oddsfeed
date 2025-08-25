@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # SugarHouse singleton with healthz on 9133
+  sugarhouse-netonly:
+    ports:
+      - "9133:9121"  # Singleton healthz endpoint
+
+  # BetParx push-first collector
+  collector-kambi-browser-parx:
+    ports:
+      - "9124:9118"  # Push-first healthz
+
+  # Unibet push-first collector
+  collector-kambi-browser-unibet:
+    ports:
+      - "9125:9118"  # Push-first healthz
+
+  # Normalizer with verified logging flags
+  normalizer:
+    environment:
+      - LOG_LEVEL=INFO
+      - LOG_E2E_ALWAYS=1
+      - BRAND_DEBUG=1

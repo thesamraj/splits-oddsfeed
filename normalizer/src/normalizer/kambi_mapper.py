@@ -353,6 +353,9 @@ def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Skip processing if we can't extract a valid event_id
         return []
 
+    # Extract brand from envelope - use provided brand or extract from URL
+    brand = envelope.get("brand") or extract_brand(envelope)
+
     rows: List[Dict[str, Any]] = []
     for bo in _iter_betoffers_anywhere(payload):
         try:
@@ -438,6 +441,7 @@ def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                     continue
 
                 row = {
+                    "book": brand,
                     "event_id": str(event_id),
                     "market": mkt,
                     "line": outcome_line,
@@ -488,23 +492,29 @@ def extract_brand(envelope: Dict[str, Any]) -> str:
     """Extract brand from envelope using token and host fallback"""
     # Token-based mapping with precedence
     token_map = {
-        "rsi2uspa": "betrivers", "rsi2usnj": "betrivers", "rsiusnj": "betrivers", "rsi2uson": "betrivers",
-        "sg2uspa": "sugarhouse", "sg2usnj": "sugarhouse", 
-        "bp2uspa": "betparx", "bp2usnj": "betparx",
-        "ub2uspa": "unibet", "ub2usnj": "unibet"
+        "rsi2uspa": "betrivers",
+        "rsi2usnj": "betrivers",
+        "rsiusnj": "betrivers",
+        "rsi2uson": "betrivers",
+        "sg2uspa": "sugarhouse",
+        "sg2usnj": "sugarhouse",
+        "bp2uspa": "betparx",
+        "bp2usnj": "betparx",
+        "ub2uspa": "unibet",
+        "ub2usnj": "unibet",
     }
-    
+
     # Try to extract token from URL
     url = envelope.get("offering_url") or envelope.get("url") or ""
     for token, brand in token_map.items():
         if token in url:
             return brand
-    
+
     # Fallback to host-based mapping
     page_host = envelope.get("page_host", "")
     if page_host:
         return _infer_brand_from_host(page_host)
-    
+
     # Last resort - extract from any URL in envelope
     for url_field in ["page_url", "ws_url", "offering_url"]:
         url_val = envelope.get(url_field, "")
@@ -516,5 +526,5 @@ def extract_brand(envelope: Dict[str, Any]) -> str:
                     return brand
             except:
                 pass
-    
+
     return envelope.get("brand_hint", "kambi")

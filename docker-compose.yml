@@ -361,7 +361,7 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9133:9133"  # Health endpoint  
+      - "9133:9133"  # Health endpoint
       - "9132:9132"  # Metrics endpoint
     restart: unless-stopped
 

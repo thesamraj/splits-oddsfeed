@@ -547,11 +547,13 @@ class Normalizer:
                                 "url": payload.get("url", ""),
                                 "payload": parsed_data,
                             }
+
+                            # Extract brand BEFORE calling normalize_kambi_envelope
+                            brand = extract_brand(envelope)
+                            envelope["brand"] = brand
+
                             rows = normalize_kambi_envelope(envelope)
                             event_metadata = extract_event_metadata(envelope)
-
-                            # Extract brand and add BRAND_EVAL logging
-                            brand = extract_brand(envelope)
                             event_metadata["brand"] = brand
 
                             # BRAND_EVAL logging as specified
@@ -614,11 +616,12 @@ class Normalizer:
                                 f"DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: {type(payload)}"
                             )
                         try:
+                            # Extract brand BEFORE calling normalize_kambi_envelope
+                            brand = extract_brand(payload)
+                            payload["brand"] = brand
+
                             rows = normalize_kambi_envelope(payload)
                             event_metadata = extract_event_metadata(payload)
-
-                            # Extract brand and add BRAND_EVAL logging for legacy format
-                            brand = extract_brand(payload)
                             event_metadata["brand"] = brand
 
                             # BRAND_EVAL logging as specified
@@ -712,7 +715,9 @@ class Normalizer:
                                             """,
                                             (
                                                 r.get("event_id"),
-                                                "kambi",
+                                                r.get(
+                                                    "book", "kambi"
+                                                ),  # Use book from row, fallback to kambi
                                                 r.get("market"),
                                                 line,
                                                 total,
