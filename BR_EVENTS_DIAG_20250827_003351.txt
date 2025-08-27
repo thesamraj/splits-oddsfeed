@@ -1,0 +1,50 @@
+=== BR_EVENTS_DIAG 20250827_003351 ===
+--- docker ps (key) ---
+splits-oddsfeed-normalizer-1      0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp   Up 55 minutes
+collector-kambi-http-betrivers    0.0.0.0:9126->9126/tcp, [::]:9126->9126/tcp   Up 11 hours
+splits-oddsfeed-api-1             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   Up 19 hours (healthy)
+splits-oddsfeed-broker-1          0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   Up 20 hours (healthy)
+--- Redis SUB/PAT ---
+NUMSUB: odds.raw.kambi 0 
+NUMPAT: 1 
+--- API count (15m) ---
+API betrivers 15m = 25
+--- DB structure (events/odds columns) ---
+--- DB counts (15m window) ---
+odds_distinct_event_ids=12
+--- Sample IDs (odds vs events) ---
+odds_event_id=1022037022
+odds_event_id=1022037003
+odds_event_id=1023245262
+odds_event_id=1022036999
+odds_event_id=1022037000
+odds_event_id=1022036998
+odds_event_id=1022036991
+odds_event_id=1022037021
+odds_event_id=1022036996
+odds_event_id=1022307553
+--- Brand/timestamp sanity (15m) ---
+events_brands_15m=(none)
+--- Quick normalizer log tail (events/DB_WRITE/EVENT_UPSERT) ---
+2025-08-27 00:33:49,836 - __main__ - INFO - DB_WRITE ok event_id=1022037003 market=h2h
+2025-08-27 00:33:49,836 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022037003 book=betrivers market=h2h
+2025-08-27 00:33:49,836 - __main__ - INFO - DB_WRITE ok event_id=1022037003 market=h2h
+2025-08-27 00:33:49,836 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022036996 book=betrivers market=h2h
+2025-08-27 00:33:49,837 - __main__ - INFO - DB_WRITE ok event_id=1022036996 market=h2h
+2025-08-27 00:33:49,837 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022036996 book=betrivers market=h2h
+2025-08-27 00:33:49,838 - __main__ - INFO - DB_WRITE ok event_id=1022036996 market=h2h
+2025-08-27 00:33:49,838 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022036998 book=betrivers market=h2h
+2025-08-27 00:33:49,838 - __main__ - INFO - DB_WRITE ok event_id=1022036998 market=h2h
+2025-08-27 00:33:49,838 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022037000 book=betrivers market=h2h
+2025-08-27 00:33:49,839 - __main__ - INFO - DB_WRITE ok event_id=1022037000 market=h2h
+2025-08-27 00:33:49,839 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1022037000 book=betrivers market=h2h
+2025-08-27 00:33:49,839 - __main__ - INFO - DB_WRITE ok event_id=1022037000 market=h2h
+2025-08-27 00:33:49,840 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1023245262 book=betrivers market=h2h
+2025-08-27 00:33:49,840 - __main__ - INFO - DB_WRITE ok event_id=1023245262 market=h2h
+2025-08-27 00:33:49,840 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1023245262 book=betrivers market=h2h
+2025-08-27 00:33:49,841 - __main__ - INFO - DB_WRITE ok event_id=1023245262 market=h2h
+2025-08-27 00:33:49,842 - __main__ - INFO - E2E_DEBUG: envelope keys=['capture_id', 'transport', 'url', 'page_url', 'page_host', 'ws_url', 'offering_url', 'brand_hint', 'source_ts_ms', 'received_ts_ms', 'content_type', 'payload']
+2025-08-27 00:33:49,842 - __main__ - INFO - E2E_DEBUG: using timestamp key=source_ts_ms value=1756254829813
+2025-08-27 00:33:49,842 - __main__ - INFO - E2E: Observed 0.029s latency for 19 rows [src_ts=1756254829813, now_ms=1756254829842]
+
+::BR_EVENTS_DIAG:: proof=./BR_EVENTS_DIAG_20250827_003351.txt

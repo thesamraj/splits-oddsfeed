@@ -15,7 +15,6 @@ from normalizer.kambi_mapper import (
     extract_event_metadata,
     extract_brand,
 )
-from normalizer.kambi_fallback import kambi_fallback_extract_betrivers
 import time
 
 # Kambi freshness gauge
@@ -628,29 +627,8 @@ class Normalizer:
                             envelope["brand"] = brand
 
                             rows = normalize_kambi_envelope(envelope)
-                            
-                            # DEBUG: Check if we reach fallback condition
-                            logger.info("FALLBACK_DEBUG: brand=%s rows_count=%d", brand, len(rows))
-                            
-                            # B2) Fallback trigger for BetRivers
-                            if len(rows) == 0 and brand.lower() == 'betrivers':
-                                logger.info("KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers")
-                                fallback_rows = kambi_fallback_extract_betrivers(parsed_data)
-                                if fallback_rows:
-                                    rows = fallback_rows
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=%d", len(fallback_rows))
-                                else:
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=0")
-                            else:
-                                logger.info("KAMBI_MAP primary_emitted=%d", len(rows))
-                            
                             event_metadata = extract_event_metadata(envelope)
                             event_metadata["brand"] = brand
-                            
-                            # B4) Event-first upsert for BetRivers when we have odds rows
-                            if rows and brand.lower() == 'betrivers' and event_metadata and event_metadata.get("event_id"):
-                                await self.upsert_event_metadata(event_metadata)
-                                logger.info("EVENT_UPSERT brand=betrivers count=1")
 
                             # BRAND_EVAL logging as specified
                             url = envelope.get("url", "")
@@ -731,19 +709,6 @@ class Normalizer:
                             payload["brand"] = brand
 
                             rows = normalize_kambi_envelope(payload)
-                            
-                            # B2) Fallback trigger for BetRivers (legacy path)
-                            if len(rows) == 0 and brand.lower() == 'betrivers':
-                                logger.info("KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers (legacy)")
-                                # Extract parsed_data from payload for fallback
-                                parsed_data = payload.get("payload", {})
-                                fallback_rows = kambi_fallback_extract_betrivers(parsed_data)
-                                if fallback_rows:
-                                    rows = fallback_rows
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=%d (legacy)", len(fallback_rows))
-                                else:
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=0 (legacy)")
-                            
                             event_metadata = extract_event_metadata(payload)
                             event_metadata["brand"] = brand
 

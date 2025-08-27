@@ -355,6 +355,13 @@ async def get_odds(
                     COALESCE(NULLIF(price_under, 0), NULL) IS NOT NULL
                   )"""
 
+        # Map brand to correct book for odds filtering
+        # When brand=betrivers is requested, we need odds.book='betrivers'
+        # When brand=kambi is requested, we need odds.book='kambi'
+        odds_book = brand if brand else book
+        if book == "kambi" and brand == "betrivers":
+            odds_book = "betrivers"  # Override: query betrivers odds specifically
+        
         # Build different query based on last and fill parameters
         if last and fill:
             # For last=true AND fill=true, use side-specific queries to carry forward latest non-null values
@@ -379,7 +386,7 @@ async def get_odds(
                       o.event_id, o.market, o.line, o.ts AS ts_home, o.price_home
                     FROM odds o
                     JOIN events e ON e.id = o.event_id
-                    WHERE o.book = COALESCE(%(book)s, o.book)
+                    WHERE o.book = COALESCE(%(odds_book)s, o.book)
                       AND o.ts >= now() - (%(minutes)s::int || ' minutes')::interval
                       AND o.price_home IS NOT NULL
                       AND (%(market)s::text IS NULL OR o.market = %(market)s)
@@ -393,7 +400,7 @@ async def get_odds(
                       o.event_id, o.market, o.line, o.ts AS ts_away, o.price_away
                     FROM odds o
                     JOIN events e ON e.id = o.event_id
-                    WHERE o.book = COALESCE(%(book)s, o.book)
+                    WHERE o.book = COALESCE(%(odds_book)s, o.book)
                       AND o.ts >= now() - (%(minutes)s::int || ' minutes')::interval
                       AND o.price_away IS NOT NULL
                       AND (%(market)s::text IS NULL OR o.market = %(market)s)
@@ -408,7 +415,7 @@ async def get_odds(
                       o.event_id, o.market, o.total, o.ts AS ts_over, o.price_over
                     FROM odds o
                     JOIN events e ON e.id = o.event_id
-                    WHERE o.book = COALESCE(%(book)s, o.book)
+                    WHERE o.book = COALESCE(%(odds_book)s, o.book)
                       AND o.ts >= now() - (%(minutes)s::int || ' minutes')::interval
                       AND o.price_over IS NOT NULL
                       AND (%(market)s::text IS NULL OR o.market = %(market)s)
@@ -422,7 +429,7 @@ async def get_odds(
                       o.event_id, o.market, o.total, o.ts AS ts_under, o.price_under
                     FROM odds o
                     JOIN events e ON e.id = o.event_id
-                    WHERE o.book = COALESCE(%(book)s, o.book)
+                    WHERE o.book = COALESCE(%(odds_book)s, o.book)
                       AND o.ts >= now() - (%(minutes)s::int || ' minutes')::interval
                       AND o.price_under IS NOT NULL
                       AND (%(market)s::text IS NULL OR o.market = %(market)s)
@@ -507,7 +514,7 @@ async def get_odds(
                     SELECT *
                     FROM odds
                     WHERE ts > now() - (%(minutes)s::int || ' minutes')::interval
-                      AND (%(book)s::text IS NULL OR book = %(book)s)
+                      AND (%(odds_book)s::text IS NULL OR book = %(odds_book)s)
                       AND (%(market)s::text IS NULL OR market = %(market)s)
                       {empty_filter}
                 ),
@@ -558,7 +565,7 @@ async def get_odds(
                 LEFT JOIN events e ON e.id = a.event_id
                 WHERE (%(league)s::text IS NULL OR e.league = %(league)s)
                   AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)
-                  {extra_brand_filter.replace('e.brand', 'COALESCE(e.brand, \\'\\')') if extra_brand_filter else ''}
+                  {extra_brand_filter.replace('e.brand', "COALESCE(e.brand, '')") if extra_brand_filter else ''}
                 ORDER BY a.event_id DESC
                 LIMIT %(limit)s
             """
@@ -571,7 +578,7 @@ async def get_odds(
                     SELECT *
                     FROM odds
                     WHERE ts > now() - (%(minutes)s::int || ' minutes')::interval
-                      AND (%(book)s::text IS NULL OR book = %(book)s)
+                      AND (%(odds_book)s::text IS NULL OR book = %(odds_book)s)
                       AND (%(market)s::text IS NULL OR market = %(market)s)
                       {empty_filter}
                 ),
@@ -604,7 +611,7 @@ async def get_odds(
                 LEFT JOIN events e ON e.id = a.event_id
                 WHERE (%(league)s::text IS NULL OR e.league = %(league)s)
                   AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)
-                  {extra_brand_filter.replace('e.brand', 'COALESCE(e.brand, \\'\\')') if extra_brand_filter else ''}
+                  {extra_brand_filter.replace('e.brand', "COALESCE(e.brand, '')") if extra_brand_filter else ''}
                 ORDER BY a.event_id DESC
                 LIMIT %(limit)s
             """
@@ -613,6 +620,7 @@ async def get_odds(
         params = {
             "minutes": minutes,
             "book": book,
+            "odds_book": odds_book,
             "league": league,
             "market": market,
             "brand": brand,
@@ -763,6 +771,203 @@ async def get_odds_timeline(
         duration = time.time() - start_time
         odds_request_seconds.observe(duration)
         return {"error": f"Failed to fetch timeline: {str(e)}"}
+
+
+@app.get("/odds/latest")
+async def get_odds_latest(
+    brand: str = "betrivers",
+    sport: Optional[str] = None,
+    league: Optional[str] = None,
+    limit: int = 50,
+):
+    """Get latest odds for each event"""
+    conn = getattr(app.state, "db_conn", None)
+    if not conn:
+        return {"error": "Database not available"}
+
+    start_time = time.time()
+
+    try:
+        sql = """
+        WITH latest_odds AS (
+            SELECT 
+                o.event_id,
+                o.market,
+                o.line,
+                o.price_home,
+                o.price_away,
+                o.price_over,
+                o.price_under,
+                o.total,
+                o.ts,
+                e.league,
+                e.home,
+                e.away,
+                e.sport,
+                e.brand,
+                ROW_NUMBER() OVER (
+                    PARTITION BY o.event_id, o.market 
+                    ORDER BY o.ts DESC
+                ) as rn
+            FROM odds o
+            JOIN events e ON o.event_id = e.id
+            WHERE e.brand = %s
+              AND (%s::text IS NULL OR e.sport = %s)
+              AND (%s::text IS NULL OR e.league = %s)
+              AND o.ts >= NOW() - INTERVAL '1 hour'
+        )
+        SELECT 
+            event_id,
+            market,
+            line,
+            price_home,
+            price_away,
+            price_over,
+            price_under,
+            total,
+            ts,
+            league,
+            home,
+            away,
+            sport,
+            brand
+        FROM latest_odds 
+        WHERE rn = 1
+        ORDER BY ts DESC
+        LIMIT %s
+        """
+
+        async with conn.cursor() as cur:
+            await cur.execute(sql, (brand, sport, sport, league, league, limit))
+            rows = await cur.fetchall()
+
+        # Convert to dict format
+        results = []
+        for row in rows:
+            results.append({
+                "event_id": row[0],
+                "market": row[1],
+                "line": row[2],
+                "price_home": float(row[3]) if row[3] else None,
+                "price_away": float(row[4]) if row[4] else None,
+                "price_over": float(row[5]) if row[5] else None,
+                "price_under": float(row[6]) if row[6] else None,
+                "total": float(row[7]) if row[7] else None,
+                "timestamp": row[8].isoformat() if row[8] else None,
+                "league": row[9],
+                "home": row[10],
+                "away": row[11],
+                "sport": row[12],
+                "brand": row[13],
+            })
+
+        duration = time.time() - start_time
+        odds_request_seconds.observe(duration)
+
+        return {
+            "count": len(results),
+            "odds": results,
+            "filters": {
+                "brand": brand,
+                "sport": sport,
+                "league": league,
+                "limit": limit
+            },
+            "latency_ms": round(duration * 1000, 2)
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to fetch latest odds: {str(e)}"}
+
+
+@app.get("/odds/history")
+async def get_odds_history(
+    event_id: int,
+    market: str = "h2h",
+    selection: Optional[str] = None,
+    hours: int = 24,
+    limit: int = 100,
+):
+    """Get odds history (tick data) for a specific event"""
+    conn = getattr(app.state, "db_conn", None)
+    if not conn:
+        return {"error": "Database not available"}
+
+    start_time = time.time()
+
+    try:
+        if selection:
+            # Get history for specific selection
+            sql = """
+            SELECT 
+                event_id,
+                market,
+                selection,
+                odds_decimal,
+                brand,
+                created_at
+            FROM odds_ticks 
+            WHERE event_id = %s 
+              AND market = %s 
+              AND selection = %s
+              AND created_at >= NOW() - (%s || ' hours')::INTERVAL
+            ORDER BY created_at DESC
+            LIMIT %s
+            """
+            params = (event_id, market, selection, hours, limit)
+        else:
+            # Get history for all selections in the market
+            sql = """
+            SELECT 
+                event_id,
+                market,
+                selection,
+                odds_decimal,
+                brand,
+                created_at
+            FROM odds_ticks 
+            WHERE event_id = %s 
+              AND market = %s
+              AND created_at >= NOW() - (%s || ' hours')::INTERVAL
+            ORDER BY created_at DESC, selection
+            LIMIT %s
+            """
+            params = (event_id, market, hours, limit)
+
+        async with conn.cursor() as cur:
+            await cur.execute(sql, params)
+            rows = await cur.fetchall()
+
+        # Convert to dict format
+        results = []
+        for row in rows:
+            results.append({
+                "event_id": row[0],
+                "market": row[1],
+                "selection": row[2],
+                "odds_decimal": float(row[3]),
+                "brand": row[4],
+                "timestamp": row[5].isoformat(),
+            })
+
+        duration = time.time() - start_time
+        odds_request_seconds.observe(duration)
+
+        return {
+            "count": len(results),
+            "ticks": results,
+            "filters": {
+                "event_id": event_id,
+                "market": market,
+                "selection": selection,
+                "hours": hours,
+                "limit": limit
+            },
+            "latency_ms": round(duration * 1000, 2)
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to fetch odds history: {str(e)}"}
 
 
 @app.get("/demo/kambi", response_class=HTMLResponse)

@@ -1,0 +1,45 @@
+=== BR_TEST 20250827_002341 ===
+[2025-08-27T00:23:41Z] --- docker ps (key services) ---
+splits-oddsfeed-normalizer-1      0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp   Up 45 minutes
+collector-kambi-http-betrivers    0.0.0.0:9126->9126/tcp, [::]:9126->9126/tcp   Up 11 hours
+splits-oddsfeed-api-1             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   Up 19 hours (healthy)
+splits-oddsfeed-broker-1          0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   Up 20 hours (healthy)
+[2025-08-27T00:23:41Z] --- Redis health ---
+PONG
+[2025-08-27T00:23:41Z] PUBSUB NUMSUB odds.raw.kambi = 0
+[2025-08-27T00:23:41Z] PUBSUB NUMPAT (pattern subscribers) = 1
+[2025-08-27T00:23:41Z] --- Healthz (:9126) monotonic check ---
+[2025-08-27T00:23:41Z] t0 healthz: {"brand":"betrivers","last_error":null,"last_error_ts":"2025-08-27T00:10:09.719978","last_success_ts":"2025-08-27T00:23:35.289276","polls":1546,"published":1529,"status":"active"}
+[2025-08-27T00:23:41Z] t0 published count: 1529
+[2025-08-27T00:23:56Z] t15s healthz: {"brand":"betrivers","last_error":null,"last_error_ts":"2025-08-27T00:10:09.719978","last_success_ts":"2025-08-27T00:23:55.635205","polls":1548,"published":1531,"status":"active"}
+[2025-08-27T00:23:56Z] t15s published count: 1531
+[2025-08-27T00:23:56Z] --- Synthetic publish → expect BRAND_EVAL/E2E within 2s ---
+[2025-08-27T00:23:59Z] Last 2m: BRAND_EVAL=13, E2E=12
+[2025-08-27T00:23:59Z] Recent sample logs:
+2025-08-27 00:23:55,659 - __main__ - INFO - DB_WRITE ok event_id=1022037000 market=h2h
+2025-08-27 00:23:55,659 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1023245262 book=betrivers market=h2h
+2025-08-27 00:23:55,659 - __main__ - INFO - DB_WRITE ok event_id=1023245262 market=h2h
+2025-08-27 00:23:55,659 - __main__ - INFO - DB_WRITE begin brand=unknown event_id=1023245262 book=betrivers market=h2h
+2025-08-27 00:23:55,662 - __main__ - INFO - DB_WRITE ok event_id=1023245262 market=h2h
+2025-08-27 00:23:55,663 - __main__ - INFO - E2E_DEBUG: envelope keys=['capture_id', 'transport', 'url', 'page_url', 'page_host', 'ws_url', 'offering_url', 'brand_hint', 'source_ts_ms', 'received_ts_ms', 'content_type', 'payload']
+2025-08-27 00:23:55,663 - __main__ - INFO - E2E_DEBUG: using timestamp key=source_ts_ms value=1756254235633
+2025-08-27 00:23:55,663 - __main__ - INFO - E2E: Observed 0.030s latency for 20 rows [src_ts=1756254235633, now_ms=1756254235663]
+2025-08-27 00:23:56,759 - __main__ - INFO - BRAND_EVAL brand=betrivers url= page_url=
+2025-08-27 00:23:58,842 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+[2025-08-27T00:23:59Z] --- API counts (15m) ---
+[2025-08-27T00:23:59Z] API betrivers 15m count = 25
+[2025-08-27T00:23:59Z] --- DB counts (15m) ---
+[2025-08-27T00:23:59Z] DB  betrivers 15m distinct events = 0
+[2025-08-27T00:23:59Z] --- Alignment & thresholds ---
+[2025-08-27T00:23:59Z] Alignment diff = 100.0% (threshold ≤ 5%)
+[2025-08-27T00:23:59Z] 
+[2025-08-27T00:23:59Z] === BR-TABLE ===
+BR-T1 Redis subscribed (≥1)  PASS
+BR-T2 Logs ≥6 BRAND_EVAL/E2E PASS
+BR-T3 Healthz monotonic        PASS
+BR-T4 API↔DB align ≤5%%    FAIL
+BR-T5 ≥30 events/15m         FAIL
+
+Hints:
+- API↔DB misaligned (100.0%); recheck event upsert order.
+- Throughput <30/15m; let it run or add safe BR capacity.
