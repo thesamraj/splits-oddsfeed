@@ -1,0 +1,45 @@
+=== HTTP MIRROR PROOF 20250826_010521 ===
+--- docker ps ---
+NAMES                                                   PORTS                                                             STATUS
+splits-oddsfeed-collector-kambi-push-betparx-mirror-1   0.0.0.0:9127->9118/tcp, [::]:9127->9118/tcp                       Up 2 minutes
+splits-oddsfeed-collector-kambi-push-betparx-1          0.0.0.0:9119->9118/tcp, [::]:9119->9118/tcp                       Up 18 minutes
+collector-kambi-http-unibet                             0.0.0.0:9125->9125/tcp, [::]:9125->9125/tcp                       Up 4 hours
+collector-kambi-http-parx                               0.0.0.0:9124->9124/tcp, [::]:9124->9124/tcp                       Up 4 hours
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                       Up 8 hours (healthy)
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                       Up 10 hours
+splits-oddsfeed-sugarhouse-1-1                          0.0.0.0:9132-9133->9132-9133/tcp, [::]:9132-9133->9132-9133/tcp   Up 11 hours
+splits-oddsfeed-collector-pinnacle-1                    0.0.0.0:9110->9110/tcp, [::]:9110->9110/tcp                       Up 11 hours (healthy)
+splits-oddsfeed-collector-kambi-browser-1               0.0.0.0:9118->9118/tcp, [::]:9118->9118/tcp                       Up 3 minutes
+splits-oddsfeed-collector-kambi-browser-2-1                                                                               Restarting (0) 47 seconds ago
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   0.0.0.0:9126->9118/tcp, [::]:9126->9118/tcp                       Up 21 seconds
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                       Up 11 hours (healthy)
+buildx_buildkit_ghcr-builder0                                                                                             Up 11 hours
+splits-oddsfeed-collector-mgm-1                         0.0.0.0:9103->9103/tcp, [::]:9103->9103/tcp                       Up 11 hours
+splits-oddsfeed-collector-dk-1                          0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp                       Up 11 hours
+splits-oddsfeed-collector-stake-1                       0.0.0.0:9105->9105/tcp, [::]:9105->9105/tcp                       Up 11 hours
+splits-oddsfeed-collector-fd-1                          0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp                       Up 11 hours
+splits-oddsfeed-collector-b365-1                        0.0.0.0:9104->9104/tcp, [::]:9104->9104/tcp                       Up 11 hours
+splits-oddsfeed-collector-agg-1                         0.0.0.0:9106->9106/tcp, [::]:9106->9106/tcp                       Up 11 hours
+splits-oddsfeed-collector-kambi-1                       0.0.0.0:9117->9107/tcp, [::]:9117->9107/tcp                       Up 11 hours
+splits-oddsfeed-grafana-1                                                                                                 Restarting (1) 35 seconds ago
+splits-oddsfeed-store-1                                 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       Up 11 hours (healthy)
+splits-oddsfeed-prometheus-1                            0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                       Up 11 hours
+splits-oddsfeed-proxy-manager-1                         0.0.0.0:8099->8099/tcp, [::]:8099->8099/tcp                       Up 11 hours
+
+--- redis numsub ---
+odds.raw.kambi
+0
+1
+
+--- healthz 9127 (last) ---
+{"status":"active","brand":"betparx","messages_received":13,"mirrored_http":0,"last_msg_ts":1756170297970,"last_mirror_url":null,"last_mirror_status":null,"last_mirror_err":null,"ws_urls":["wss://mpsnare.iesnare.com/star","wss://oapi.penshared.com/socket.io/1/websocket/8360d207-3494-41a7-9ba8-03050bf7085e","wss://oapi.penshared.com/socket.io/1/websocket/e4a06b2e-e558-4647-bb45-32cc1433daf1"]}
+
+--- normalizer logs 120s ---
+
+--- API/DB 15m (betparx) ---
+API=0 DB=0 (HTTP mirror operational but no structured data captured yet)
+
+--- mirror analysis ---
+✅ S2: Healthz monotonic counters working
+⚠️ S3: Pattern subscriber=1, but no recent BetParx BRAND_EVAL logs
+❌ S4/S5: Cannot assess with 0 events

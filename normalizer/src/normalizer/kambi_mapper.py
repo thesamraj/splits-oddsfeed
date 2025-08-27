@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import re
-from typing import Any, Dict, Iterable, List, Optional
+import logging
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 # Hostname -> brand map (extend as needed)
 BRAND_HOST_MAP = {
@@ -33,6 +36,120 @@ def _infer_brand_from_host(host: str) -> str:
 
 
 # ---------- Helpers ----------
+
+
+def deep_get(obj: Any, path_list: List[Any]) -> Any:
+    """Safely traverse nested dict/list structure using path list"""
+    try:
+        current = obj
+        for key in path_list:
+            if isinstance(current, dict):
+                current = current[key]
+            elif isinstance(current, list) and isinstance(key, int):
+                current = current[key]
+            else:
+                return None
+        return current
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+def extract_event_ids_and_nodes(
+    payload: Dict[str, Any]
+) -> List[Tuple[str, Dict[str, Any]]]:
+    """Extract event IDs and corresponding nodes from payload. Returns list of (event_id, node) tuples."""
+    results = []
+
+    # a) liveEvents: iterate payload.get('liveEvents', []); pick eid = deep_get(node, ['event','id']) or node.get('id')
+    live_events = payload.get("liveEvents", [])
+    if live_events and isinstance(live_events, list):
+        for node in live_events:
+            if not isinstance(node, dict):
+                continue
+            # Try multiple event ID extraction patterns for liveEvents
+            eid = None
+
+            # Pattern 1: event.id (nested) - FIXED FOR KAMBI LIVEEVENTS
+            if isinstance(node.get("event"), dict) and "id" in node["event"]:
+                eid = str(node["event"]["id"])
+                results.append((eid, node))
+                continue
+
+            # Pattern 2: direct id
+            eid = node.get("id")
+            if eid:
+                results.append((str(eid), node))
+                continue
+
+            # Pattern 3: eventId field
+            eid = node.get("eventId")
+            if eid:
+                results.append((str(eid), node))
+                continue
+
+            # Pattern 4: event (direct number/string, not nested dict)
+            eid = node.get("event")
+            if eid and not isinstance(eid, dict):
+                results.append((str(eid), node))
+                continue
+
+            # Pattern 5: betOffers[0].eventId
+            bet_offers = node.get("betOffers", [])
+            if bet_offers and isinstance(bet_offers, list) and bet_offers[0]:
+                eid = bet_offers[0].get("eventId") or deep_get(
+                    bet_offers[0], ["event", "id"]
+                )
+                if eid:
+                    results.append((str(eid), node))
+                    continue
+
+            # Pattern 6: Check for numeric fields that might be event IDs
+            for key in ["liveEventId", "live_event_id", "matchId", "fixtureId"]:
+                eid = node.get(key)
+                if eid:
+                    results.append((str(eid), node))
+                    break
+
+        if results:
+            logger.info(
+                "KAMBI_MAP extracted %d liveEvents with event IDs", len(results)
+            )
+            return results
+        else:
+            # Debug: log what keys we found in first liveEvent to understand structure
+            if live_events:
+                first_keys = list(live_events[0].keys())[:15]
+                logger.warning(
+                    "KAMBI_MAP no event IDs found in %d liveEvents, first node keys: %s",
+                    len(live_events),
+                    first_keys,
+                )
+
+    # b) events: iterate payload.get('events', []); pick eid = node.get('id') or deep_get(node, ['event','id'])
+    events = payload.get("events", [])
+    if events and isinstance(events, list):
+        for node in events:
+            if not isinstance(node, dict):
+                continue
+            eid = node.get("id") or deep_get(node, ["event", "id"])
+            if eid:
+                results.append((str(eid), node))
+        if results:
+            logger.info("KAMBI_MAP extracted %d events", len(results))
+            return results
+
+    # c) single event: eid = deep_get(payload, ['event','id']) or payload.get('id')
+    eid = deep_get(payload, ["event", "id"]) or payload.get("id")
+    if eid:
+        results.append((str(eid), payload))
+        logger.info("KAMBI_MAP extracted single event")
+        return results
+
+    logger.warning(
+        "KAMBI_MAP no event_id; payload keys=%s",
+        list(payload.keys())[:10] if isinstance(payload, dict) else "non-dict",
+    )
+    return results
 
 
 def _to_american_from_decimal(decimal_odds: Optional[float]) -> Optional[int]:
@@ -342,22 +459,38 @@ def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     Return list of row dicts with fields:
       event_id, market, line, total, price_home, price_away, price_over, price_under, ts
     """
-    # now_iso = None  # ts added at DB layer if desired
     payload = envelope.get("payload") or envelope.get("data") or {}
     if not isinstance(payload, dict):
+        logger.info("KAMBI_MAP in: non-dict payload")
         return []
 
-    url = str(envelope.get("url", ""))
-    event_id = envelope.get("event_id") or extract_event_id(payload, url)
-    if not event_id:
-        # Skip processing if we can't extract a valid event_id
+    logger.info("KAMBI_MAP in: keys=%s", list(payload.keys())[:10])
+
+    # Use the new robust splitter
+    event_nodes = extract_event_ids_and_nodes(payload)
+    if not event_nodes:
+        logger.warning("KAMBI_MAP no event_id; example paths tried")
         return []
 
     # Extract brand from envelope - use provided brand or extract from URL
     brand = envelope.get("brand") or extract_brand(envelope)
+    all_rows: List[Dict[str, Any]] = []
 
+    for event_id, node in event_nodes:
+        # Process each event node separately
+        rows = _process_single_event_node(event_id, node, brand)
+        all_rows.extend(rows)
+
+    logger.info("KAMBI_MAP events_emitted=%d", len(all_rows))
+    return all_rows
+
+
+def _process_single_event_node(
+    event_id: str, node: Dict[str, Any], brand: str
+) -> List[Dict[str, Any]]:
+    """Process a single event node and return normalized rows"""
     rows: List[Dict[str, Any]] = []
-    for bo in _iter_betoffers_anywhere(payload):
+    for bo in _iter_betoffers_anywhere(node):
         try:
             crit = bo.get("criterion") or {}
             mkt = _market_name(_clean_str(crit.get("label", "")))
@@ -442,7 +575,7 @@ def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
 
                 row = {
                     "book": brand,
-                    "event_id": str(event_id),
+                    "event_id": event_id,
                     "market": mkt,
                     "line": outcome_line,
                     "total": outcome_total,

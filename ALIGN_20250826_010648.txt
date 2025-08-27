@@ -1,0 +1,11 @@
+=== ATOMIC ALIGNMENT CHECK - 20250826_010648 ===
+
+API Counts (book=kambi excludes betparx):
+betrivers: 0
+unibet: 0
+
+DB Counts (atomic snapshot with betparx exclusion):
+
+Alignment Status:
+API BR=0, UB=0
+All counts are 0, indicating no data in 15min window.

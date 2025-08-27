@@ -1,0 +1,57 @@
+=== NORMALIZER_DB_RESCUE PHASE A: Snapshot & Triage ===
+
+1) Container status:
+NAMES                             PORTS                                         STATUS
+collector-kambi-http-betrivers    0.0.0.0:9126->9126/tcp, [::]:9126->9126/tcp   Up 14 minutes
+splits-oddsfeed-api-1             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   Up 9 hours (healthy)
+collector-kambi-wsbridge-unibet   0.0.0.0:9128->9127/tcp, [::]:9128->9127/tcp   Up 9 hours
+splits-oddsfeed-normalizer-1      0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp   Up 9 hours
+splits-oddsfeed-broker-1          0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   Up 9 hours (healthy)
+splits-oddsfeed-store-1           0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp   Up 9 hours (healthy)
+collector-kambi-http-unibet       0.0.0.0:9125->9125/tcp, [::]:9125->9125/tcp   Up 17 hours
+collector-kambi-http-parx         0.0.0.0:9124->9124/tcp, [::]:9124->9124/tcp   Up 17 hours
+buildx_buildkit_ghcr-builder0                                                   Up 23 hours
+
+2) Normalizer logs (last 300 lines):
+
+3) Normalizer restarts/state:
+{
+  "Status": "running",
+  "Running": true,
+  "Paused": false,
+  "Restarting": false,
+  "OOMKilled": false,
+  "Dead": false,
+  "Pid": 13140,
+  "ExitCode": 0,
+  "Error": "",
+  "StartedAt": "2025-08-26T04:44:02.569816757Z",
+  "FinishedAt": "0001-01-01T00:00:00Z"
+}
+
+4) Redis status:
+PONG
+odds.raw.kambi
+0
+
+5) BR poller healthz:
+{"brand":"betrivers","last_error":null,"last_error_ts":null,"last_success_ts":"2025-08-26T13:44:52.402775","polls":85,"published":85,"status":"active"}
+
+6) DB access:
+2025-08-26 13:44:57.314481+00
+
+7) DB schema check:
+id|text||not null||extended|||
+league|text||not null||extended|||
+start_time|timestamp with time zone||not null||plain|||
+home|text||not null||extended|||
+away|text||not null||extended|||
+sport|text||||extended|||
+created_at|timestamp with time zone|||now()|plain|||
+updated_at|timestamp with time zone|||now()|plain|||
+brand|text||||extended|||
+
+8) API/DB counts (atomic 15m cutoff for betrivers):
+API:
+2
+DB:

@@ -68,6 +68,74 @@ async def debug_brand_counts(minutes: int = 60, brand: Optional[str] = None):
         return {"error": str(e)}
 
 
+@app.get("/debug/events_count")
+async def debug_events_count(minutes: int = 15, brand: Optional[str] = None):
+    """Simple events count endpoint using events.created_at"""
+    conn = getattr(app.state, "db_conn", None)
+    if not conn:
+        return {"error": "Database not available"}
+
+    try:
+        sql = """
+        WITH snap AS (
+          SELECT now() - (%s || ' minutes')::interval AS cutoff
+        )
+        SELECT COUNT(DISTINCT e.id) AS count
+        FROM events e, snap s
+        WHERE e.created_at >= s.cutoff
+          AND (%s::text IS NULL OR e.brand = %s)
+        """
+
+        async with conn.cursor() as cur:
+            await cur.execute(sql, (minutes, brand, brand))
+            result = await cur.fetchone()
+            count = result[0] if result else 0
+
+        return {"brand": brand or "ALL", "minutes": minutes, "count": count}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/debug/events_ids")
+async def debug_events_ids(minutes: int = 15, brand: Optional[str] = None, limit: int = 10):
+    """Simple events IDs endpoint using events.created_at"""
+    conn = getattr(app.state, "db_conn", None)
+    if not conn:
+        return {"error": "Database not available"}
+
+    try:
+        sql = """
+        WITH snap AS (
+          SELECT now() - (%s || ' minutes')::interval AS cutoff
+        )
+        SELECT e.id, e.brand, e.league, e.home, e.away, e.created_at
+        FROM events e, snap s
+        WHERE e.created_at >= s.cutoff
+          AND (%s::text IS NULL OR e.brand = %s)
+        ORDER BY e.created_at DESC
+        LIMIT %s
+        """
+
+        async with conn.cursor() as cur:
+            await cur.execute(sql, (minutes, brand, brand, limit))
+            results = await cur.fetchall()
+
+        events = []
+        for row in results:
+            events.append({
+                "id": row[0],
+                "brand": row[1],
+                "league": row[2],
+                "home": row[3],
+                "away": row[4],
+                "created_at": str(row[5])
+            })
+
+        return {"brand": brand or "ALL", "minutes": minutes, "count": len(events), "events": events}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/debug/brand_table")
 async def debug_brand_table(minutes: int = 60):
     """Simple brand breakdown table to prove database connectivity"""
@@ -224,7 +292,58 @@ async def get_odds(
     # Start timer for latency metric
     start_time = time.time()
 
+    # Use simple path when API_USE_SIMPLE=1 env var is set
+    use_simple = os.getenv("API_USE_SIMPLE", "0") == "1"
+
+    if use_simple:
+        try:
+            # Single-cutoff atomic query (matches DB ground truth exactly)
+            sql = """
+            WITH snap AS (
+              SELECT now() - (%s || ' minutes')::interval AS cutoff
+            )
+            SELECT COUNT(DISTINCT e.id) as count
+            FROM events e, snap s
+            WHERE e.created_at >= s.cutoff
+              AND (%s::text IS NULL OR e.brand = %s)
+              AND (%s::text IS NULL OR e.league = %s)
+              AND (%s::text IS NULL OR e.sport = %s)
+              AND (%s::text != 'kambi' OR COALESCE(e.brand, '') != 'betparx')
+            """
+
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (minutes, brand, brand, league, league, sport, sport, book))
+                result = await cur.fetchone()
+                count = result[0] if result else 0
+
+            # Record latency metric
+            duration = time.time() - start_time
+            odds_request_seconds.observe(duration)
+
+            return {
+                "status": "ok",
+                "count": count,
+                "events": [],  # Simple path doesn't return full event data
+                "debug": {
+                    "simple_path": True,
+                    "brand": brand,
+                    "sport": sport,
+                    "league": league,
+                },
+            }
+        except Exception as e:
+            duration = time.time() - start_time
+            odds_request_seconds.observe(duration)
+            return {"error": f"Simple path failed: {str(e)}"}
+
     try:
+        # Exclude betparx from Kambi book queries (betparx is non-Kambi)
+        if book == "kambi" and brand is None:
+            # Auto-exclude betparx when querying Kambi book without specific brand filter
+            extra_brand_filter = "AND COALESCE(e.brand, '') != 'betparx'"
+        else:
+            extra_brand_filter = ""
+
         # Build the filter condition for non-empty rows
         empty_filter = ""
         if not include_empty:
@@ -244,6 +363,9 @@ async def get_odds(
                 if brand
                 else ""
             )
+            # Add betparx exclusion for Kambi queries
+            if extra_brand_filter:
+                brand_filter += f" {extra_brand_filter}"
             sport_filter = (
                 "AND (%(sport)s::text IS NULL OR e.sport = %(sport)s)" if sport else ""
             )
@@ -436,6 +558,7 @@ async def get_odds(
                 LEFT JOIN events e ON e.id = a.event_id
                 WHERE (%(league)s::text IS NULL OR e.league = %(league)s)
                   AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)
+                  {extra_brand_filter.replace('e.brand', 'COALESCE(e.brand, \\'\\')') if extra_brand_filter else ''}
                 ORDER BY a.event_id DESC
                 LIMIT %(limit)s
             """
@@ -481,6 +604,7 @@ async def get_odds(
                 LEFT JOIN events e ON e.id = a.event_id
                 WHERE (%(league)s::text IS NULL OR e.league = %(league)s)
                   AND (%(brand)s::text IS NULL OR COALESCE(e.brand, '') = %(brand)s)
+                  {extra_brand_filter.replace('e.brand', 'COALESCE(e.brand, \\'\\')') if extra_brand_filter else ''}
                 ORDER BY a.event_id DESC
                 LIMIT %(limit)s
             """

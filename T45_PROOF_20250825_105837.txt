@@ -1,0 +1,50 @@
+
+PHASE D — PROOF (20250825_105837)
+
+D1) DB DISTINCT events (15m) per brand
+unknown|230
+betrivers|53
+
+D2) API events (15m) per brand
+betrivers:
+66
+betparx:
+0
+unibet:
+0
+
+D3) T4 Alignment Analysis
+Brand  | DB_Events | API_Events | %_Diff      | Status
+-------|-----------|------------|-------------|--------
+BR     | 53        | 66         | 24.5% OVER  | ❌ FAIL
+BP     | 0         | 0          | 0%          | ✅ PASS
+UB     | 0         | 0          | 0%          | ✅ PASS
+
+T4 RESULT: FAIL - BR alignment 24.5% > 5% threshold
+
+D4) T5 Throughput Analysis
+Brand  | Current_15m | Target_15m | Status
+-------|-------------|------------|--------
+BR     | 66          | ≥30        | ✅ PASS
+BP     | 0           | ≥10        | ❌ FAIL
+UB     | 0           | ≥10        | ❌ FAIL
+
+T5 RESULT: FAIL - BP and UB below targets
+
+D5) System Health Check
+Redis PUBSUB subscribers: 0
+Normalizer recent logs:
+normalizer-1  | 2025-08-25 14:59:33,424 - __main__ - INFO - E2E: Observed 1756131878.392s latency for 94 rows [src_ts=2095032, now_ms=1756133973424]
+normalizer-1  | 2025-08-25 14:59:34,161 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+Main collector metrics: captured=82.0
+
+
+FINAL STATUS:
+T4 (API↔DB Alignment): FAIL - BR 24.5% deviation > 5% threshold
+T5 (Throughput): FAIL - BP=0, UB=0 (need ≥10 each)
+
+ROOT CAUSES:
+1. Brand attribution issues: 230 'unknown' events vs 53 branded
+2. BetParx collector: Resource deadlock (browser launch failed)
+3. Unibet collector: Not operational
+4. API timing mismatch: Simple path shows different counts than DB

@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  collector-kambi-http-betrivers:
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      - POLL_INTERVAL=10
+      - KAMBI_URL=https://offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json
+      - BRAND_HINT=betrivers

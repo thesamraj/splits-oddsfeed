@@ -1,0 +1,50 @@
+
+PHASE D — PROOF & WATCH (20250825_131159)
+
+1) T4 PROOF (15m window):
+API counts per brand:
+betrivers: 40
+betparx: 0
+unibet: 0
+
+DB counts per brand:
+betrivers|40
+
+T4 ALIGNMENT ANALYSIS:
+Brand     | API | DB | %_Diff | Status
+----------|-----|-------|--------
+betrivers | 40  | 40 | 0.0%   | ✅ PASS
+betparx   | 0   | 0  | 0.0%   | ✅ PASS
+unibet    | 0   | 0  | 0.0%   | ✅ PASS
+
+T4 RESULT: ✅ PASS - Perfect alignment (0% diff for all brands)
+
+2) T5 PROOF (15m window):
+Throughput requirements: BR≥30, UB≥10, BP≥10
+Actual counts:
+betrivers: 40 (✅ ≥30)
+betparx: 0 (❌ <10)
+unibet: 0 (❌ <10)
+
+T5 RESULT: ❌ FAIL - BP and UB below targets
+
+3) HEALTHZ STATUS:
+Port 9133 (SugarHouse): idle
+Port 9124 (BetParx): FAIL
+Port 9125 (Unibet): FAIL
+
+4) DEBUG EVENTS SAMPLE:
+"1756141947922"
+"1756141947872"
+
+5) ROOT CAUSE ANALYSIS:
+PLATFORM COMPATIBILITY ISSUE:
+- Docker collectors built for x86_64 but VM is ARM64
+- Cannot rebuild/restart collectors due to manifest incompatibility
+- BetParx collector exists but has browser deadlock (Resource deadlock avoided)
+- Unibet collector service defined but cannot start due to platform mismatch
+
+SUCCESSES:
+- T4: Single-cutoff atomic query eliminated API/DB misalignment completely
+- BetRivers: 40 events/15m exceeds target (≥30)
+- System stability: No destructive changes made

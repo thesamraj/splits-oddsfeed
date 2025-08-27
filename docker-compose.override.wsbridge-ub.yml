@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  collector-kambi-wsbridge-unibet:
+    build:
+      context: ./wsbridge-unibet
+      dockerfile: Dockerfile
+    container_name: collector-kambi-wsbridge-unibet
+    environment:
+      - BRAND=unibet
+      - HOME_URL=https://pa.unibet.com/?page=sportsbook#live
+      - REDIS_URL=redis://broker:6379/0
+      - PORT=9127
+    ports:
+      - "9128:9127"
+    restart: unless-stopped
+    depends_on:
+      - broker
+    platform: linux/amd64

@@ -475,6 +475,54 @@ class Normalizer:
                         )
                     now_ms = time.time() * 1000
 
+                    # WS-JSON COMPATIBILITY SHIM: Handle WebSocket→JSON bridge envelopes
+                    transport = payload.get("transport", "")
+                    if transport in {"ws-json", "browser-fetch"}:
+                        try:
+                            # Ensure required fields exist
+                            if not payload.get("url"):
+                                payload["url"] = (
+                                    f"wss://kambi/bridge?brand={payload.get('brand_hint', 'betparx')}"
+                                )
+                            if not payload.get("content_type"):
+                                payload["content_type"] = "application/json"
+
+                            # Parse payload if it's a JSON string
+                            raw_payload = payload.get("payload", "{}")
+                            if isinstance(raw_payload, str):
+                                try:
+                                    parsed_payload = json.loads(raw_payload)
+                                    payload["payload"] = parsed_payload
+                                    logger.info(
+                                        f"WS_BRIDGE_SHIM: Parsed {len(raw_payload)}b JSON from {transport}"
+                                    )
+                                except json.JSONDecodeError as e:
+                                    logger.warning(
+                                        f"WS_BRIDGE_SHIM: Failed to parse JSON payload: {e}"
+                                    )
+                                    return
+
+                            # Transform to new envelope format for consistent processing
+                            payload = {
+                                "capture_id": f"{transport}_{now_ms}",
+                                "source_ts_ms": payload.get("ts") or now_ms,
+                                "received_ts_ms": now_ms,
+                                "event_id": "unknown",  # Will be extracted from payload
+                                "url": payload["url"],
+                                "payload": payload["payload"],
+                                "brand_hint": payload.get("brand_hint", "betparx"),
+                                "page_url": payload.get("page_url", ""),
+                            }
+                            logger.info(
+                                f"WS_BRIDGE_SHIM: Transformed {transport} envelope for processing"
+                            )
+
+                        except Exception as e:
+                            logger.error(
+                                f"WS_BRIDGE_SHIM: Failed to process {transport} envelope: {e}"
+                            )
+                            return
+
                     # Check if this is new envelope format
                     if "capture_id" in payload and "source_ts_ms" in payload:
                         # New envelope format
@@ -565,6 +613,20 @@ class Normalizer:
                                 url[:100],
                                 page_url[:100],
                             )
+
+                            # DEBUG: Check why we're getting 0 rows
+                            event_id_check = envelope.get("event_id") or final_event_id
+                            logger.info(
+                                "DEBUG_ROWS: event_id=%s payload_keys=%s liveEvents_count=%s",
+                                event_id_check,
+                                list(parsed_data.keys()) if parsed_data else [],
+                                (
+                                    len(parsed_data.get("liveEvents", []))
+                                    if parsed_data
+                                    else 0
+                                ),
+                            )
+
                             if DBG:
                                 logger.info(
                                     f"DEBUG_KAMBI_ENVELOPE: normalize_kambi_envelope returned {len(rows)} rows"
@@ -708,25 +770,48 @@ class Normalizer:
                                                 )
                                             continue
 
-                                        await cur.execute(
-                                            """
-                                            INSERT INTO odds (event_id, book, market, line, total, price_home, price_away, price_over, price_under, ts)
-                                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                                            """,
-                                            (
-                                                r.get("event_id"),
-                                                r.get(
-                                                    "book", "kambi"
-                                                ),  # Use book from row, fallback to kambi
-                                                r.get("market"),
-                                                line,
-                                                total,
-                                                price_home,
-                                                price_away,
-                                                price_over,
-                                                price_under,
-                                            ),
+                                        # DB_WRITE instrumentation
+                                        event_id = r.get("event_id")
+                                        book = r.get("book", "kambi")
+                                        market = r.get("market")
+                                        logger.info(
+                                            "DB_WRITE begin brand=%s event_id=%s book=%s market=%s",
+                                            r.get("brand", "unknown"),
+                                            event_id,
+                                            book,
+                                            market,
                                         )
+
+                                        try:
+                                            await cur.execute(
+                                                """
+                                                INSERT INTO odds (event_id, book, market, line, total, price_home, price_away, price_over, price_under, ts)
+                                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                                """,
+                                                (
+                                                    event_id,
+                                                    book,
+                                                    market,
+                                                    line,
+                                                    total,
+                                                    price_home,
+                                                    price_away,
+                                                    price_over,
+                                                    price_under,
+                                                ),
+                                            )
+                                            logger.info(
+                                                "DB_WRITE ok event_id=%s market=%s",
+                                                event_id,
+                                                market,
+                                            )
+                                        except Exception as e:
+                                            logger.error(
+                                                "DB_WRITE error event_id=%s: %s",
+                                                event_id,
+                                                e,
+                                                exc_info=True,
+                                            )
                                     await conn.commit()
 
                             rows = valid_rows  # Update rows for metrics

@@ -1,0 +1,11 @@
+{
+  "name": "ws-json-bridge",
+  "version": "1.0.0",
+  "main": "bridge.js",
+  "dependencies": {
+    "playwright": "1.48.2",
+    "ioredis": "^5.3.2",
+    "express": "^4.18.2",
+    "pako": "^2.1.0"
+  }
+}

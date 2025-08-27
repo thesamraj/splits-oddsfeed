@@ -1,0 +1,6 @@
+=== BRINGUP_T5_20250826_091321 ===
+
+T5: 15min throughput check:
+BetRivers 15m:  events (target: ≥30)
+
+❌ T5: FAIL - BetRivers:  < 30

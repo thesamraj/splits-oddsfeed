@@ -1,0 +1,36 @@
+
+PHASE A — T4 DELTA ANALYSIS (20250825_111749)
+
+A2) EXACT SQL ANALYSIS
+Current API /odds endpoint environment: API_USE_SIMPLE=1
+
+Active API SQL path:
+SELECT COUNT(DISTINCT e.id) as count
+FROM events e
+WHERE e.created_at >= now() - (%s || ' minutes')::interval
+  AND (%s::text IS NULL OR COALESCE(e.brand, '') = %s)
+  AND (%s::text IS NULL OR e.league = %s)
+  AND (%s::text IS NULL OR e.sport = %s)
+
+ISSUE IDENTIFIED: API uses events.created_at while DB ground truth uses events.ts
+
+A3) DB GROUND TRUTH (15m):
+CORRECTION: events table uses created_at, not ts
+betrivers|63
+
+A4) API COUNTS (15m):
+betrivers:
+150
+betparx:
+0
+unibet:
+0
+
+A5) DELTA ANALYSIS:
+Brand     | DB_Events | API_Events | Delta | %_Diff    | Status
+----------|-----------|------------|-------|-----------|--------
+betrivers | 63        | 150        | +87   | +138.1%   | FAIL
+betparx   | 0         | 0          | 0     | 0%        | PASS
+unibet    | 0         | 0          | 0     | 0%        | PASS
+
+CRITICAL: BetRivers shows 138.1% deviation (>>5% threshold)

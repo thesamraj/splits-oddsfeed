@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  collector-kambi-push-betparx-ws:
+    build:
+      context: ./pushers/betparx
+      dockerfile: Dockerfile.wsbridge
+    environment:
+      - BRAND=betparx
+      - HOME_URL=https://pa.betparx.com/?page=sportsbook#live
+      - REDIS_URL=redis://broker:6379/0
+    depends_on:
+      - broker
+    ports:
+      - "9128:9118"
+    restart: unless-stopped
+    platform: linux/amd64

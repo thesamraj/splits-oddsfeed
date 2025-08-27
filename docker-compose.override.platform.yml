@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  collector-kambi-browser-parx:
+    platform: linux/amd64
+    environment:
+      - KAMBI_USE_PUSH_ONLY=1
+      - KAMBI_KEEPALIVE_SEC=150
+  collector-kambi-browser-unibet:
+    platform: linux/amd64
+    environment:
+      - KAMBI_USE_PUSH_ONLY=1
+      - KAMBI_KEEPALIVE_SEC=150
