@@ -657,10 +657,11 @@ def extract_brand(envelope: Dict[str, Any]) -> str:
                 brand = _infer_brand_from_host(host)
                 if brand != "unknown":
                     return brand
-            except:
+            except Exception:
                 pass
 
     return envelope.get("brand_hint", "kambi")
+
 
 # --- BEGIN FALLBACK_ODDS (safe, minimal) ---
 def _fallback_extract_betrivers_odds(event_node, raw_text):
@@ -674,23 +675,25 @@ def _fallback_extract_betrivers_odds(event_node, raw_text):
     """
     rows = []
     ev = event_node or {}
-    ev_id = (ev.get('event') or {}).get('id') or ev.get('id') or None
+    ev_id = (ev.get("event") or {}).get("id") or ev.get("id") or None
     if not ev_id:
         return rows
-    home = ((ev.get('event') or {}).get('homeName') or ev.get('homeName') or '')[:64]
-    away = ((ev.get('event') or {}).get('awayName') or ev.get('awayName') or '')[:64]
+    home = ((ev.get("event") or {}).get("homeName") or ev.get("homeName") or "")[:64]
+    away = ((ev.get("event") or {}).get("awayName") or ev.get("awayName") or "")[:64]
 
     # candidate containers
     containers = []
-    for k in ('betOffers','markets'):
+    for k in ("betOffers", "markets"):
         v = ev.get(k)
-        if isinstance(v,list) and v: containers.append(v)
+        if isinstance(v, list) and v:
+            containers.append(v)
     # also scan shallow JSON text for a tiny list of outcome dicts if containers empty
     import json
+
     if not containers:
         try:
             j = json.loads(raw_text)
-            for path in (['betOffers'],['markets']):
+            for path in (["betOffers"], ["markets"]):
                 cur = j
                 for p in path:
                     cur = cur.get(p, None) if isinstance(cur, dict) else None
@@ -702,46 +705,81 @@ def _fallback_extract_betrivers_odds(event_node, raw_text):
     def norm_price(oa, od):
         price_american, price_decimal = None, None
         try:
-            if oa is not None: price_american = int(str(oa).replace('+',''))
-        except: pass
+            if oa is not None:
+                price_american = int(str(oa).replace("+", ""))
+        except Exception:
+            pass
         try:
-            if od is not None: price_decimal = float(od)
-        except: pass
+            if od is not None:
+                price_decimal = float(od)
+        except Exception:
+            pass
         return price_american, price_decimal
 
     for offers in containers:
         for offer in offers[:20]:  # keep it light
             # identify market type roughly
-            mkt = (offer.get('criterionLabel') or offer.get('betOfferType',{}).get('name') or offer.get('name') or '').lower()
-            market = 'h2h' if 'moneyline' in mkt or 'match' in mkt or 'winner' in mkt else ('spread' if 'handicap' in mkt or 'spread' in mkt else ('total' if 'total' in mkt or 'over/under' in mkt else 'unknown'))
+            mkt = (
+                offer.get("criterionLabel")
+                or offer.get("betOfferType", {}).get("name")
+                or offer.get("name")
+                or ""
+            ).lower()
+            market = (
+                "h2h"
+                if "moneyline" in mkt or "match" in mkt or "winner" in mkt
+                else (
+                    "spread"
+                    if "handicap" in mkt or "spread" in mkt
+                    else (
+                        "total" if "total" in mkt or "over/under" in mkt else "unknown"
+                    )
+                )
+            )
 
-            outcomes = offer.get('outcomes') or offer.get('participants') or []
-            if not isinstance(outcomes,list): continue
+            outcomes = offer.get("outcomes") or offer.get("participants") or []
+            if not isinstance(outcomes, list):
+                continue
             for o in outcomes[:6]:
-                sel = (o.get('label') or o.get('name') or '')
+                sel = o.get("label") or o.get("name") or ""
                 if not sel and home and away:
                     # guess by team names in outcome
-                    t = (o.get('participant') or '')
-                    if home and home.lower() in str(t).lower(): sel = home
-                    elif away and away.lower() in str(t).lower(): sel = away
-                oa = o.get('oddsAmerican') or o.get('american') or o.get('oddsUS') or o.get('us')
-                od = o.get('oddsDecimal')  or o.get('decimal')  or o.get('odds')  or o.get('price')
-                pa,pd = norm_price(oa,od)
+                    t = o.get("participant") or ""
+                    if home and home.lower() in str(t).lower():
+                        sel = home
+                    elif away and away.lower() in str(t).lower():
+                        sel = away
+                oa = (
+                    o.get("oddsAmerican")
+                    or o.get("american")
+                    or o.get("oddsUS")
+                    or o.get("us")
+                )
+                od = (
+                    o.get("oddsDecimal")
+                    or o.get("decimal")
+                    or o.get("odds")
+                    or o.get("price")
+                )
+                pa, pd = norm_price(oa, od)
                 if pa is None and pd is None:
                     continue
-                rows.append({
-                    'event_id': ev_id,
-                    'market': market,
-                    'selection': (sel or 'unknown')[:64],
-                    'price_decimal': pd,
-                    'price_american': pa,
-                    'line': o.get('line') or offer.get('line') or None,
-                })
+                rows.append(
+                    {
+                        "event_id": ev_id,
+                        "market": market,
+                        "selection": (sel or "unknown")[:64],
+                        "price_decimal": pd,
+                        "price_american": pa,
+                        "line": o.get("line") or offer.get("line") or None,
+                    }
+                )
     return rows
 
+
 # Monkey-patch normalize_kambi_envelope for fallback
-import inspect
 _original_normalize_kambi_envelope = normalize_kambi_envelope
+
 
 def normalize_kambi_envelope_with_fallback(envelope):
     rows = []
@@ -751,27 +789,36 @@ def normalize_kambi_envelope_with_fallback(envelope):
         logger.warning(f"KAMBI_MAP primary error: {e}; trying fallback")
 
     # If nothing emitted and this looks like BetRivers, try a gentle parse for liveEvents[]
-    brand_hint = envelope.get('brand', '').lower()
-    if (not rows) and brand_hint == 'betrivers':
+    brand_hint = envelope.get("brand", "").lower()
+    if (not rows) and brand_hint == "betrivers":
         import json
+
         try:
             payload = envelope.get("payload") or envelope.get("data") or {}
             raw_text = json.dumps(payload)
         except Exception:
-            raw_text = '{}'
+            raw_text = "{}"
             payload = {}
-        
+
         events = []
-        for key in ('liveEvents','events','event'):
+        for key in ("liveEvents", "events", "event"):
             v = payload.get(key)
-            if isinstance(v,list): events = v; break
-            if isinstance(v,dict): events = [v]; break
+            if isinstance(v, list):
+                events = v
+                break
+            if isinstance(v, dict):
+                events = [v]
+                break
         emitted = 0
         for ev in events[:20]:
             r = _fallback_extract_betrivers_odds(ev, raw_text)
-            rows.extend(r); emitted += len(r)
-        logger.info(f"FALLBACK_ODDS brand=betrivers emitted={emitted} events_scanned={len(events)}")
+            rows.extend(r)
+            emitted += len(r)
+        logger.info(
+            f"FALLBACK_ODDS brand=betrivers emitted={emitted} events_scanned={len(events)}"
+        )
     return rows
+
 
 # Replace the original function
 normalize_kambi_envelope = normalize_kambi_envelope_with_fallback

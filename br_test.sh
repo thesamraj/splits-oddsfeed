@@ -5,7 +5,7 @@ set -euo pipefail
 TS="$(date -u +%Y%m%d_%H%M%S)"
 OUT="./BR_TEST_${TS}.txt"
 
-jget() { 
+jget() {
   jq -r "${1}" 2>/dev/null || echo "0"
 }
 
@@ -84,7 +84,7 @@ printf "%-30s %s\n" "BR-T5 ≥30 events/15m"             "$([ "$THROUGHPUT_OK" =
 # Final decision
 all_pass=yes
 [ "$SUB_CNT" -ge 1 -o "$PAT_CNT" -ge 1 ] || all_pass=no
-[ "$BE_CNT" -ge 6 -a "$E2E_CNT" -ge 6 ] || all_pass=no  
+[ "$BE_CNT" -ge 6 -a "$E2E_CNT" -ge 6 ] || all_pass=no
 [ "$c2" -ge "$c1" ] || all_pass=no
 python3 -c "exit(0 if $align_pct <= 5.0 else 1)" || all_pass=no
 [ "$THROUGHPUT_OK" = "yes" ] || all_pass=no

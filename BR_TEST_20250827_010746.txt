@@ -32,7 +32,7 @@ PONG
 [2025-08-27T01:08:05Z] DB  betrivers 15m distinct events = 0
 [2025-08-27T01:08:05Z] --- Alignment & thresholds ---
 [2025-08-27T01:08:05Z] Alignment diff = 100.0% (threshold ≤ 5%)
-[2025-08-27T01:08:05Z] 
+[2025-08-27T01:08:05Z]
 [2025-08-27T01:08:05Z] === BR-TABLE ===
 BR-T1 Redis subscribed (≥1)  PASS
 BR-T2 Logs ≥6 BRAND_EVAL/E2E PASS

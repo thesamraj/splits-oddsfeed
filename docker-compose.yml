@@ -38,7 +38,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
-      API_USE_SIMPLE: "1"
+      API_USE_SIMPLE: "0"
     depends_on:
       broker:
         condition: service_healthy

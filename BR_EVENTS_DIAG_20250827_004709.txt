@@ -5,8 +5,8 @@ collector-kambi-http-betrivers    0.0.0.0:9126->9126/tcp, [::]:9126->9126/tcp   
 splits-oddsfeed-api-1             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   Up 20 hours (healthy)
 splits-oddsfeed-broker-1          0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   Up 20 hours (healthy)
 --- Redis SUB/PAT ---
-NUMSUB: odds.raw.kambi 0 
-NUMPAT: 1 
+NUMSUB: odds.raw.kambi 0
+NUMPAT: 1
 --- API count (15m) ---
 API betrivers 15m = 25
 --- DB structure (events/odds columns) ---

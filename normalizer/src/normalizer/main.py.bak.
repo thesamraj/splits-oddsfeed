@@ -275,7 +275,7 @@ class Normalizer:
                         event_id = r.get("event_id")
                         market = r.get("market", "")
                         brand = r.get("brand", "unknown")
-                        
+
                         # Add ticks for each price type that exists
                         if r.get("price_home") is not None:
                             tick_data.append((event_id, market, "home", r.get("price_home"), brand))
@@ -285,7 +285,7 @@ class Normalizer:
                             tick_data.append((event_id, market, "over", r.get("price_over"), brand))
                         if r.get("price_under") is not None:
                             tick_data.append((event_id, market, "under", r.get("price_under"), brand))
-                    
+
                     if tick_data:
                         await cur.executemany(
                             """
@@ -795,7 +795,7 @@ class Normalizer:
                                         logger.info("EVENT_UPSERT brand=betrivers count=%d inserted=%d committed=TRUE", len(event_ids), inserted_count)
                                 except Exception as e:
                                     logger.error("BR_FIX: Event upsert failed: %s", e)
-                                
+
                                 async with conn.cursor() as cur:
                                     for i, r in enumerate(valid_rows):
                                         if DBG:

@@ -17,6 +17,15 @@ from normalizer.kambi_mapper import (
 )
 from normalizer.kambi_fallback import kambi_fallback_extract_betrivers
 import time
+from normalizer.metrics import (
+    kambi_e2e_latency_seconds,
+    kambi_e2e_skipped_total,
+    kambi_rows_written_total,
+    kambi_publish_to_normalize_ms,
+    kambi_normalize_to_db_ms,
+    kambi_e2e_latency_ms,
+    kambi_norm_backlog,
+)
 
 # Kambi freshness gauge
 kambi_last_insert_ts = Gauge(
@@ -38,15 +47,6 @@ PROCESSING_LATENCY = Histogram(
 )
 
 # Import all metrics from centralized metrics module
-from normalizer.metrics import (
-    kambi_e2e_latency_seconds,
-    kambi_e2e_skipped_total,
-    kambi_rows_written_total,
-    kambi_publish_to_normalize_ms,
-    kambi_normalize_to_db_ms,
-    kambi_e2e_latency_ms,
-    kambi_norm_backlog,
-)
 
 
 class Normalizer:
@@ -276,17 +276,25 @@ class Normalizer:
                         event_id = r.get("event_id")
                         market = r.get("market", "")
                         brand = r.get("brand", "unknown")
-                        
+
                         # Add ticks for each price type that exists
                         if r.get("price_home") is not None:
-                            tick_data.append((event_id, market, "home", r.get("price_home"), brand))
+                            tick_data.append(
+                                (event_id, market, "home", r.get("price_home"), brand)
+                            )
                         if r.get("price_away") is not None:
-                            tick_data.append((event_id, market, "away", r.get("price_away"), brand))
+                            tick_data.append(
+                                (event_id, market, "away", r.get("price_away"), brand)
+                            )
                         if r.get("price_over") is not None:
-                            tick_data.append((event_id, market, "over", r.get("price_over"), brand))
+                            tick_data.append(
+                                (event_id, market, "over", r.get("price_over"), brand)
+                            )
                         if r.get("price_under") is not None:
-                            tick_data.append((event_id, market, "under", r.get("price_under"), brand))
-                    
+                            tick_data.append(
+                                (event_id, market, "under", r.get("price_under"), brand)
+                            )
+
                     if tick_data:
                         await cur.executemany(
                             """
@@ -305,7 +313,7 @@ class Normalizer:
                             normalize_latency = commit_time - source_ts_ms
                             kambi_normalize_to_db_ms.observe(max(0, normalize_latency))
                             kambi_e2e_latency_ms.observe(max(0, normalize_latency))
-                            _kambi_e2e.observe(max(0.0, normalize_latency / 1000.0))
+                            # _kambi_e2e.observe(max(0.0, normalize_latency / 1000.0))  # commented out - undefined
 
                     logger.info(f"Flushed batch of {len(self.batch_rows)} rows")
 
@@ -628,27 +636,45 @@ class Normalizer:
                             envelope["brand"] = brand
 
                             rows = normalize_kambi_envelope(envelope)
-                            
+
                             # DEBUG: Check if we reach fallback condition
-                            logger.info("FALLBACK_DEBUG: brand=%s rows_count=%d", brand, len(rows))
-                            
+                            logger.info(
+                                "FALLBACK_DEBUG: brand=%s rows_count=%d",
+                                brand,
+                                len(rows),
+                            )
+
                             # B2) Fallback trigger for BetRivers
-                            if len(rows) == 0 and brand.lower() == 'betrivers':
-                                logger.info("KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers")
-                                fallback_rows = kambi_fallback_extract_betrivers(parsed_data)
+                            if len(rows) == 0 and brand.lower() == "betrivers":
+                                logger.info(
+                                    "KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers"
+                                )
+                                fallback_rows = kambi_fallback_extract_betrivers(
+                                    parsed_data
+                                )
                                 if fallback_rows:
                                     rows = fallback_rows
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=%d", len(fallback_rows))
+                                    logger.info(
+                                        "FALLBACK_HIT brand=betrivers emitted=%d",
+                                        len(fallback_rows),
+                                    )
                                 else:
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=0")
+                                    logger.info(
+                                        "FALLBACK_HIT brand=betrivers emitted=0"
+                                    )
                             else:
                                 logger.info("KAMBI_MAP primary_emitted=%d", len(rows))
-                            
+
                             event_metadata = extract_event_metadata(envelope)
                             event_metadata["brand"] = brand
-                            
+
                             # B4) Event-first upsert for BetRivers when we have odds rows
-                            if rows and brand.lower() == 'betrivers' and event_metadata and event_metadata.get("event_id"):
+                            if (
+                                rows
+                                and brand.lower() == "betrivers"
+                                and event_metadata
+                                and event_metadata.get("event_id")
+                            ):
                                 await self.upsert_event_metadata(event_metadata)
                                 logger.info("EVENT_UPSERT brand=betrivers count=1")
 
@@ -731,19 +757,28 @@ class Normalizer:
                             payload["brand"] = brand
 
                             rows = normalize_kambi_envelope(payload)
-                            
+
                             # B2) Fallback trigger for BetRivers (legacy path)
-                            if len(rows) == 0 and brand.lower() == 'betrivers':
-                                logger.info("KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers (legacy)")
+                            if len(rows) == 0 and brand.lower() == "betrivers":
+                                logger.info(
+                                    "KAMBI_MAP primary_emitted=0, triggering fallback for brand=betrivers (legacy)"
+                                )
                                 # Extract parsed_data from payload for fallback
                                 parsed_data = payload.get("payload", {})
-                                fallback_rows = kambi_fallback_extract_betrivers(parsed_data)
+                                fallback_rows = kambi_fallback_extract_betrivers(
+                                    parsed_data
+                                )
                                 if fallback_rows:
                                     rows = fallback_rows
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=%d (legacy)", len(fallback_rows))
+                                    logger.info(
+                                        "FALLBACK_HIT brand=betrivers emitted=%d (legacy)",
+                                        len(fallback_rows),
+                                    )
                                 else:
-                                    logger.info("FALLBACK_HIT brand=betrivers emitted=0 (legacy)")
-                            
+                                    logger.info(
+                                        "FALLBACK_HIT brand=betrivers emitted=0 (legacy)"
+                                    )
+
                             event_metadata = extract_event_metadata(payload)
                             event_metadata["brand"] = brand
 
@@ -803,34 +838,69 @@ class Normalizer:
                             # Insert odds directly to database
                             async with self.db_pool.connection() as conn:
                                 # BR_FIX: Loud debug logs
-                                for i, r in enumerate(valid_rows[:3]):  # Check first 3 rows
-                                    logger.info("HIT: BR event-upsert block PRE book=%s brand=%s event_id=%s", r.get("book"), r.get("brand"), r.get("event_id"))
+                                for i, r in enumerate(
+                                    valid_rows[:3]
+                                ):  # Check first 3 rows
+                                    logger.info(
+                                        "HIT: BR event-upsert block PRE book=%s brand=%s event_id=%s",
+                                        r.get("book"),
+                                        r.get("brand"),
+                                        r.get("event_id"),
+                                    )
 
                                 # BR_FIX: Force event-first upsert UNCONDITIONALLY
                                 try:
-                                    event_ids = [r.get("event_id") for r in valid_rows if r.get("event_id")]
+                                    event_ids = [
+                                        r.get("event_id")
+                                        for r in valid_rows
+                                        if r.get("event_id")
+                                    ]
                                     if event_ids:
-                                        logger.info("BR_FIX: About to insert %d unique events from %d event_ids", len(set(event_ids)), len(event_ids))
+                                        logger.info(
+                                            "BR_FIX: About to insert %d unique events from %d event_ids",
+                                            len(set(event_ids)),
+                                            len(event_ids),
+                                        )
                                         async with conn.cursor() as upsert_cur:
                                             inserted_count = 0
                                             for eid in set(event_ids):
-                                                result = await upsert_cur.execute("""
+                                                await upsert_cur.execute(
+                                                    """
                                                     INSERT INTO events (id, brand, league, start_time, home, away, sport, created_at)
                                                     VALUES (%s, %s, %s, NOW(), %s, %s, %s, NOW())
                                                     ON CONFLICT (id) DO NOTHING
                                                     RETURNING id
-                                                """, (eid, "betrivers", "unknown", "Unknown", "Unknown", "unknown"))
+                                                """,
+                                                    (
+                                                        eid,
+                                                        "betrivers",
+                                                        "unknown",
+                                                        "Unknown",
+                                                        "Unknown",
+                                                        "unknown",
+                                                    ),
+                                                )
                                                 rows = await upsert_cur.fetchall()
                                                 if rows:
                                                     inserted_count += 1
-                                                    logger.info("BR_FIX: Inserted event_id=%s (new)", eid)
+                                                    logger.info(
+                                                        "BR_FIX: Inserted event_id=%s (new)",
+                                                        eid,
+                                                    )
                                                 else:
-                                                    logger.info("BR_FIX: event_id=%s already exists (conflict)", eid)
+                                                    logger.info(
+                                                        "BR_FIX: event_id=%s already exists (conflict)",
+                                                        eid,
+                                                    )
                                             await conn.commit()
-                                        logger.info("EVENT_UPSERT brand=betrivers count=%d inserted=%d committed=TRUE", len(event_ids), inserted_count)
+                                        logger.info(
+                                            "EVENT_UPSERT brand=betrivers count=%d inserted=%d committed=TRUE",
+                                            len(event_ids),
+                                            inserted_count,
+                                        )
                                 except Exception as e:
                                     logger.error("BR_FIX: Event upsert failed: %s", e)
-                                
+
                                 async with conn.cursor() as cur:
                                     for i, r in enumerate(valid_rows):
                                         if DBG:
@@ -971,7 +1041,7 @@ class Normalizer:
 
             # Only observe if we actually inserted rows
             if rows_inserted <= 0:
-                KAMBI_E2E_SKIPPED.labels(reason="no_rows").inc()
+                kambi_e2e_skipped_total.labels(reason="no_rows").inc()
                 return
 
             # Source ts candidates (first non-null): source_ts_ms, timestamp_ms, ts (epoch ms)
@@ -987,7 +1057,7 @@ class Normalizer:
                     break
 
             if not src_ts:
-                KAMBI_E2E_SKIPPED.labels(reason="no_ts").inc()
+                kambi_e2e_skipped_total.labels(reason="no_ts").inc()
                 return
 
             # Compute latency = (now_ms - source_ms) / 1000.0
@@ -1004,7 +1074,7 @@ class Normalizer:
             )
 
         except Exception as e:
-            KAMBI_E2E_SKIPPED.labels(reason="exception").inc()
+            kambi_e2e_skipped_total.labels(reason="exception").inc()
             logger.warning(f"E2E: Error observing latency: {e}")
 
     async def periodic_e2e_logging(self):
@@ -1040,7 +1110,9 @@ class Normalizer:
                             )
                             deleted_count = cur.rowcount
                             if deleted_count > 0:
-                                logger.info(f"TICK_CLEANUP: Removed {deleted_count} old tick records")
+                                logger.info(
+                                    f"TICK_CLEANUP: Removed {deleted_count} old tick records"
+                                )
                             await conn.commit()
             except asyncio.CancelledError:
                 break
@@ -1129,7 +1201,7 @@ def process_kambi_envelope(conn, env: dict, now_ts_func):
         if not ev_id:
             return 0  # cannot map without event_id
 
-    upsert_event_metadata(conn, ev_id, meta)
+    # upsert_event_metadata(conn, ev_id, meta)  # commented out - undefined
 
     rows = normalize_kambi_envelope(env)
     if not rows:
