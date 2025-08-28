@@ -1,0 +1,25 @@
+services:
+  # Disable non-BR services by overriding their command to no-op and preventing restart.
+  splits-oddsfeed-sugarhouse-1-1:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+  collector-kambi-browser-2-1:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+  collector-kambi-wsbridge-unibet:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+
+  # Ensure BR collectors, normalizer, api, broker, store remain active
+  collector-br-prematch-a:
+    restart: unless-stopped
+  collector-br-prematch-b:
+    restart: unless-stopped
+  normalizer:
+    restart: unless-stopped
+  api:
+    restart: unless-stopped
+  broker:
+    restart: unless-stopped
+  store:
+    restart: unless-stopped

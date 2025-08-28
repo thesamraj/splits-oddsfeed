@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append(".")
+from shared.brand_guard import allowed
+
 import os
 import time
 from contextlib import asynccontextmanager
@@ -294,6 +299,9 @@ async def get_odds(
     fill: bool = False,
 ):
     """Get recent odds data from the database"""
+    if brand and not allowed(brand):
+        return {"count": 0, "events": []}
+
     conn = getattr(app.state, "db_conn", None)
     if not conn:
         return {"error": "Database not available"}

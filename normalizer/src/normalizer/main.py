@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append(".")
+from shared.brand_guard import allowed
+
 import os
 import json
 import asyncio
@@ -633,6 +638,9 @@ class Normalizer:
 
                             # Extract brand BEFORE calling normalize_kambi_envelope
                             brand = extract_brand(envelope)
+                            if not allowed(brand):
+                                logger.info(f"BR_GUARD skip brand={brand}")
+                                return
                             envelope["brand"] = brand
 
                             rows = normalize_kambi_envelope(envelope)
