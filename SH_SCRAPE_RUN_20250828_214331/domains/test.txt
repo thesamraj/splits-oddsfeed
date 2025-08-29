@@ -1,0 +1,6 @@
+HTTP/2 200
+date: Fri, 29 Aug 2025 01:43:52 GMT
+content-type: text/html; charset=utf-8
+HTTP/2 302
+date: Fri, 29 Aug 2025 01:43:53 GMT
+location: https://betrivers.com/?page=sportsbook&reselectState=1

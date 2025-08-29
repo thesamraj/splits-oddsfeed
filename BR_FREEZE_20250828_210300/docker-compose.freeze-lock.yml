@@ -1,0 +1,36 @@
+version: '3.8'
+# BR_FREEZE_20250828_210300 - Locked BetRivers-only configuration
+# All criteria PASS: O1(3942), O2(✓), T1-T5(sub-second)
+services:
+services:
+  # Disable non-BR services by overriding their command to no-op and preventing restart.
+  sugarhouse-1:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+  collector-kambi-browser-2:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+  collector-kambi-browser-parx:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+  collector-kambi-browser-unibet:
+    command: ["bash","-c","echo disabled_by_br_only && sleep infinity"]
+    restart: "no"
+
+  # Ensure BR collectors (betrivers variants), normalizer, api, broker, store remain active
+  collector-kambi-browser:
+    restart: unless-stopped
+  collector-kambi-browser-betrivers-2:
+    restart: unless-stopped
+  collector-kambi-browser-betrivers-3:
+    restart: unless-stopped
+    ports:
+      - "9127:9118"  # Fix port conflict
+  normalizer:
+    restart: unless-stopped
+  api:
+    restart: unless-stopped
+  broker:
+    restart: unless-stopped
+  store:
+    restart: unless-stopped

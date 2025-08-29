@@ -1,0 +1,13 @@
+services:
+  collector-br-http-prematch:
+    build: ./collectors/br_http
+    image: br_http:latest
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - INTERVAL=20
+      - PORT=9129
+    depends_on:
+      - broker
+    ports:
+      - "9129:9129"
+    restart: unless-stopped

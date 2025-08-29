@@ -1,12 +1,8 @@
-import sys
-
-sys.path.append(".")
-from shared.brand_guard import allowed
-
 import os
 import time
+import yaml
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, Dict
 import textwrap
 
 import redis.asyncio as redis
@@ -17,6 +13,25 @@ import uvicorn
 from prometheus_client import Histogram
 
 from .metrics import setup_metrics
+
+
+# Simple brand guard function
+def allowed(brand: str) -> bool:
+    """Check if brand is allowed"""
+    allowed_brands = {"betrivers", "kambi", "betparx", "sugarhouse"}
+    return brand.lower() in allowed_brands
+
+
+# Load brand aliases
+BRAND_ALIASES: Dict[str, str] = {}
+try:
+    with open("config/brand_alias.yml", "r") as f:
+        config = yaml.safe_load(f)
+        if config and "aliases" in config:
+            BRAND_ALIASES = config["aliases"]
+            print(f"Loaded brand aliases: {BRAND_ALIASES}")
+except Exception as e:
+    print(f"Could not load brand aliases: {e}")
 
 
 @asynccontextmanager
@@ -54,6 +69,11 @@ async def debug_brand_counts(minutes: int = 60, brand: Optional[str] = None):
     if not conn:
         return {"error": "Database not available"}
 
+    # Store original brand and apply alias
+    original_brand = brand
+    if brand in BRAND_ALIASES:
+        brand = BRAND_ALIASES[brand]
+
     try:
         sql = """
         SELECT COUNT(*) AS count
@@ -68,7 +88,14 @@ async def debug_brand_counts(minutes: int = 60, brand: Optional[str] = None):
             result = await cur.fetchone()
             count = result[0] if result else 0
 
-        return {"brand": brand or "ALL", "minutes": minutes, "count": count}
+        response = {
+            "brand": original_brand or "ALL",
+            "minutes": minutes,
+            "count": count,
+        }
+        if original_brand and original_brand != brand:
+            response["source_book"] = brand
+        return response
     except Exception as e:
         return {"error": str(e)}
 
@@ -79,6 +106,11 @@ async def debug_events_count(minutes: int = 15, brand: Optional[str] = None):
     conn = getattr(app.state, "db_conn", None)
     if not conn:
         return {"error": "Database not available"}
+
+    # Store original brand and apply alias
+    original_brand = brand
+    if brand in BRAND_ALIASES:
+        brand = BRAND_ALIASES[brand]
 
     try:
         sql = """
@@ -96,7 +128,14 @@ async def debug_events_count(minutes: int = 15, brand: Optional[str] = None):
             result = await cur.fetchone()
             count = result[0] if result else 0
 
-        return {"brand": brand or "ALL", "minutes": minutes, "count": count}
+        response = {
+            "brand": original_brand or "ALL",
+            "minutes": minutes,
+            "count": count,
+        }
+        if original_brand and original_brand != brand:
+            response["source_book"] = brand
+        return response
     except Exception as e:
         return {"error": str(e)}
 
@@ -299,6 +338,15 @@ async def get_odds(
     fill: bool = False,
 ):
     """Get recent odds data from the database"""
+    # Store original brand for response
+    original_brand = brand
+
+    # Apply brand alias mapping
+    if brand in BRAND_ALIASES:
+        mapped_brand = BRAND_ALIASES[brand]
+        print(f"Brand alias: {brand} -> {mapped_brand}")
+        brand = mapped_brand
+
     if brand and not allowed(brand):
         return {"count": 0, "events": []}
 
@@ -689,17 +737,25 @@ async def get_odds(
             duration = time.time() - start_time
             odds_request_seconds.observe(duration)
 
-            return {
+            # Apply brand alias to response if it was mapped
+            response_data = {
                 "status": "ok",
                 "count": len(events),
                 "events": events,
                 "debug": {
-                    "brand": brand,
+                    "brand": original_brand if original_brand else brand,
                     "sport": sport,
                     "league": league,
                     "params": params,
                 },
             }
+
+            # Add source_book if brand was aliased
+            if original_brand and original_brand != brand:
+                response_data["source_book"] = brand
+                response_data["brand"] = original_brand
+
+            return response_data
 
     except Exception as e:
         # Record latency metric even on failure

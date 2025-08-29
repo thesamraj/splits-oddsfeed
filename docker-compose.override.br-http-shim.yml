@@ -1,0 +1,10 @@
+services:
+  br-http-shim:
+    build: ./shims/br_http_shim
+    image: br_http_shim:latest
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.kambi
+    depends_on:
+      - broker
+    restart: unless-stopped

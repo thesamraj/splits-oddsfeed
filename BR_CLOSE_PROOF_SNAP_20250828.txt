@@ -1,0 +1,47 @@
+=== BR CLOSEOUT DECISION MATRIX SNAP_20250828 ===
+Generated: Thu Aug 28 10:52:34 EDT 2025
+
+ACCEPTANCE CRITERIA RESULTS:
+============================
+T1 (Redis subscription ≥1):        FAIL (0 subscribers)
+T2 (Logging ≥6 BRAND_EVAL, ≥6 E2E): FAIL (5 BRAND_EVAL, 0 E2E)
+T3 (Healthz with counters):         FAIL (Missing numeric counters)
+T4 (API↔DB alignment ≤5%):          PASS (0% - perfect alignment)
+T5 (≥30 events/15m):                FAIL (10 events < 30)
+O1 (≥50 odds rows/15m):             FAIL (0 odds < 50)
+O2 (API events with prices):        FAIL (0 events with prices)
+
+OVERALL RESULT: NO-GO
+===================
+PASS: 1/7 criteria (T4 only)
+FAIL: 6/7 criteria
+
+FAILING CRITERIA AND NEXT SMALLEST FIXES:
+==========================================
+
+T1 FAIL - Normalizer not subscribing to Redis:
+  • Root cause: Normalizer container running but not connecting to Redis broker
+  • Next fix: Check normalizer REDIS_URL config and subscription code
+  • Command: docker compose exec normalizer env | grep REDIS
+
+T2 FAIL - Insufficient logging:
+  • Root cause: No E2E timing logs, limited BRAND_EVAL processing
+  • Next fix: Add E2E timer logging to normalizer main loop
+
+T3 FAIL - Healthz missing counters:
+  • Root cause: Collector healthz returns status but no 'messages_received' counter
+  • Next fix: Add numeric counter to collector healthz endpoint
+
+T5/O1/O2 FAIL - No odds generation:
+  • Root cause: Events created (10 in 15m) but normalizer not processing into odds
+  • Next fix: Fix normalizer message processing to emit odds rows
+  • Dependency: Requires T1 fix first (subscription)
+
+SUPPORTING EVIDENCE:
+====================
+• Collectors active: 9129 (2296 published), 9130 (1721 published)
+• Events flowing: 10 new events in 15 minutes
+• Normalizer running but NUMSUB = 0 (not subscribed)
+• API working: Returns proper alignment when data exists
+
+::BR:: NO-GO

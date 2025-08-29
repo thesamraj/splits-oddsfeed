@@ -1,0 +1,54 @@
+version: '3.8'
+
+# UB Sandbox - Additive Unibet collectors (keeping BR frozen)
+services:
+  # Unibet HTTP Collectors (unique ports)
+  collector-ub-prematch-a:
+    build:
+      context: ./collectors/ub_http
+      dockerfile: Dockerfile
+    environment:
+      - KAMBI_BASE_URL=https://eu.offering-api.kambicdn.com/offering/v2018
+      - KAMBI_BRAND=ub2uspa
+      - KAMBI_ENDPOINTS=event/upcoming.json,event/live/open.json
+      - KAMBI_INTERVAL_SEC=20
+      - KAMBI_PUBLISH_CHANNEL=odds.envelope.kambi.ub
+      - HEALTHZ_PORT=9134
+    ports:
+      - "9134:9134"
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-ub-prematch-b:
+    build:
+      context: ./collectors/ub_http
+      dockerfile: Dockerfile
+    environment:
+      - KAMBI_BASE_URL=https://eu.offering-api.kambicdn.com/offering/v2018
+      - KAMBI_BRAND=ub2uspa
+      - KAMBI_ENDPOINTS=event/upcoming.json,event/live/open.json
+      - KAMBI_INTERVAL_SEC=27
+      - KAMBI_PUBLISH_CHANNEL=odds.envelope.kambi.ub
+      - HEALTHZ_PORT=9135
+    ports:
+      - "9135:9135"
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # HTTP Shim for UB (reuse existing)
+  http-shim-ub:
+    build:
+      context: ./shims/ub_shim
+      dockerfile: Dockerfile
+    environment:
+      - SUBSCRIBE_CHANNEL=odds.envelope.kambi.ub
+      - PUBLISH_CHANNEL=odds.raw.kambi
+      - BRAND_HINT=unibet
+      - HEALTHZ_PORT=9136
+    ports:
+      - "9136:9136"
+    depends_on:
+      - broker
+    restart: unless-stopped

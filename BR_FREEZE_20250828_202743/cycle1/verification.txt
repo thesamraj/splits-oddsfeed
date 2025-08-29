@@ -1,0 +1,22 @@
+=== PHASE B COMPREHENSIVE VERIFICATION ===
+O1: BetRivers odds count (15m) - Target: ≥50
+- Current: 1772 odds rows
+- PASS: 1772 ≫ 50 (35.4x over target)
+
+O2: API response - Target: ≥1 event with prices[]
+- Brand API: 2 events, 116 total prices
+- Book API: 2 events, 118 total prices
+- PASS: Both endpoints returning events with prices
+
+T1-T5: Normalizer processing checks
+
+TICKS STATUS:
+- odds_ticks table: EXISTS (7 columns with indexes)
+- Current ticks (15m): 0 rows
+- Issue: No ticks being populated
+
+PRELIMINARY SUMMARY:
+✅ O1 PASS - Excellent odds throughput (1772/15m)
+✅ O2 PASS - API endpoints working with prices
+❓ T1-T5: Need to check normalizer E2E timing
+❌ TICKS FAIL - No historical ticks being recorded

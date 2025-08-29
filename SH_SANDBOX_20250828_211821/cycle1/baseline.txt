@@ -1,0 +1,6 @@
+Baseline snapshot saved
+BR containers: 6 running (frozen and stable)
+Redis: 1 subscriber, 2 patterns
+BR API: responding with events and odds
+BR DB: 3803 betrivers odds (15m)
+SH: 0 events, 0 odds (expected - not deployed)

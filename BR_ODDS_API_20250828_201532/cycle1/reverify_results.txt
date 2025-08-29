@@ -1,0 +1,11 @@
+O1: BetRivers odds count (15m) - Target: ≥50
+ odds_count
+------------
+        281
+(1 row)
+
+
+O2: API test - Target: ≥1 event with prices[]
+API_ERROR
+
+DB Sample odds:

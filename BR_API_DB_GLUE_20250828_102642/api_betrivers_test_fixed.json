@@ -1,0 +1,20 @@
+{
+  "status": "ok",
+  "count": 0,
+  "events": [],
+  "debug": {
+    "brand": "betrivers",
+    "sport": null,
+    "league": null,
+    "params": {
+      "minutes": 15,
+      "book": null,
+      "odds_book": "betrivers",
+      "league": null,
+      "market": null,
+      "brand": "betrivers",
+      "sport": null,
+      "limit": 3
+    }
+  }
+}

@@ -1,0 +1,182 @@
+=== PHASE C - ACTIVE FIXES ===
+Started: Thu Aug 28 19:38:51 EDT 2025
+
+=== C1: BOOSTING COLLECTOR CADENCE ===
+Current collector status:
+{
+  "brand": "betrivers",
+  "channel": "odds.raw.kambi",
+  "host": "eu.offering-api.kambicdn.com",
+  "last_err": null,
+  "last_ok_ts": "2025-08-28T23:38:48.250258+00:00",
+  "last_status": 200,
+  "last_url": "https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json",
+  "polls": 352,
+  "published": 14488,
+  "status": "active"
+}
+{
+  "brand": "betrivers",
+  "channel": "odds.raw.kambi",
+  "host": "eu.offering-api.kambicdn.com",
+  "last_err": null,
+  "last_ok_ts": "2025-08-28T23:38:41.645144+00:00",
+  "last_status": 200,
+  "last_url": "https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json",
+  "polls": 264,
+  "published": 10863,
+  "status": "active"
+}
+
+Checking collector configuration...
+docker-compose.override.br-dns.yml
+docker-compose.override.br-http-shim.yml
+docker-compose.override.br-http.yml
+docker-compose.override.br-only.yml
+docker-compose.override.br-prematch.yml
+docker-compose.override.br.yml
+docker-compose.override.wsbridge-ub.yml
+docker-compose.override.wsbridge.yml
+docker-compose.yml.broken
+Current collector containers:
+bef28699e5e3   br_prematch:latest                  "python -u br_premat…"   9 hours ago      Up 9 hours             0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp   collector-br-prematch-a
+c59a2a77c251   br_prematch:latest                  "python -u br_premat…"   9 hours ago      Up 9 hours             0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp   collector-br-prematch-b
+
+Creating boosted collector configuration...
+Created boosted collector override
+
+Restarting collectors with boosted polling...
+time="2025-08-28T19:39:14-04:00" level=warning msg="/Users/sam/Desktop/splits-oddsfeed/docker-compose.override.br-prematch.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2025-08-28T19:39:14-04:00" level=warning msg="/Users/sam/Desktop/splits-oddsfeed/docker-compose.override.br-boost.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container collector-br-prematch-b  Stopping
+ Container collector-br-prematch-a  Stopping
+ Container collector-br-prematch-b  Stopped
+ Container collector-br-prematch-b  Removing
+ Container collector-br-prematch-b  Removed
+ Container collector-br-prematch-a  Stopped
+ Container collector-br-prematch-a  Removing
+ Container collector-br-prematch-a  Removed
+ Network splits-oddsfeed_default  Removing
+ Network splits-oddsfeed_default  Resource is still in use
+time="2025-08-28T19:39:28-04:00" level=warning msg="/Users/sam/Desktop/splits-oddsfeed/docker-compose.override.br-prematch.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2025-08-28T19:39:28-04:00" level=warning msg="/Users/sam/Desktop/splits-oddsfeed/docker-compose.override.br-boost.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2025-08-28T19:39:28-04:00" level=warning msg="Found orphan containers ([splits-oddsfeed-br-http-shim-1 splits-oddsfeed-collector-br-http-prematch-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container splits-oddsfeed-broker-1  Running
+ Container collector-br-prematch-b  Creating
+ Container collector-br-prematch-a  Creating
+ Container collector-br-prematch-a  Created
+ Container collector-br-prematch-b  Created
+ Container collector-br-prematch-a  Starting
+ Container collector-br-prematch-b  Starting
+ Container collector-br-prematch-a  Started
+ Container collector-br-prematch-b  Started
+Waiting 10s for collector startup...
+
+Verifying boosted collectors:
+Port 9129 status:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T23:39:37.548919+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":2,"published":64,"status":"active"}
+
+Port 9130 status:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T23:39:29.329471+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":1,"published":32,"status":"active"}
+
+Monitoring boosted activity for 30s...
+Baseline - 9129: 64, 9130: 32
+After 30s - 9129: 160 (+96), 9130: 128 (+96)
+✓ Collectors are actively publishing with boost (192 new messages)
+
+=== C2: HARDENING ODDS PROCESSING ===
+Recent normalizer processing:
+normalizer-1  | 2025-08-28 23:40:27,620 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 23:40:27,621 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+
+Checking kambi mapper effectiveness...
+Recent BRAND_EVAL: 5
+Recent batches flushed: 0
+Issue: Processing messages but not generating odds batches
+Created kambi_mapper backup
+Created main.py backup
+Enhanced E2E logging in main.py
+
+=== REBUILDING NORMALIZER WITH ENHANCEMENTS ===
+#1 [internal] load local bake definitions
+#1 reading from stdin 413B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 464B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 ...
+
+#4 [auth] library/python:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.5s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [1/8] FROM docker.io/library/python:3.11-slim@sha256:1d6131b5d479888b43200645e03a78443c7157efbdb730e6b48129740727c312
+#6 resolve docker.io/library/python:3.11-slim@sha256:1d6131b5d479888b43200645e03a78443c7157efbdb730e6b48129740727c312 done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 206.74kB 0.0s done
+#7 DONE 0.0s
+
+#8 [3/8] RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [4/8] RUN pip install poetry
+#9 CACHED
+
+#10 [2/8] WORKDIR /app
+#10 CACHED
+
+#11 [5/8] COPY pyproject.toml .
+#11 CACHED
+
+#12 [6/8] RUN poetry config virtualenvs.create false     && poetry install --only main --no-interaction --no-ansi --no-root
+#12 CACHED
+
+#13 [7/8] COPY src/ ./src/
+#13 DONE 0.0s
+
+#14 [8/8] RUN poetry install --only-root --no-interaction --no-ansi
+#14 0.403 Skipping virtualenv creation, as specified in config file.
+#14 0.516 Installing dependencies from lock file
+#14 0.585
+#14 0.585 Installing the current project: normalizer (0.1.0)
+#14 DONE 0.7s
+
+#15 exporting to oci image format
+#15 exporting layers 0.0s done
+#15 exporting manifest sha256:80c10959eed68590e593f0077877a1ef1ad1ee17a0b0fff911df711799d29c82 done
+#15 exporting config sha256:04cc4ee823e6ab811e26a1b5212726f8385617a8bde6fb9235fffbb4ed3cdd9d done
+#15 sending tarball
+#15 sending tarball 1.9s done
+#15 DONE 1.9s
+
+#16 importing to docker
+#16 DONE 0.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ normalizer  Built
+time="2025-08-28T19:40:50-04:00" level=warning msg="Found orphan containers ([collector-br-prematch-b collector-br-prematch-a splits-oddsfeed-br-http-shim-1 splits-oddsfeed-collector-br-http-prematch-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container splits-oddsfeed-normalizer-1  Recreate
+ Container splits-oddsfeed-normalizer-1  Recreated
+ Container splits-oddsfeed-normalizer-1  Starting
+ Container splits-oddsfeed-normalizer-1  Started
+Waiting 15s for normalizer startup...
+
+Post-rebuild verification:
+NUMSUB: 0
+
+Testing enhanced E2E logging...
+Enhanced E2E logs in 20s: 0
+0
+⚠ Enhanced E2E logging generating fewer logs than expected

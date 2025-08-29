@@ -1,0 +1,14 @@
+                                        Table "public.odds_ticks"
+    Column    |           Type           | Collation | Nullable |                Default
+--------------+--------------------------+-----------+----------+----------------------------------------
+ id           | integer                  |           | not null | nextval('odds_ticks_id_seq'::regclass)
+ event_id     | bigint                   |           | not null |
+ market       | character varying(50)    |           | not null |
+ selection    | character varying(100)   |           | not null |
+ odds_decimal | numeric(10,3)            |           | not null |
+ brand        | character varying(50)    |           | not null |
+ created_at   | timestamp with time zone |           | not null | now()
+Indexes:
+    "odds_ticks_pkey" PRIMARY KEY, btree (id)
+    "idx_odds_ticks_created_at" btree (created_at)
+    "idx_odds_ticks_event_market" btree (event_id, market, selection)

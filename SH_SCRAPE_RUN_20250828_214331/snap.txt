@@ -1,0 +1,14 @@
+=== BASELINE SNAPSHOT ===
+splits-oddsfeed-normalizer-1	Up About an hour
+collector-br-prematch-b	Up 2 hours
+collector-br-prematch-a	Up 2 hours
+splits-oddsfeed-api-1	Up About an hour (healthy)
+splits-oddsfeed-broker-1	Up 11 hours (healthy)
+splits-oddsfeed-store-1	Up 11 hours (healthy)
+buildx_buildkit_ghcr-builder0	Up 10 hours
+
+=== BR HEALTH ===
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-29T01:43:39.246353+00:00","last_status":200,"last_url":"https://eu.offering-
+=== REDIS ===
+odds.raw.kambi
+1

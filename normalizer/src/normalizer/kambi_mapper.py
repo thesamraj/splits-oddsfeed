@@ -2,6 +2,7 @@
 from __future__ import annotations
 import re
 import logging
+import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -196,8 +197,17 @@ def _side_from_label(lbl: str, index: int = 0) -> str:
         return "home"
     if "away" in s:
         return "away"
+
+    # Handle 1X2 (European) markets specifically
+    if lbl == "1":
+        return "home"
+    if lbl == "2":
+        return "away"
+    if lbl in ("X", "x", "Draw", "draw"):
+        return "draw"  # We'll handle this separately
+
     # For spreads/moneyline, often first outcome is home, second is away
-    # This is a common Kambi pattern
+    # This is a common Kambi pattern (but only for 2-way markets)
     if index == 0:
         return "home"
     if index == 1:
@@ -214,11 +224,14 @@ def _iter_betoffers_anywhere(obj: Any) -> Iterable[Dict[str, Any]]:
     - any dict with 'criterion' and 'outcomes'
     """
     stack = [obj]
+    found_offers = 0
     while stack:
         cur = stack.pop()
         if isinstance(cur, dict):
             # direct bet offer
             if "criterion" in cur and "outcomes" in cur:
+                found_offers += 1
+                logger.info(f"BET_FINDER: Found direct bet offer #{found_offers}")
                 yield cur
             # containers
             for k, v in cur.items():
@@ -227,6 +240,8 @@ def _iter_betoffers_anywhere(obj: Any) -> Iterable[Dict[str, Any]]:
                         if isinstance(it, dict):
                             yield it
                 elif k in ("mainBetOffer", "mainBetoffer") and isinstance(v, dict):
+                    found_offers += 1
+                    logger.info(f"BET_FINDER: Found mainBetOffer #{found_offers}")
                     yield v
                 else:
                     stack.append(v)
@@ -454,11 +469,243 @@ def extract_event_metadata(envelope: Dict[str, Any]) -> Dict[str, str]:
     return meta
 
 
+# === BR flexible price extractor (non-breaking) ===
+def _br_flexible_price(outcome: dict):
+    """
+    Return (american_str, decimal_float) from a Kambi outcome, best-effort.
+    Based on reconnaissance: outcome['oddsAmerican'] and outcome['odds'] (decimal)
+    """
+    if not isinstance(outcome, dict):
+        return (None, None)
+
+    # Direct access based on sample analysis
+    american_raw = outcome.get("oddsAmerican")
+    decimal_raw = outcome.get("odds")
+
+    american = None
+    decimal = None
+
+    # Process american odds
+    if isinstance(american_raw, (int, float)):
+        american = f"{int(american_raw):+d}"
+    elif isinstance(american_raw, str):
+        american = american_raw.strip()
+        if re.match(r"^\d+$", american):  # e.g. "110"
+            american = f"+{american}"
+        elif re.match(r"^[+-]?\d+$", american):
+            if not american.startswith(("+", "-")):
+                american = f"+{american}"
+
+    # Process decimal odds (Kambi uses 1000-based format: 9000 = 9.0)
+    if isinstance(decimal_raw, (int, float)):
+        decimal = float(decimal_raw) / 1000.0
+    elif isinstance(decimal_raw, str):
+        try:
+            decimal = float(decimal_raw) / 1000.0
+        except:
+            decimal = None
+
+    return (american, decimal)
+
+
 def normalize_kambi_envelope(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Return list of row dicts with fields:
       event_id, market, line, total, price_home, price_away, price_over, price_under, ts
     """
+    # ROBUST PAYLOAD EXTRACTION: Handle both wrapped and raw formats
+    payload = envelope
+    if "payload" in envelope or "data" in envelope:
+        raw_payload = envelope.get("payload") or envelope.get("data")
+        if isinstance(raw_payload, str):
+            try:
+                import json
+
+                payload = json.loads(raw_payload)
+            except:
+                payload = {}
+        elif isinstance(raw_payload, dict):
+            payload = raw_payload
+
+    if not isinstance(payload, dict):
+        logger.info("KAMBI_MAP in: non-dict payload")
+        return []
+
+    logger.info("KAMBI_MAP in: keys=%s", list(payload.keys())[:10])
+
+    # Extract events - handle both liveEvents[] array and single event structures
+    live_events = payload.get("liveEvents", [])
+    if not live_events:
+        live_events = payload.get("events", [])  # fallback
+
+    # NEW: Handle single event structure (from BetRivers feed)
+    if not live_events and "event" in payload:
+        single_event = payload["event"]
+        if isinstance(single_event, dict):
+            main_bet_offer = payload.get("mainBetOffer")
+            raw_data = payload.get("raw", {})
+            raw_main_bet_offer = (
+                raw_data.get("mainBetOffer") if isinstance(raw_data, dict) else None
+            )
+
+            logger.info(f"PAYLOAD_DEBUG: payload keys={list(payload.keys())}")
+            logger.info(
+                f"PAYLOAD_DEBUG: mainBetOffer at top={main_bet_offer is not None}, in raw={raw_main_bet_offer is not None}"
+            )
+            if isinstance(raw_data, dict):
+                logger.info(f"PAYLOAD_DEBUG: raw keys={list(raw_data.keys())[:5]}")
+
+            # Use mainBetOffer from raw if top-level is missing
+            final_bet_offer = main_bet_offer or raw_main_bet_offer
+
+            # FALLBACK: If still no mainBetOffer, pass the entire payload to be searched
+            if not final_bet_offer:
+                # Let _iter_betoffers_anywhere search the entire payload tree
+                wrapped_event = payload
+                logger.info(
+                    "KAMBI_MAP: No direct mainBetOffer found, using whole payload for search"
+                )
+            else:
+                # Create a proper structure that _iter_betoffers_anywhere can find
+                wrapped_event = {
+                    "event": single_event,
+                    "mainBetOffer": final_bet_offer,
+                    "betOffers": payload.get("betOffers", []),
+                }
+            live_events = [wrapped_event]
+            logger.info(
+                f"KAMBI_MAP: wrapping event, final mainBetOffer={final_bet_offer is not None}"
+            )
+
+    if not live_events or not isinstance(live_events, list):
+        logger.info("KAMBI_MAP: no events found")
+        return []
+
+    logger.info("KAMBI_MAP detect: events_found=%d", len(live_events))
+
+    all_rows = []
+    events_upserted = 0
+    prices_emitted = 0
+
+    for event_node in live_events:
+        if not isinstance(event_node, dict):
+            continue
+
+        # Extract event_id (required)
+        event_id = deep_get(event_node, ["event", "id"]) or event_node.get("id")
+        if not event_id:
+            continue
+
+        event_id = str(event_id)
+        events_upserted += 1
+
+        # Extract team names
+        home = (
+            deep_get(event_node, ["event", "homeName"])
+            or event_node.get("homeName")
+            or ""
+        )
+        away = (
+            deep_get(event_node, ["event", "awayName"])
+            or event_node.get("awayName")
+            or ""
+        )
+
+        # Extract sport/league info
+        sport = deep_get(event_node, ["event", "sport"]) or "unknown"
+        league = ""
+        path = deep_get(event_node, ["event", "path"])
+        if isinstance(path, list) and path:
+            league = path[-1].get("name", "") if isinstance(path[-1], dict) else ""
+
+        # Extract prices from mainBetOffer (H2H preferred)
+        main_bet_offer = event_node.get("mainBetOffer", {})
+        outcomes = (
+            main_bet_offer.get("outcomes", [])
+            if isinstance(main_bet_offer, dict)
+            else []
+        )
+
+        if outcomes and len(outcomes) >= 2:
+            # Try to map home/away outcomes
+            price_home = None
+            price_away = None
+
+            for i, outcome in enumerate(
+                outcomes[:2]
+            ):  # First 2 outcomes typically home/away
+                if isinstance(outcome, dict) and "odds" in outcome:
+                    odds_val = outcome["odds"]
+                    if isinstance(odds_val, (int, float)) and odds_val > 0:
+                        if i == 0:  # First outcome = home
+                            price_home = (
+                                float(odds_val) / 1000
+                                if odds_val > 100
+                                else float(odds_val)
+                            )
+                        elif i == 1:  # Second outcome = away
+                            price_away = (
+                                float(odds_val) / 1000
+                                if odds_val > 100
+                                else float(odds_val)
+                            )
+
+            # Emit H2H row if we have prices
+            if price_home and price_away:
+                row = {
+                    "event_id": event_id,
+                    "market": "h2h",
+                    "line": None,
+                    "total": None,
+                    "price_home": price_home,
+                    "price_away": price_away,
+                    "price_over": None,
+                    "price_under": None,
+                    "ts": int(time.time()),
+                    "book": "betrivers",  # Use betrivers, not kambi
+                    "brand": "betrivers",
+                    "sport": sport.lower() if sport else "unknown",
+                    "league": league,
+                    "home_team": home,
+                    "away_team": away,
+                }
+                all_rows.append(row)
+                prices_emitted += 1
+
+        # Always emit event metadata even if no prices
+        if not any(r["event_id"] == event_id for r in all_rows):
+            # Create a minimal row to ensure event exists
+            row = {
+                "event_id": event_id,
+                "market": "h2h",
+                "line": None,
+                "total": None,
+                "price_home": None,
+                "price_away": None,
+                "price_over": None,
+                "price_under": None,
+                "ts": int(time.time()),
+                "book": "betrivers",
+                "brand": "betrivers",
+                "sport": sport.lower() if sport else "unknown",
+                "league": league,
+                "home_team": home,
+                "away_team": away,
+            }
+            all_rows.append(row)
+
+    logger.info(
+        "KAMBI_MAP emit: events_upserted=%d, prices_emitted=%d",
+        events_upserted,
+        prices_emitted,
+    )
+    return all_rows
+
+
+def _original_normalize_kambi_envelope(
+    envelope: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Original implementation - kept for fallback"""
     payload = envelope.get("payload") or envelope.get("data") or {}
     if not isinstance(payload, dict):
         logger.info("KAMBI_MAP in: non-dict payload")
@@ -490,7 +737,11 @@ def _process_single_event_node(
 ) -> List[Dict[str, Any]]:
     """Process a single event node and return normalized rows"""
     rows: List[Dict[str, Any]] = []
-    for bo in _iter_betoffers_anywhere(node):
+    bet_offers = list(_iter_betoffers_anywhere(node))
+    logger.info(
+        f"KAMBI_ODDS: Found {len(bet_offers)} bet offers for event_id={event_id}"
+    )
+    for bo in bet_offers:
         try:
             crit = bo.get("criterion") or {}
             mkt = _market_name(_clean_str(crit.get("label", "")))
@@ -571,7 +822,14 @@ def _process_single_event_node(
 
                 # Skip if still invalid
                 if american is None:
+                    logger.debug(
+                        f"KAMBI_ODDS: No odds from outcome {idx}, market={mkt}"
+                    )
                     continue
+
+                logger.info(
+                    f"KAMBI_ODDS: event_id={event_id} market={mkt} side={side} american={american}"
+                )
 
                 row = {
                     "book": brand,
@@ -590,6 +848,9 @@ def _process_single_event_node(
                         row["price_home"] = american
                     elif side == "away":
                         row["price_away"] = american
+                    elif side == "draw":
+                        # Skip draw outcomes for now - schema only supports home/away
+                        continue
                     else:
                         # If we can't tell, skip ambiguous h2h outcome
                         continue
@@ -612,12 +873,15 @@ def _process_single_event_node(
                     continue
 
                 rows.append(row)
-        except Exception:
+                logger.info(
+                    f"KAMBI_ODDS: Added row for {event_id}/{mkt}/{side} with price={american}"
+                )
+        except Exception as e:
             # skip malformed bet offer safely
+            logger.warning(f"KAMBI_ODDS: Error processing bet offer: {e}")
             continue
 
-    # If we generated rows where only one side appeared (e.g., only price_home),
-    # we still keep them — API can filter empties, but DB wants actual prices.
+    logger.info(f"KAMBI_ODDS: event_id={event_id} generated {len(rows)} odds rows")
     return rows
 
 
@@ -637,7 +901,12 @@ def extract_brand(envelope: Dict[str, Any]) -> str:
         "ub2usnj": "unibet",
     }
 
-    # Try to extract token from URL
+    # FIRST: Try direct token field (from BetRivers feed)
+    direct_token = envelope.get("token", "")
+    if direct_token in token_map:
+        return token_map[direct_token]
+
+    # SECOND: Try to extract token from URL
     url = envelope.get("offering_url") or envelope.get("url") or ""
     for token, brand in token_map.items():
         if token in url:

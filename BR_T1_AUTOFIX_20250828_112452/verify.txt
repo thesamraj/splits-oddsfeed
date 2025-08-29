@@ -1,0 +1,34 @@
+=== BR_T1_AUTOFIX VERIFICATION CYCLE 1 ===
+Started: Thu Aug 28 11:25:58 EDT 2025
+
+T1 - Redis Subscription:
+NUMSUB: odds.raw.kambi
+T1a: NUMSUB < 1 ✗ (odds.raw.kambi)
+
+T1 - Testing BRAND_EVAL response:
+T1b: BRAND_EVAL found within 3s ✓
+T1: FAIL
+
+=== QUICK T2-T5, O1-O2 CHECK ===
+T2 - BRAND_EVAL count: 20 (need ≥6)
+T2 - E2E count: 2 (need ≥6)
+T2: FAIL
+T3: Basic healthz with counters ✓
+T5 - DB events (15m): 0 (need ≥30)
+O1 - DB odds (15m): 0 (need ≥50)
+T5: FAIL
+O1: FAIL
+O2: API has no events ✗
+T4: API↔DB alignment (simplified)
+
+=== CYCLE 1 RESULTS ===
+T1: false
+T2: false
+T3: false
+T4: false
+T5: false
+O1: false
+O2: false
+
+FAILURES: 5/7 criteria
+FAILURES DETECTED - Moving to Phase C

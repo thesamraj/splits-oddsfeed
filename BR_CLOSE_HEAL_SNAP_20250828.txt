@@ -1,0 +1,74 @@
+=== BR SELF-HEAL PHASE C ===
+Started: Thu Aug 28 10:48:37 EDT 2025
+
+=== C1: FIXING NORMALIZER SUBSCRIPTION ===
+Current normalizer container status:
+NAME                           IMAGE                        COMMAND                  SERVICE      CREATED          STATUS          PORTS
+splits-oddsfeed-normalizer-1   splits-oddsfeed-normalizer   "python -m normalize…"   normalizer   18 minutes ago   Up 18 minutes   0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+
+Recent normalizer logs:
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 14:48:26,994 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 14:48:26,994 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 14:48:26,994 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 14:48:35,020 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+
+Normalizer is running but not subscribed. Restarting...
+ Container splits-oddsfeed-normalizer-1  Restarting
+ Container splits-oddsfeed-normalizer-1  Started
+Checking subscription after restart:
+NUMSUB after restart: 0
+C1: PARTIAL - Need to check normalizer code
+
+=== C5: ENSURING BR COLLECTORS ARE RUNNING ===
+Checking BR collector containers:
+bef28699e5e3   br_prematch:latest                  "python -u br_premat…"   18 minutes ago   Up 18 minutes             0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp   collector-br-prematch-a
+c59a2a77c251   br_prematch:latest                  "python -u br_premat…"   18 minutes ago   Up 18 minutes             0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp   collector-br-prematch-b
+
+Starting BR collectors...
+time="2025-08-28T10:49:06-04:00" level=warning msg="/Users/sam/Desktop/splits-oddsfeed/docker-compose.override.br-prematch.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+time="2025-08-28T10:49:06-04:00" level=warning msg="Found orphan containers ([splits-oddsfeed-br-http-shim-1 splits-oddsfeed-collector-br-http-prematch-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container splits-oddsfeed-broker-1  Running
+ Container collector-br-prematch-b  Running
+ Container collector-br-prematch-a  Running
+
+Testing collector healthz endpoints:
+Port 9129:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T14:49:08.365567+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":54,"published":2212,"status":"active"}
+
+Port 9130:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T14:48:47.737754+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":40,"published":1637,"status":"active"}
+
+=== ENSURING CORE SERVICES ARE RUNNING ===
+Starting core services (store, broker, normalizer, api):
+ store Pulling
+ store Pulled
+time="2025-08-28T10:49:21-04:00" level=warning msg="Found orphan containers ([collector-br-prematch-a collector-br-prematch-b splits-oddsfeed-br-http-shim-1 splits-oddsfeed-collector-br-http-prematch-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container splits-oddsfeed-broker-1  Running
+ Container splits-oddsfeed-store-1  Running
+ Container splits-oddsfeed-normalizer-1  Running
+ Container splits-oddsfeed-api-1  Running
+ Container splits-oddsfeed-broker-1  Waiting
+ Container splits-oddsfeed-store-1  Waiting
+ Container splits-oddsfeed-broker-1  Waiting
+ Container splits-oddsfeed-store-1  Waiting
+ Container splits-oddsfeed-store-1  Healthy
+ Container splits-oddsfeed-store-1  Healthy
+ Container splits-oddsfeed-broker-1  Healthy
+ Container splits-oddsfeed-broker-1  Healthy
+
+Waiting 10s for services to stabilize...
+
+Service status:
+NAME                           IMAGE                               COMMAND                  SERVICE                   CREATED          STATUS                    PORTS
+collector-br-prematch-a        br_prematch:latest                  "python -u br_premat…"   collector-br-prematch-a   18 minutes ago   Up 18 minutes             0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp
+collector-br-prematch-b        br_prematch:latest                  "python -u br_premat…"   collector-br-prematch-b   18 minutes ago   Up 18 minutes             0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp
+splits-oddsfeed-api-1          splits-oddsfeed-api                 "uvicorn api.main:ap…"   api                       17 hours ago     Up 20 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+splits-oddsfeed-broker-1       redis:7.2                           "docker-entrypoint.s…"   broker                    2 days ago       Up 21 minutes (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+splits-oddsfeed-normalizer-1   splits-oddsfeed-normalizer          "python -m normalize…"   normalizer                18 minutes ago   Up 43 seconds             0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+splits-oddsfeed-store-1        timescale/timescaledb:2.21.2-pg16   "docker-entrypoint.s…"   store                     2 days ago       Up 21 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
