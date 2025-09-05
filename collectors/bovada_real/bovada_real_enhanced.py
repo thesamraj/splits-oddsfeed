@@ -185,6 +185,11 @@ class BovadaRealCollector:
         @self.flask_app.route("/realness/report")
         def realness_report():
             return jsonify(self.gate.get_report())
+        
+        @self.flask_app.route("/metrics")
+        def metrics():
+            """Expose Prometheus metrics"""
+            return Response(generate_latest(REGISTRY), mimetype=CONTENT_TYPE_LATEST)
 
         @self.flask_app.route("/realness/sample")
         def realness_sample():
