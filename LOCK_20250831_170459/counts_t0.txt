@@ -1,0 +1,5 @@
+betrivers odds_15m=14189 ticks_15m=0
+fanduel odds_15m=819 ticks_15m=0
+draftkings odds_15m=47706 ticks_15m=0
+pointsbet odds_15m=1838 ticks_15m=1752
+barstool odds_15m=4056 ticks_15m=4056

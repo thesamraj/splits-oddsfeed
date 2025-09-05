@@ -1,0 +1,29 @@
+{
+  "data": {
+    "country": "CA",
+    "resolvedProperties": [
+      {
+        "key": "state",
+        "value": "ON"
+      },
+      {
+        "key": "city",
+        "value": "Brampton"
+      },
+      {
+        "key": "latitude",
+        "value": "43.693"
+      },
+      {
+        "key": "longitude",
+        "value": "-79.8365"
+      },
+      {
+        "key": "accuracyRadius",
+        "value": "20"
+      }
+    ],
+    "correlationId": "correlationId_d3960c8f-ae26-4002-af0e-f56ee7ba1e06"
+  },
+  "ID": 35686
+}

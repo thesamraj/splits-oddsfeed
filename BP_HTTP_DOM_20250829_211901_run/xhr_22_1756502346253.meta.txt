@@ -1,0 +1,3 @@
+https://fe.mishared.com:4835/pt.openapi.push/getEzpushProjectConfiguration
+application/json
+len=1127

@@ -1,0 +1,19 @@
+=== PHASE B VERIFICATION ===
+T2: Normalizer logs (last 120s) - looking for BRAND_EVAL and E2E
+- Normalizer is FAILING due to syntax error at line 1204
+- No BRAND_EVAL or E2E logs found - container crashing
+
+T5: Events count (15m) - target ≥30
+- Current: 0 distinct events
+- FAIL: 0 < 30
+
+O1: Odds count (15m) - target ≥50
+- Current: 0 odds rows
+- FAIL: 0 < 50
+
+O2: API response - target ≥1 event with prices
+- API returning transaction error
+- FAIL: No events returned
+
+SUMMARY: ALL METRICS FAIL
+Root cause: Normalizer syntax error preventing processing

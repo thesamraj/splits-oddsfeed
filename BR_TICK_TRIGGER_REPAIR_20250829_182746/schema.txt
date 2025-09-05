@@ -1,0 +1,20 @@
+odds|id|bigint
+odds|event_id|text
+odds|book|text
+odds|market|text
+odds|line|numeric
+odds|price_home|numeric
+odds|price_away|numeric
+odds|price_over|numeric
+odds|price_under|numeric
+odds|total|numeric
+odds|ts|timestamp with time zone
+odds|outcome_name|text
+odds|outcome_price|numeric
+odds|outcome_point|numeric
+odds_ticks|event_id|text
+odds_ticks|market|text
+odds_ticks|selection|text
+odds_ticks|price|numeric
+odds_ticks|line|numeric
+odds_ticks|ts|timestamp with time zone

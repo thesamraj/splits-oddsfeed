@@ -1,0 +1,3 @@
+https://api.vaix.ai/api/casino/games/recommended?user=0&location=base
+application/json; charset=utf-8
+len=2585

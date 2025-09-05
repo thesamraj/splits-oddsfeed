@@ -1,0 +1,10 @@
+2025-08-29 17:55:18,755 - __main__ - ERROR - DB_WRITE error event_id=1023941781: operator does not exist: bigint = text
+psycopg.errors.UndefinedFunction: operator does not exist: bigint = text
+2025-08-29 17:55:18,758 - __main__ - ERROR - DB_WRITE error event_id=1023941784: operator does not exist: bigint = text
+psycopg.errors.UndefinedFunction: operator does not exist: bigint = text
+2025-08-29 17:55:18,762 - __main__ - ERROR - DB_WRITE error event_id=1023941785: operator does not exist: bigint = text
+psycopg.errors.UndefinedFunction: operator does not exist: bigint = text
+2025-08-29 17:55:18,765 - __main__ - ERROR - DB_WRITE error event_id=1023941782: operator does not exist: bigint = text
+psycopg.errors.UndefinedFunction: operator does not exist: bigint = text
+2025-08-29 17:55:20,418 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+2025-08-29 17:55:23,422 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'

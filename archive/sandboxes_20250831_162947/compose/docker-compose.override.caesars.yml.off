@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  caesars-collector:
+    build: ./collectors/caesars_sandbox
+    container_name: caesars-collector
+    depends_on:
+      - broker
+    volumes:
+      - ./collectors/caesars_sandbox:/app
+    working_dir: /app
+    command: python caesars_collector.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  caesars-normalizer:
+    build: ./collectors/caesars_sandbox
+    container_name: caesars-normalizer
+    depends_on:
+      - broker
+      - store
+    volumes:
+      - ./collectors/caesars_sandbox:/app
+    working_dir: /app
+    command: python caesars_normalizer.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1

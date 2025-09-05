@@ -1,0 +1,3 @@
+2025/08/25-20:08:45.336 e10f5 Creating DB /Users/sam/Desktop/splits-oddsfeed/diag/profiles/betparx/Default/IndexedDB/https_pa.betparx.com_0.indexeddb.leveldb since it was missing.
+2025/08/25-20:08:45.342 e10f5 Reusing MANIFEST /Users/sam/Desktop/splits-oddsfeed/diag/profiles/betparx/Default/IndexedDB/https_pa.betparx.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/08/25-20:08:45.345 e10f7 Manual compaction at level-0 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)

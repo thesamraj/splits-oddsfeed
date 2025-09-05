@@ -1,0 +1,14 @@
+{
+  "home": "https://pa.betparx.com/?page=sportsbook#live",
+  "ws_urls": [
+    "wss://mpsnare.iesnare.com/star",
+    "wss://oapi.penshared.com/socket.io/1/websocket/fe0e9d5c-776e-4cf4-b09a-76c5b0536a6c",
+    "wss://oapi.penshared.com/socket.io/1/websocket/a89706c2-83d3-4f30-a356-e8472e89c1b8"
+  ],
+  "handshakes": {
+    "req": 3,
+    "resp": 3
+  },
+  "frames_total": 11,
+  "frames_with_json": 2
+}

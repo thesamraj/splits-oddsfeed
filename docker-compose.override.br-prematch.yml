@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  collector-br-prematch-a:
+    build:
+      context: ./collectors/br_prematch
+    image: br_prematch:latest
+    container_name: collector-br-prematch-a
+    environment:
+      KAMBI_TOKEN: "rsi2uspa"
+      KAMBI_HOST: "eu.offering-api.kambicdn.com"
+      POLL_SECONDS: "20"
+      REDIS_URL: "redis://broker:6379/0"
+      REDIS_CHANNEL: "odds.raw.kambi"
+      HEALTHZ_PORT: "9129"
+    ports: ["9129:9129"]
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-br-prematch-b:
+    image: br_prematch:latest
+    container_name: collector-br-prematch-b
+    environment:
+      KAMBI_TOKEN: "rsi2uspa"
+      KAMBI_HOST: "eu.offering-api.kambicdn.com"
+      POLL_SECONDS: "27"
+      REDIS_URL: "redis://broker:6379/0"
+      REDIS_CHANNEL: "odds.raw.kambi"
+      HEALTHZ_PORT: "9130"
+    ports: ["9130:9130"]
+    depends_on:
+      - broker
+    restart: unless-stopped

@@ -1,0 +1,129 @@
+<div class="glc_above-container">
+	<div class="glc_above-header">
+		<div class="glc_above-header_ticker">
+			<span class="glc_above-header_ticker_text">Session time:</span> <hub2-session-ticker> </hub2-session-ticker></div>
+		<div class="glc_above-header_message">
+			If you or someone you know has a gambling problem, help is available. Call 1-800-GAMBLER</div>
+		<div class="glc_above-header_link">
+			<a href="/responsible-gaming"> <span class="glc_above-header_link_icon"></span> <span class="glc_above-header_link_text">Responsible gaming</span> </a></div>
+	</div>
+</div>
+<style type="text/css">
+.glc_above-container {
+    background: #53576f;
+}
+
+.tablet .glc_above-container {
+    background: #53576f;
+}
+
+.desktop .glc_above-container {
+    padding: 0 5.5em;
+}
+
+@media only screen and (max-width: 950px) {
+    .desktop .glc_above-container {
+        padding: 0 1em;
+    }
+}
+
+.glc_above-header {
+    margin: auto;
+    display: flex;
+    color: #fff;
+    font-size: 0.78125em;
+    height: 2.4em;
+    align-items: center;
+}
+
+.glc_above-header .glc_above-header_link {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.glc_above-header_link a {
+	display: flex;
+	align-items: center;
+    text-decoration: none;
+}
+
+.glc_above-header_link .glc_above-header_link_text {
+	color: #fff;
+}
+
+.glc_above-header .glc_above-header_link .glc_above-header_link_text {
+    font-weight: 500;
+}
+
+.glc_above-header .glc_above-header_link .glc_above-header_link_icon {
+    margin-right: 0.8em;
+    width: 1.6em;
+    height: 1.6em;
+    background: url('/library/glc/footer/pgcb_new.png') no-repeat center center;
+    background-size: contain;
+}
+
+.mobile .glc_above-header .glc_above-header_link .glc_above-header_link_icon,
+.tablet .glc_above-header .glc_above-header_link .glc_above-header_link_icon {
+    width: 2.6em;
+    height: 2.6em;
+}
+
+.mobile .glc_above-header .glc_above-header_link {
+    flex: 1.5;
+}
+
+.glc_above-header .glc_above-header_message {
+    flex: 3;
+}
+
+.desktop .glc_above-header .glc_above-header_message {
+    text-align: center;
+}
+
+.mobile .glc_above-header,
+.tablet .glc_above-header {
+    padding: 0 1em;
+    font-size: .5em;
+    height: 3.75em;
+}
+
+.glc_above-header .glc_above-header_ticker {
+    flex: 1;
+    color: #fff;
+    font-weight: bold;
+}
+
+.glc_above-header .glc_above-header_ticker [class*="Icon__hourglass"] {
+    display: none;
+}
+
+.mobile .glc_above-header .glc_above-header_ticker,
+.tablet .glc_above-header .glc_above-header_ticker {
+    display: none;
+}
+
+.mobile .logged .glc_above-header .glc_above-header_ticker,
+.tablet .logged .glc_above-header .glc_above-header_ticker {
+    display: block;
+}
+
+.glc_above-header .glc_above-header_ticker .glc_above-header_ticker_text {
+    display: none;
+}
+
+.logged .glc_above-header .glc_above-header_ticker .glc_above-header_ticker_text {
+    display: inline-block;
+}</style>
+<script>
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const aboveHeaderWC = document.querySelector('.glc_above-container');
+
+  if (urlParams.get('isNative') === '1' && aboveHeaderWC) {
+      aboveHeaderWC.style.display = 'none';
+  }
+})()
+</script>

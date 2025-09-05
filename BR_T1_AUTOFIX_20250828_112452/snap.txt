@@ -1,0 +1,242 @@
+Project directory: /Users/sam/Desktop/splits-oddsfeed
+/Users/sam/Desktop/splits-oddsfeed
+
+=== DOCKER PS ===
+NAMES                          IMAGE                               STATUS                    PORTS
+collector-br-prematch-a        br_prematch:latest                  Up 54 minutes             0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp
+collector-br-prematch-b        br_prematch:latest                  Up 54 minutes             0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp
+splits-oddsfeed-normalizer-1   splits-oddsfeed-normalizer          Up 36 minutes             0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+splits-oddsfeed-api-1          splits-oddsfeed-api                 Up 55 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+splits-oddsfeed-broker-1       redis:7.2                           Up 57 minutes (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+splits-oddsfeed-store-1        timescale/timescaledb:2.21.2-pg16   Up 57 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+=== NORMALIZER LOGS (last 200) ===
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,703 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,703 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,703 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,704 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,704 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,704 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,705 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,705 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,705 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,706 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,706 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,706 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,707 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,707 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,707 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,708 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,708 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,708 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,709 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,709 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,709 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,710 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,710 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,710 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,711 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,711 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,712 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,712 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,712 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,713 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,713 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,713 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,713 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,714 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,714 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,714 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,715 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,715 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,715 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,716 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,716 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,716 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,717 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,717 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,717 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,718 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,718 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,718 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,719 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,719 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,719 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,719 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Raw message type: <class 'str'>, payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - Processing message from kambi
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: processing kambi message with keys: ['book', 'brand', 'token', 'source_url', 'kind', 'ts', 'payload']
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: Legacy call - About to call normalize_kambi_envelope with payload type: <class 'dict'>
+normalizer-1  | 2025-08-28 15:24:40,720 - normalizer.kambi_mapper - INFO - KAMBI_MAP in: keys=['event', 'raw']
+normalizer-1  | 2025-08-28 15:24:40,720 - normalizer.kambi_mapper - INFO - KAMBI_MAP: no liveEvents found
+normalizer-1  | 2025-08-28 15:24:40,720 - __main__ - INFO - BRAND_EVAL brand=kambi url= page_url=
+normalizer-1  | 2025-08-28 15:24:40,721 - __main__ - INFO - DEBUG_KAMBI_ENVELOPE: No rows generated
+normalizer-1  | 2025-08-28 15:24:49,333 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+normalizer-1  | 2025-08-28 15:24:59,339 - __main__ - WARNING - E2E_TIMER: Error in periodic logging: '>' not supported between instances of 'MutexValue' and 'int'
+
+=== REDIS STATUS ===
+PING:
+PONG
+PUBSUB NUMSUB odds.raw.kambi:
+odds.raw.kambi
+0
+PUBSUB NUMPAT:
+2
+
+=== HEALTHZ ENDPOINTS ===
+Port 9129:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T15:25:01.308016+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":141,"published":6342,"status":"active"}
+
+Port 9130:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T15:25:01.328316+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":106,"published":4768,"status":"active"}
+
+=== API 15M TEST ===
+{"status":"ok","count":0,"events":[],"debug":{"brand":"betrivers","sport":null,"league":null,"params":{"minutes":15,"book":null,"odds_book":"betrivers","league":null,"market":null,"brand":"betrivers","sport":null,"limit":20}}}
+=== DATABASE 15M COUNTS ===
+Using DB: oddsfeed, User: odds
+   metric   | count
+------------+-------
+ events_15m |     0
+ odds_15m   |     0
+(2 rows)
+
+
+=== SNAPSHOT COMPLETE Thu Aug 28 11:25:34 EDT 2025 ===

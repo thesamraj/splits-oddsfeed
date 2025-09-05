@@ -1,0 +1,3 @@
+Added fanduel to brand_alias.yml
+aliases:
+  sugarhouse: betrivers

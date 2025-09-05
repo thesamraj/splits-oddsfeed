@@ -1,0 +1,9 @@
+services:
+  collector-kambi-browser-parx:
+    environment:
+      - KAMBI_USE_PUSH_ONLY=0
+      - KAMBI_HTTP_PROBE_SEC=120
+  collector-kambi-browser-unibet:
+    environment:
+      - KAMBI_USE_PUSH_ONLY=0
+      - KAMBI_HTTP_PROBE_SEC=120

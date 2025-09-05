@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  redis-proxy:
+    build:
+      context: ./services/redis_proxy
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+    restart: always
+    networks:
+      - oddsfeed
+
+  deduplicator:
+    build:
+      context: ./services/deduplicator
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - CACHE_TTL=300
+    restart: always
+    networks:
+      - oddsfeed
+
+  alert-service:
+    build:
+      context: ./services/alerting
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - DB_HOST=store
+      - DB_NAME=oddsfeed
+      - DB_USER=odds
+      - DB_PASS=oddspass
+      - CHECK_INTERVAL=60
+    restart: always
+    networks:
+      - oddsfeed
+
+networks:
+  oddsfeed:
+    external: true
+    name: oddsfeed_network

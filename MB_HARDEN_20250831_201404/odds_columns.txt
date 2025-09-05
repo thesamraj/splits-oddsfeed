@@ -1,0 +1,14 @@
+book
+event_id
+id
+line
+market
+outcome_name
+outcome_point
+outcome_price
+price_away
+price_home
+price_over
+price_under
+total
+ts

@@ -1,0 +1,14 @@
+active:
+  - betrivers      # SugarHouse is alias of BetRivers
+  - fanduel
+  - draftkings
+  - pointsbet
+  - barstool       # ESPN BET
+aliases:
+  sugarhouse: betrivers
+  espnbet: barstool
+  barstool: espnbet
+notes: |
+  PointsBet collector runs on host → Redis; normalizer in Docker consumes.
+  Barstool/ESPN BET collector runs on host → Redis; normalizer in Docker.
+  Keep BR/SH/FD/DK/PB/ESPN BET pipelines untouched.

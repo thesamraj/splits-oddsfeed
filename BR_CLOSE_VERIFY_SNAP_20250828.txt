@@ -1,0 +1,57 @@
+=== BR ACCEPTANCE CRITERIA VERIFICATION SNAP_20250828 ===
+Started: Thu Aug 28 10:43:51 EDT 2025
+
+=== T1: REDIS SUBSCRIPTION TEST ===
+NUMSUB result: 0
+T1a: NUMSUB < 1 ✗ (0)
+T1: FAIL
+
+=== T2: NORMALIZER LOGGING TEST ===
+Checking logs since:
+BRAND_EVAL count: 0
+0
+E2E count: 0
+0, Max E2E: s
+T2a: BRAND_EVAL ≥ 6 ✓ (0
+0)
+T2b: E2E lines ≥ 6 ✓ (0
+0)
+T2c: Max E2E ≥ 1.0s ✗ (s)
+T2: FAIL
+
+=== T2: NORMALIZER LOGGING TEST ===
+BRAND_EVAL count: 20
+E2E count: 1
+Max E2E: s
+T2a: BRAND_EVAL ≥ 6 ✓ (20)
+T2b: E2E lines < 6 ✗ (1)
+T2c: Max E2E ≥ 1.0s ✗ (s)
+T2: FAIL
+
+=== T3: HEALTHZ 3-MINUTE WATCH ===
+Starting 3-minute healthz monitoring...
+Monitoring ports:  9129 9130
+
+=== T3: HEALTHZ QUICK CHECK ===
+Checking port 9129...
+T3 Port 9129: Missing numeric counters ✗
+Checking port 9130...
+T3 Port 9130: Missing numeric counters ✗
+T3: FAIL
+
+=== T4: API↔DB ALIGNMENT TEST ===
+API events (15m): 0
+DB events (15m): 0
+T4: FAIL (No DB events for comparison)
+
+=== T5: THROUGHPUT TEST (≥30 BR events/15m) ===
+DB events (15m): 0
+T5: FAIL (0 < 30)
+
+=== O1: ODDS ROWS TEST (≥50 BR odds/15m) ===
+DB odds rows (15m): 0
+O1: FAIL (0 < 50)
+
+=== O2: API EVENTS WITH PRICES TEST ===
+API events with prices (15m): 0
+O2: FAIL (0 = 0)

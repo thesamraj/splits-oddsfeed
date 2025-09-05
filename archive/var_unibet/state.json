@@ -1,0 +1,8 @@
+{
+  "brand": "unibet",
+  "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/139.0.7258.5 Safari/537.36",
+  "cookies": [],
+  "offering_url": "https://e0-api.kambi.com/offering/v2018/ub2uspa/listView/all/all/matches.json?lang=en_US&market=US&client_id=2&channel_id=1&ncid=1000",
+  "ok": false,
+  "ts": 1756156296.9697835
+}

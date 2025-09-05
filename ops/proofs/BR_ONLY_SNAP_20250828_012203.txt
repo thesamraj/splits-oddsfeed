@@ -1,0 +1,59 @@
+=== BR_ONLY SNAPSHOT 20250828_012203 ===
+--- git status ---
+## main...origin/main [ahead 10]
+ M BR_EVENTS_DIAG_20250827_003351.txt
+ M BR_EVENTS_DIAG_20250827_004709.txt
+ M BR_TEST_20250827_002341.txt
+ M BR_TEST_20250827_010746.txt
+ M api/src/api/main.py
+ M br_test.sh
+ M collectors/br_prematch/br_prematch.py
+ M docker-compose.yml
+ M normalizer/src/normalizer/kambi_fallback.py
+ M normalizer/src/normalizer/kambi_mapper.py
+ M normalizer/src/normalizer/main.py
+ M normalizer/src/normalizer/main.py.bak.
+?? ops/
+--- docker ps ---
+NAMES                                                   PORTS                                                             STATUS
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                       Up 13 minutes
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                       Up 3 hours (healthy)
+splits-oddsfeed-collector-pinnacle-1                    0.0.0.0:9110->9110/tcp, [::]:9110->9110/tcp                       Up 15 hours (healthy)
+splits-oddsfeed-collector-mgm-1                         0.0.0.0:9103->9103/tcp, [::]:9103->9103/tcp                       Up 15 hours
+splits-oddsfeed-prometheus-1                            0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                       Up 15 hours
+splits-oddsfeed-collector-kambi-1                       0.0.0.0:9117->9107/tcp, [::]:9117->9107/tcp                       Up 15 hours
+splits-oddsfeed-collector-fd-1                          0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp                       Up 15 hours
+splits-oddsfeed-collector-b365-1                        0.0.0.0:9104->9104/tcp, [::]:9104->9104/tcp                       Up 15 hours
+splits-oddsfeed-collector-dk-1                          0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp                       Up 15 hours
+collector-br-prematch-a                                 0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp                       Up 15 hours
+splits-oddsfeed-proxy-manager-1                         0.0.0.0:8099->8099/tcp, [::]:8099->8099/tcp                       Up 15 hours
+collector-br-prematch-b                                 0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp                       Up 15 hours
+splits-oddsfeed-collector-stake-1                       0.0.0.0:9105->9105/tcp, [::]:9105->9105/tcp                       Up 15 hours
+splits-oddsfeed-collector-agg-1                         0.0.0.0:9106->9106/tcp, [::]:9106->9106/tcp                       Up 15 hours
+splits-oddsfeed-collector-kambi-browser-2-1                                                                               Restarting (0) 12 seconds ago
+splits-oddsfeed-collector-kambi-browser-betrivers-2-1   0.0.0.0:9124->9118/tcp, [::]:9124->9118/tcp                       Up 17 seconds
+splits-oddsfeed-collector-kambi-browser-1               0.0.0.0:9118->9118/tcp, [::]:9118->9118/tcp                       Up 15 hours
+splits-oddsfeed-sugarhouse-1-1                          0.0.0.0:9132-9133->9132-9133/tcp, [::]:9132-9133->9132-9133/tcp   Up 15 hours
+collector-kambi-http-betrivers                          0.0.0.0:9126->9126/tcp, [::]:9126->9126/tcp                       Up 15 hours
+collector-kambi-wsbridge-unibet                         0.0.0.0:9128->9127/tcp, [::]:9128->9127/tcp                       Up 15 hours
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                       Up 15 hours (healthy)
+splits-oddsfeed-store-1                                 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       Up 15 hours (healthy)
+buildx_buildkit_ghcr-builder0                                                                                             Up 15 hours
+--- compose files ---
+docker-compose.override.br-dns.yml
+docker-compose.override.br-prematch.yml
+docker-compose.override.br.yml
+docker-compose.override.http.yml
+docker-compose.override.lock.yml
+docker-compose.override.platform.yml
+docker-compose.override.pollers.yml
+docker-compose.override.push-bp-mirror.yml
+docker-compose.override.push-bp-ws.yml
+docker-compose.override.push-bp.yml
+docker-compose.override.resources.yml
+docker-compose.override.t5.yml
+docker-compose.override.tap-bp.yml
+docker-compose.override.wsbridge-ub.yml
+docker-compose.override.wsbridge.yml
+docker-compose.rescue.yml
+docker-compose.yml

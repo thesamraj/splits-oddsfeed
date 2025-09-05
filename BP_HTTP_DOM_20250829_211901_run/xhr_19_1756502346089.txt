@@ -1,0 +1,286 @@
+<div class="parx-footer">
+	<div class="parx-home-content">
+		<div class="glc-terms">
+			<a href="/terms-and-conditions">Terms &amp; Conditions</a><a href="/loyalty_xclub_TC">Xclub Terms &amp; Conditions</a><a href="/privacy">Privacy</a> <a href="/responsible-gaming">Responsible Gaming</a> <a href="/player-protection">Patron Protection</a> <a href="/GeoComplyEULA">Geocomply End User License Agreement</a><a href="/accessibility">Accessibility</a><a href="/casino-game-rules">Casino Game Rules</a>&nbsp;<a href="/cookie-settings">Cookie Preferences</a></div>
+	</div>
+	<div class="parx-footer_wrapper">
+		<div class="glc-apps">
+			<a class="glc-apps_app glc-apps_app--ios" href="https://apps.apple.com/us/app/betparx-pa/id1605805308"><img alt="ios app" src="/library/glc/app_buttons/iOS.svg" /> </a> <a class="glc-apps_app glc-apps_app--andr" href="https://play.google.com/store/apps/details?id=com.parxcasino.pa.app.play.us
+"> <img alt="android app" src="/library/glc/app_buttons/android.svg" /> </a></div>
+		<div class="parx-footer_payments">
+			<img src="/library/glc/footer/visa.svg" /> <img src="/library/glc/footer/visa_electron.svg" /> <img src="/library/glc/footer/mc.svg" /> <img src="/library/glc/footer/maestro.svg" /> <img src="/library/glc/footer/discover.svg" /><img src="/library/glc/footer/paypal.svg" /> <img src="/library/glc/footer/play_plus.svg" /> <img src="/library/glc/footer/ach.svg" /> <img src="/library/glc/footer/cash_cage.svg" /> <img src="/library/glc/footer/bank_wire.svg" /> <img src="/library/glc/footer/secured_payment.svg" /></div>
+		<div class="parx-footer_time">
+			<hub2-date-time-display format="MM/dd/kkkk hh:mm a ZZZZ" tz="America/Detroit"></hub2-date-time-display></div>
+		<div class="parx-footer_last-login">
+			<b>Last login:</b> <hub2-last-login-date format="MM/dd/kkkk hh:mm a"></hub2-last-login-date></div>
+		<div class="parx-footer_text parx-footer_desktop">
+			This site has been authorized by the State of Pennsylvania,<br />
+			Gaming Control Board for use by registered users physically present in Pennsylvania.<br />
+			©2025 Greenwood Gaming &amp; Entertainment, Inc. 2999 Street Road, Bensalem, PA 19020.<br />
+			This website utilizes United States Patent No. 8,821,296 dated September 2, 2014.<br />
+			PARX Casino License Number - 1239</div>
+		<div class="parx-footer_text parx-footer_mobile">
+			This site has been authorized by the State of Pennsylvania,<br />
+			Gaming Control Board for use by registered users physically present in Pennsylvania.<br />
+			©2025 Greenwood Gaming &amp; Entertainment, Inc. 2999 Street Road, Bensalem, PA 19020.<br />
+			This website utilizes United States Patent No. 8,821,296 dated September 2, 2014.<br />
+			PARX Casino License Number - 1239</div>
+		<div class="parx-footer_icons">
+			<a href="/responsible-gaming"><img alt="PA Control Board" src="/library/glc/footer/pgcb_new.png" /></a><a href="https://gamingcontrolboard.pa.gov" target="_blank"> <img src="/library/glc/footer/PA-control-board-logo.png" srcset="/library/glc/footer/PA-control-board-logo@2x.png 2x" /></a><img src="/library/glc/footer/21_plus.svg" /></div>
+		<div class="parx-footer_gambling parx-footer_desktop">
+			<b>This is a real-money gambling app. Please gamble responsibly and only bet what you can afford. For gambling addiction help and support, please contact the National Council on Problem Gambling at 1-800-GAMBLER or 1-800-522-4700 or visit&nbsp;<a href="https://responsibleplay.pa.gov/">responsibleplay.pa.gov</a> or <a href="https://ncpgambling.org/">www.ncpgambling.org</a>.</b></div>
+		<div class="parx-footer_gambling parx-footer_mobile">
+			<b>This is a real-money gambling app. Please gamble responsibly and only bet what you can afford. For gambling addiction help and support, please contact the National Council on Problem Gambling at 1-800-GAMBLER or 1-800-522-4700 or visit&nbsp;<a href="https://responsibleplay.pa.gov/">responsibleplay.pa.gov</a> or <a href="https://ncpgambling.org/">www.ncpgambling.org</a>.</b></div>
+		<div class="parx-footer_age">
+			©2025 Greenwood Gaming &amp; Entertainment, Inc. Must be over 21 to visit.</div>
+		<div class="parx-footer_logo">
+			<img src="/library/glc/footer/playtech_midnight.svg" /></div>
+	</div>
+</div>
+<p>
+	<a href="https://responsibleplay.pa.gov/" https:="" responsibleplay.pa.gov=""><script>
+    (function () {
+        const params = new URLSearchParams(location.search);
+        const isNative = params.has('isNative')
+
+        if (isNative) {
+            return;
+        }
+
+        const iosBtn = document.querySelector('.glc-apps_app.glc-apps_app--ios');
+        const andrBtn = document.querySelector('.glc-apps_app.glc-apps_app--andr');
+
+        iosBtn.addEventListener('click', () => {
+            AF?.('pba', 'event', {
+                eventType: 'EVENT',
+                eventName: 'ios',
+                eventValue: {
+                    category: 'application',
+                    label: 'ios launch',
+                    customerID: Playtech.fetchUserDetails().userId
+                }
+            });
+        });
+
+        andrBtn.addEventListener('click', () => {
+            AF?.('pba', 'event', {
+                eventType: 'EVENT',
+                eventName: 'android',
+                eventValue: {
+                    category: 'application',
+                    label: 'android launch',
+                    customerID: Playtech.fetchUserDetails().userId
+                }
+            });
+        });
+    })();
+</script>
+	<style type="text/css">
+.parx-footer {
+        background: #190532;
+        color: #53576f;
+        text-align: center;
+    }
+
+    .parx-footer_wrapper {
+        margin: 0 auto;
+        overflow: hidden;
+        padding: 3.25em 0 2rem 0;
+    }
+
+    .desktop .parx-footer_wrapper {
+        max-width: 1200px;
+    }
+
+    .mobile .parx-footer_wrapper {
+        padding: 2.5em 1em 1em 1em;
+    }
+
+    .parx-footer_payments {
+        display: flex;
+        padding-bottom: 2.75em;
+        justify-content: center;
+    }
+
+    .mobile .parx-footer_payments {
+        flex-wrap: wrap;
+        padding-bottom: 1.5em;
+    }
+
+    .mobile .parx-footer_payments {
+        width: 70%;
+        margin: auto;
+    }
+
+    .parx-footer_payments img {
+        width: 2.6rem;
+        margin: 0 0.2rem 1em 0.2rem;
+    }
+
+    .parx-footer_payments img:hover {
+        opacity: .8;
+    }
+
+    .parx-footer_time {
+        color: #fff;
+        display: inline-flex;
+        background: #53576f;
+        font-size: 0.78125em;
+        height: 4em;
+        padding: 0 2.25em;
+        align-items: center;
+        margin-bottom: 4em;
+        border-radius: 1.25em;
+    }
+
+    .mobile .parx-footer_time {
+        margin-bottom: 2.5em;
+    }
+
+    .parx-footer_last-login {
+        display: none;
+    }
+
+    .logged .parx-footer_last-login {
+        display: block;
+        color: #fff;
+        font-size: .78125em;
+        margin-bottom: 3.2em;
+    }
+
+    .parx-footer_text {
+        line-height: 1.8;
+        font-size: 0.78125em;
+        max-width: 61.4em;
+        margin: 0 auto 4em;
+        padding: 0 0.4em;
+    }
+
+    .mobile .parx-footer_text {
+        max-width: 25.6em;
+    }
+
+    .parx-footer_icons {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        margin: 1em 0;
+        border-top: 1px solid #53576F;
+        padding: 3.25em 0 .25em 0;
+    }
+
+    .mobile .parx-footer_icons {
+        border-top: 1px solid #444260;
+    }
+
+    .mobile .parx-footer_icons img {
+        margin: 0 0.3em;
+    }
+
+    .parx-footer_icons img {
+        margin: 0 0.3125rem;
+        height: 2.5rem;
+    }
+
+    .parx-footer_gambling {
+        font-size: 0.9375em;
+
+        max-width: 33.25em;
+        line-height: 1.5;
+        padding-bottom: 1.325em;
+        margin: 0 auto;
+    }
+
+    .mobile .parx-footer_gambling {
+        max-width: 22.25em;
+        padding-bottom: 4.1em;
+    }
+
+    .parx-footer_age {
+        font-size: 1.09375em;
+        padding-bottom: 1rem;
+    }
+
+    .mobile .parx-footer_age {
+        font-size: 0.78125em;
+        max-width: 21.3em;
+        margin: 0 auto;
+    }
+
+    /* iOS & Android buttons */
+    .glc-apps {
+        display: flex;
+        padding-bottom: 3.25em;
+        justify-content: center;
+    }
+
+    .mobile .glc-apps {
+        padding-bottom: 2.5em;
+    }
+
+    .glc-apps .glc-apps_app {
+        display: block;
+        width: 10.55em;
+        margin: 0 .625em;
+    }
+
+    .mobile .glc-apps .glc-apps_app {
+        width: 8.4375em;
+    }
+
+    .glc-apps .glc-apps_app:hover {
+        opacity: .8;
+    }
+
+    .glc-apps .glc-apps_app img {
+        width: 100%;
+    }
+
+    .parx-footer_mobile,
+    .parx-footer_desktop {
+        display: none;
+    }
+
+    .desktop .parx-footer_desktop,
+    .tablet .parx-footer_desktop {
+        display: block;
+    }
+
+    .mobile .parx-footer_mobile {
+        display: block;
+    }
+.parx-home-content {
+        background: #190532;
+        margin-bottom: -1.17em;
+        padding: 0.5rem 0;
+        border-top: 1px solid #53576F;
+        border-bottom: 1px solid #53576F;
+    }
+
+    .glc-terms {
+        height: 3.75em;
+        color: #fff;
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 0 2rem;
+    }
+
+    .glc-terms a {
+        margin: 0 0.625em;
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .glc-terms a:hover {
+        color: #fff;
+        opacity: .8;
+    }
+
+    .mobile .glc-terms a,
+    .tablet .glc-terms a {
+        font-size: 0.78125em;
+    }	</style>
+	</a></p>

@@ -1,0 +1,4 @@
+# /odds BR
+{"status":"ok","count":3,"events":3}
+# /odds SH (alias)
+{"status":"ok","count":3,"events":3}

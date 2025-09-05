@@ -1,0 +1,33 @@
+services:
+  collector-ub-http:
+    build: ./collectors/ub_http
+    environment:
+      UB_TOKENS: "ub2uspa,ubuspa,ub2usnj,ubusnj,ub2usva,ubusva"
+      INTERVAL: "20"
+      REDIS_URL: "redis://broker:6379/0"
+      UB_REFERER: "https://pa.unibet.com/?page=sportsbook#live"
+      UB_ORIGIN:  "https://pa.unibet.com"
+    depends_on: [ broker ]
+    ports: [ "9134:9134" ]
+    restart: unless-stopped
+
+  collector-ub-stealth:
+    build: ./collectors/ub_stealth
+    environment:
+      REDIS_URL: "redis://broker:6379/0"
+    depends_on: [ broker ]
+    shm_size: "1g"
+    ports: [ "9137:9137" ]
+    restart: unless-stopped
+
+  ub-orchestrator:
+    image: python:3.11-slim
+    command: ["python","-u","/app/orchestrator.py"]
+    working_dir: /app
+    volumes: [ "./collectors/ub_orchestrator:/app" ]
+    depends_on: [ broker ]
+    environment:
+      - WINDOW_SEC=1500
+      - REDIS_URL=redis://broker:6379/0
+    ports: [ "9136:9136" ]
+    restart: unless-stopped

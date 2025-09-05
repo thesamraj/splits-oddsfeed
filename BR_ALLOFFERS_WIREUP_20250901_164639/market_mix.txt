@@ -1,0 +1,6 @@
+ market  | count
+---------+-------
+ h2h     |  6964
+ totals  |  2019
+ spreads |  1029
+(3 rows)

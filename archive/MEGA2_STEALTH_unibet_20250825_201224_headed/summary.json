@@ -1,0 +1,14 @@
+{
+  "brand": "unibet",
+  "ws_urls": 0,
+  "ws_frames": 0,
+  "hs_req": 0,
+  "hs_resp": 0,
+  "tokens": [],
+  "inpage_http": {
+    "tried": false,
+    "status": null,
+    "token": null,
+    "snippet": null
+  }
+}

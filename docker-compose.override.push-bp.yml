@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  collector-kambi-push-betparx:
+    build: ./pushers/betparx
+    environment:
+      - BRAND=betparx
+      - HOME_URL=https://pa.betparx.com/?page=sportsbook#live
+      - REDIS_URL=redis://broker:6379/0
+      - FETCH_INTERVAL_MS=20000
+      - TOKEN_HINT=bp2uspa
+    depends_on:
+      - broker
+    ports:
+      - "9119:9118"
+    restart: unless-stopped
+    platform: linux/amd64
+    working_dir: /app
+    volumes:
+      - ./diag/profiles/betparx:/root/.cache/ms-playwright

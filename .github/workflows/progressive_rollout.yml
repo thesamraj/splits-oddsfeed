@@ -1,0 +1,275 @@
+name: Progressive Rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode'
+        type: boolean
+        default: true
+  schedule:
+    - cron: "*/10 * * * *"  # Every 10 minutes
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests psycopg2-binary
+
+      - name: Progressive Rollout Logic
+        env:
+          METRICS_URL: ${{ secrets.METRICS_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_OWNER_ID: ${{ secrets.RENDER_OWNER_ID }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+          # Service IDs
+          SERVICE_BETRIVERS: ${{ secrets.SERVICE_BETRIVERS }}
+          SERVICE_BARSTOOL: ${{ secrets.SERVICE_BARSTOOL }}
+          SERVICE_CAESARS: ${{ secrets.SERVICE_CAESARS }}
+          SERVICE_SUGARHOUSE: ${{ secrets.SERVICE_SUGARHOUSE }}
+          SERVICE_UNIBET: ${{ secrets.SERVICE_UNIBET }}
+          SERVICE_FANDUEL: ${{ secrets.SERVICE_FANDUEL }}
+          SERVICE_DRAFTKINGS: ${{ secrets.SERVICE_DRAFTKINGS }}
+          SERVICE_BETMGM: ${{ secrets.SERVICE_BETMGM }}
+          SERVICE_PINNACLE: ${{ secrets.SERVICE_PINNACLE }}
+          SERVICE_BET365: ${{ secrets.SERVICE_BET365 }}
+          SERVICE_STAKE: ${{ secrets.SERVICE_STAKE }}
+          SERVICE_POINTSBET: ${{ secrets.SERVICE_POINTSBET }}
+        run: |
+          python3 << 'EOF'
+          import os
+          import sys
+          import json
+          import time
+          import requests
+          from datetime import datetime, timedelta
+
+          # Configuration
+          METRICS_URL = os.getenv('METRICS_URL', 'http://localhost:9090/metrics')
+          DATABASE_URL = os.getenv('DATABASE_URL')
+          RENDER_API_KEY = os.getenv('RENDER_API_KEY')
+          RENDER_OWNER_ID = os.getenv('RENDER_OWNER_ID')
+          DRY_RUN = os.getenv('DRY_RUN', 'true').lower() == 'true'
+
+          # Book stages
+          ROLLOUT_STAGES = [
+              {'name': 'bovada', 'service_id': None, 'gate_hours': 0.5},  # Already live
+              {'name': 'betrivers', 'service_id': os.getenv('SERVICE_BETRIVERS'), 'gate_hours': 1},
+              {'name': 'barstool', 'service_id': os.getenv('SERVICE_BARSTOOL'), 'gate_hours': 1},
+              {'name': 'caesars', 'service_id': os.getenv('SERVICE_CAESARS'), 'gate_hours': 1},
+              {'name': 'sugarhouse', 'service_id': os.getenv('SERVICE_SUGARHOUSE'), 'gate_hours': 1},
+              {'name': 'unibet', 'service_id': os.getenv('SERVICE_UNIBET'), 'gate_hours': 1},
+              {'name': 'fanduel', 'service_id': os.getenv('SERVICE_FANDUEL'), 'gate_hours': 24},
+              {'name': 'draftkings', 'service_id': os.getenv('SERVICE_DRAFTKINGS'), 'gate_hours': 24},
+              {'name': 'betmgm', 'service_id': os.getenv('SERVICE_BETMGM'), 'gate_hours': 24},
+              {'name': 'pinnacle', 'service_id': os.getenv('SERVICE_PINNACLE'), 'gate_hours': 12},
+              {'name': 'bet365', 'service_id': os.getenv('SERVICE_BET365'), 'gate_hours': 12},
+              {'name': 'stake', 'service_id': os.getenv('SERVICE_STAKE'), 'gate_hours': 12},
+              {'name': 'pointsbet', 'service_id': os.getenv('SERVICE_POINTSBET'), 'gate_hours': 12},
+          ]
+
+          def get_metrics():
+              """Fetch and parse metrics"""
+              try:
+                  response = requests.get(METRICS_URL, timeout=10)
+                  response.raise_for_status()
+                  return response.text
+              except Exception as e:
+                  print(f"Failed to fetch metrics: {e}")
+                  return ""
+
+          def parse_metric(metrics_text, metric_name, book):
+              """Extract metric value for a book"""
+              for line in metrics_text.split('\n'):
+                  if metric_name in line and f'book="{book}"' in line:
+                      parts = line.split()
+                      if len(parts) >= 2:
+                          try:
+                              return float(parts[1])
+                          except:
+                              pass
+              return None
+
+          def check_gate(book, metrics_text):
+              """Check if book passes gate requirements"""
+              realness = parse_metric(metrics_text, 'realness_score', book)
+              odds_15m = parse_metric(metrics_text, 'odds_15m', book)
+              collector_up = parse_metric(metrics_text, 'collector_up', book)
+
+              print(f"  {book}: realness={realness}, odds_15m={odds_15m}, collector_up={collector_up}")
+
+              if realness is None or odds_15m is None:
+                  return False, "Metrics not available"
+
+              if realness < 0.9:
+                  return False, f"Realness too low: {realness}"
+
+              if odds_15m <= 0:
+                  return False, f"No odds in last 15m"
+
+              if collector_up == 0:
+                  return False, "Collector down"
+
+              return True, "All gates passed"
+
+          def get_db_first_seen(book):
+              """Get timestamp when book first had data"""
+              if not DATABASE_URL:
+                  return None
+
+              try:
+                  import psycopg2
+                  conn = psycopg2.connect(DATABASE_URL)
+                  cur = conn.cursor()
+                  cur.execute("""
+                      SELECT MIN(ts) FROM odds WHERE book = %s AND ts > NOW() - INTERVAL '7 days'
+                  """, (book,))
+                  result = cur.fetchone()
+                  conn.close()
+                  return result[0] if result and result[0] else None
+              except Exception as e:
+                  print(f"DB query failed: {e}")
+                  return None
+
+          def enable_service(service_id, book):
+              """Enable a Render service"""
+              if not RENDER_API_KEY or not service_id:
+                  print(f"  Would enable {book} (service_id: {service_id}) - missing credentials")
+                  return False
+
+              if DRY_RUN:
+                  print(f"  DRY RUN: Would enable {book} (service_id: {service_id})")
+                  return False
+
+              try:
+                  # Update service to autoDeploy: true
+                  url = f"https://api.render.com/v1/services/{service_id}"
+                  headers = {
+                      'Authorization': f'Bearer {RENDER_API_KEY}',
+                      'Content-Type': 'application/json'
+                  }
+                  data = {
+                      'autoDeploy': True
+                  }
+
+                  response = requests.patch(url, json=data, headers=headers)
+                  if response.status_code == 200:
+                      print(f"  ✅ Enabled {book}")
+
+                      # Trigger deploy
+                      deploy_url = f"https://api.render.com/v1/services/{service_id}/deploys"
+                      deploy_response = requests.post(deploy_url, headers=headers)
+                      if deploy_response.status_code in [200, 201]:
+                          print(f"  ✅ Deployed {book}")
+                      else:
+                          print(f"  ⚠️ Deploy failed: {deploy_response.status_code}")
+
+                      return True
+                  else:
+                      print(f"  ❌ Failed to enable {book}: {response.status_code}")
+                      return False
+              except Exception as e:
+                  print(f"  ❌ Error enabling {book}: {e}")
+                  return False
+
+          def main():
+              print(f"=== Progressive Rollout Check ===")
+              print(f"Time: {datetime.utcnow()}")
+              print(f"Mode: {'DRY RUN' if DRY_RUN else 'LIVE'}")
+              print("")
+
+              # Fetch metrics
+              metrics = get_metrics()
+              if not metrics:
+                  print("❌ Cannot fetch metrics, aborting")
+                  sys.exit(1)
+
+              # Track state
+              previous_passed = True
+              previous_stable_time = None
+
+              for i, stage in enumerate(ROLLOUT_STAGES):
+                  book = stage['name']
+                  service_id = stage['service_id']
+                  gate_hours = stage['gate_hours']
+
+                  print(f"Stage {i}: {book}")
+
+                  # Skip Bovada (already live)
+                  if book == 'bovada':
+                      passed, reason = check_gate(book, metrics)
+                      if not passed:
+                          print(f"  ❌ Bovada not passing gates: {reason}")
+                          print("  Stopping rollout until Bovada is stable")
+                          break
+                      print(f"  ✅ Bovada passing gates")
+                      previous_stable_time = datetime.utcnow() - timedelta(hours=1)  # Assume stable
+                      continue
+
+                  # Check if previous stage passed gates
+                  if not previous_passed:
+                      print(f"  ⏸️ Waiting for previous stage to pass gates")
+                      break
+
+                  # Check if enough time has passed since previous stage
+                  if previous_stable_time:
+                      elapsed = (datetime.utcnow() - previous_stable_time).total_seconds() / 3600
+                      if elapsed < gate_hours:
+                          print(f"  ⏱️ Waiting {gate_hours - elapsed:.1f}h more (need {gate_hours}h)")
+                          break
+
+                  # Check current stage gates
+                  passed, reason = check_gate(book, metrics)
+
+                  if passed:
+                      print(f"  ✅ {book} passing gates")
+                      # Track when it started passing
+                      first_seen = get_db_first_seen(book)
+                      if first_seen:
+                          stable_hours = (datetime.utcnow() - first_seen).total_seconds() / 3600
+                          print(f"  Stable for {stable_hours:.1f} hours")
+                          previous_stable_time = first_seen
+                      else:
+                          previous_stable_time = datetime.utcnow()
+                  else:
+                      print(f"  🔄 {book} not yet passing: {reason}")
+                      # This stage hasn't been enabled yet, try to enable it
+                      if service_id and previous_passed:
+                          print(f"  Attempting to enable {book}...")
+                          if enable_service(service_id, book):
+                              print(f"  Will check gates on next run")
+                      break
+
+                  previous_passed = passed
+
+              print("\n=== Rollout Summary ===")
+              enabled_books = []
+              pending_books = []
+              for stage in ROLLOUT_STAGES:
+                  book = stage['name']
+                  passed, _ = check_gate(book, metrics)
+                  if passed:
+                      enabled_books.append(book)
+                  else:
+                      pending_books.append(book)
+
+              print(f"Enabled: {', '.join(enabled_books) if enabled_books else 'None'}")
+              print(f"Pending: {', '.join(pending_books) if pending_books else 'None'}")
+
+              if not DRY_RUN and not RENDER_API_KEY:
+                  print("\n⚠️ Set RENDER_API_KEY to enable automatic rollout")
+
+          if __name__ == '__main__':
+              main()
+          EOF

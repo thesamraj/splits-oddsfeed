@@ -1,0 +1,30 @@
+services:
+  bovada-collector:
+    build:
+      context: .
+      dockerfile: collectors/bovada_real/Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - METRICS_PORT=9090
+      - HEALTH_PORT=9091
+      - REAL_ONLY=true
+      - REALNESS_THRESHOLD=0.9
+      - REALNESS_MIN_SAMPLES=200
+      - REALNESS_MIN_WINDOW_MIN=10
+      - REALNESS_QUARANTINE=true
+      - COLLECTION_INTERVAL=60
+    depends_on: [broker]
+    restart: unless-stopped
+    ports:
+      - "19090:9090"  # Metrics (internal 9090, external 19090)
+      - "19091:9091"  # Health/realness (internal 9091, external 19091)
+
+  bovada-normalizer:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python - <<'EOF'\nimport redis, psycopg2, json, time, os\nfrom datetime import datetime\n\nr = redis.from_url(os.getenv('REDIS_URL', 'redis://broker:6379/0'))\np = r.pubsub()\np.psubscribe('odds.raw.bovada')\n\nconn = psycopg2.connect(os.getenv('DATABASE_URL', 'postgresql://odds:odds@store:5432/oddsfeed'))\ncur = conn.cursor()\n\nprint('Bovada normalizer started', flush=True)\n\nfor msg in p.listen():\n    if msg['type'] != 'pmessage': continue\n    try:\n        data = json.loads(msg['data'])\n        \n        for event in data.get('events', []):\n            event_id = f\"bovada_{event.get('id', '')}\"\n            home = event.get('home', '')\n            away = event.get('away', '')\n            \n            for market in event.get('markets', []):\n                market_type = market.get('type', 'h2h')\n                \n                for outcome in market.get('outcomes', []):\n                    cur.execute('''\n                        INSERT INTO odds (book, event_id, sport, league, home, away, \n                                        market, outcome, price, ts)\n                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())\n                        ON CONFLICT DO NOTHING\n                    ''', (\n                        'bovada', event_id, 'NFL', 'NFL', home, away,\n                        market_type, outcome.get('name'), outcome.get('price')\n                    ))\n        \n        conn.commit()\n        print(f'Processed {len(data.get(\"events\", []))} events', flush=True)\n        \n    except Exception as e:\n        print(f'Error: {e}', flush=True)\n        conn.rollback()\nEOF"]
+    environment:
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - REDIS_URL=redis://broker:6379/0
+    depends_on: [broker, store]
+    restart: unless-stopped

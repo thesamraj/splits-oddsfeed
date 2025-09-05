@@ -1,0 +1,5 @@
+CONTAINER ID   IMAGE                           COMMAND                  CREATED        STATUS        PORTS                                         NAMES
+b8b2cc22938d   1d70b07a5d89                    "python3 sh_cdp_scra…"   15 hours ago   Up 14 hours   0.0.0.0:9135->9135/tcp, [::]:9135->9135/tcp   splits-oddsfeed-collector-sh-cdp-1
+af9b766f94de   br_prematch:latest              "python -u br_premat…"   17 hours ago   Up 17 hours   0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp   collector-br-prematch-b
+b091e04e083f   br_prematch:latest              "python -u br_premat…"   17 hours ago   Up 17 hours   0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp   collector-br-prematch-a
+bf591e206a45   moby/buildkit:buildx-stable-1   "buildkitd --allow-i…"   13 days ago    Up 25 hours                                                 buildx_buildkit_ghcr-builder0

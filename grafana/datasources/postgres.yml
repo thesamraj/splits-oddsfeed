@@ -1,0 +1,24 @@
+apiVersion: 1
+
+datasources:
+  - name: OddsFeed-PostgreSQL
+    type: postgres
+    access: proxy
+    url: store:5432
+    database: oddsfeed
+    user: odds
+    secureJsonData:
+      password: odds
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1600
+      timescaledb: false
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true

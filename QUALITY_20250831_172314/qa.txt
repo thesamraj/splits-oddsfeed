@@ -1,0 +1,5 @@
+betrivers odds_15m=14211 ticks_15m=0 bad_price=14211 bad_market=0 dup_est=708
+fanduel odds_15m=849 ticks_15m=0 bad_price=711 bad_market=0 dup_est=620
+draftkings odds_15m=49924 ticks_15m=0 bad_price=49780 bad_market=0 dup_est=26114
+pointsbet odds_15m=1836 ticks_15m=1836 bad_price=1 bad_market=0 dup_est=0
+barstool odds_15m=3648 ticks_15m=3648 bad_price=0 bad_market=0 dup_est=0

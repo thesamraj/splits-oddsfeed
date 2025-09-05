@@ -1,0 +1,5 @@
+=== ATOMIC ALIGNMENT CHECK - 20250826_010602 ===
+
+API Counts (book=kambi excludes betparx):
+
+DB Counts (atomic snapshot):

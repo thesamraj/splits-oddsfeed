@@ -1,0 +1,3 @@
+https://pa.betparx.com/initialResources/bannerFeeds/Home_page_banners?t=1756495946535
+application/json
+len=130536

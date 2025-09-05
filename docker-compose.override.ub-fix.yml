@@ -1,0 +1,40 @@
+services:
+  collector-ub-http:
+    image: python:3.11-slim
+    command: bash -lc "pip install --no-cache-dir requests redis && python /app/ub_http.py"
+    volumes: [ "./collectors/ub_http:/app" ]
+    environment:
+      - UB_TOKENS=ub2uspa,ubuspa,ub2usnj,ubusnj,ub2usva,ubusva
+      - INTERVAL=20
+      - REDIS_URL=redis://broker:6379/0
+      - UB_REFERER=https://pa.unibet.com/?page=sportsbook#live
+      - UB_ORIGIN=https://pa.unibet.com
+    depends_on: [ broker ]
+    ports: [ "9134:9134" ]
+    restart: unless-stopped
+
+  collector-ub-stealth:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    # install node deps at runtime, then run
+    command: bash -lc "cd /app && npm init -y >/dev/null 2>&1 && npm i redis --silent && node ub_stealth.js"
+    shm_size: 1g
+    volumes: [ "./collectors/ub_stealth:/app" ]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - HEADED=false
+    depends_on: [ broker ]
+    ports: [ "9135:9135" ]
+    restart: unless-stopped
+
+  ub-orchestrator:
+    image: python:3.11-slim
+    command: bash -lc "pip install --no-cache-dir redis && python /app/orchestrator.py"
+    volumes: [ "./collectors/ub_orchestrator:/app" ]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - WINDOW_SEC=1500
+      - TARGET_O1=50
+      - TARGET_O2=1
+    depends_on: [ broker ]
+    ports: [ "9136:9136" ]
+    restart: unless-stopped

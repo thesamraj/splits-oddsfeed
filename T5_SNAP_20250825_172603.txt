@@ -1,0 +1,48 @@
+=== docker ps ===
+NAMES                                                   PORTS                                                             STATUS
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                       Up 16 minutes (healthy)
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                       Up 2 hours
+splits-oddsfeed-sugarhouse-1-1                          0.0.0.0:9132-9133->9132-9133/tcp, [::]:9132-9133->9132-9133/tcp   Up 3 hours
+splits-oddsfeed-collector-pinnacle-1                    0.0.0.0:9110->9110/tcp, [::]:9110->9110/tcp                       Up 3 hours (healthy)
+splits-oddsfeed-collector-kambi-browser-1               0.0.0.0:9118->9118/tcp, [::]:9118->9118/tcp                       Up 57 seconds
+splits-oddsfeed-collector-kambi-browser-2-1                                                                               Restarting (0) 57 seconds ago
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   0.0.0.0:9126->9118/tcp, [::]:9126->9118/tcp                       Up 55 seconds
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                       Up 3 hours (healthy)
+buildx_buildkit_ghcr-builder0                                                                                             Up 3 hours
+splits-oddsfeed-collector-mgm-1                         0.0.0.0:9103->9103/tcp, [::]:9103->9103/tcp                       Up 3 hours
+splits-oddsfeed-collector-dk-1                          0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp                       Up 3 hours
+splits-oddsfeed-collector-stake-1                       0.0.0.0:9105->9105/tcp, [::]:9105->9105/tcp                       Up 3 hours
+splits-oddsfeed-collector-fd-1                          0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp                       Up 3 hours
+splits-oddsfeed-collector-b365-1                        0.0.0.0:9104->9104/tcp, [::]:9104->9104/tcp                       Up 3 hours
+splits-oddsfeed-collector-agg-1                         0.0.0.0:9106->9106/tcp, [::]:9106->9106/tcp                       Up 3 hours
+splits-oddsfeed-collector-kambi-1                       0.0.0.0:9117->9107/tcp, [::]:9117->9107/tcp                       Up 3 hours
+splits-oddsfeed-grafana-1                                                                                                 Restarting (1) 7 seconds ago
+splits-oddsfeed-store-1                                 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       Up 3 hours (healthy)
+splits-oddsfeed-prometheus-1                            0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                       Up 3 hours
+splits-oddsfeed-proxy-manager-1                         0.0.0.0:8099->8099/tcp, [::]:8099->8099/tcp                       Up 3 hours
+
+=== healthz ===
+:9133
+{"status": "idle", "last_status": 418, "last_200_ts": null, "last_429_ts": null, "backoff_seconds": 319}:9124
+fail_9124
+:9125
+fail_9125
+
+=== Redis NUMSUB ===
+odds.raw.kambi
+0
+
+=== Normalizer logs (2m) ===
+no BRAND_EVAL/E2E
+
+=== API counts (15/180m) ===
+ALL         15m : 451
+betrivers   15m : 98
+betparx     15m : 0
+unibet      15m : 0
+sugarhouse  15m : 0
+ALL        180m : 2492
+betrivers  180m : 511
+betparx    180m : 0
+unibet     180m : 0
+sugarhouse 180m : 0

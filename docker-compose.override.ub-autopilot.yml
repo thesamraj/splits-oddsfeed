@@ -1,0 +1,32 @@
+services:
+  ub-autopilot-http:
+    image: python:3.11-slim
+    command: bash -c "pip install --no-cache-dir requests redis && python -u /app/ub_http.py"
+    volumes:
+      - "./collectors/ub_autopilot/http:/app"
+    environment:
+      - UB_TOKENS=ub2uspa,ub2usnj,ub2usva
+      - INTERVAL=20
+      - REDIS_URL=redis://broker:6379/0
+    depends_on:
+      - broker
+    ports:
+      - "9137:9137"
+    restart: unless-stopped
+
+  ub-autopilot-orchestrator:
+    image: python:3.11-slim
+    command: bash -c "pip install --no-cache-dir redis && python -u /app/orchestrator.py"
+    volumes:
+      - "./collectors/ub_autopilot/orchestrator:/app"
+      - "/tmp:/tmp"
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - WINDOW_SEC=1800
+      - TARGET_O1=50
+      - TARGET_O2=1
+    depends_on:
+      - broker
+    ports:
+      - "9138:9138"
+    restart: unless-stopped

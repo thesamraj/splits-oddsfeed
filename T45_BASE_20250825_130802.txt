@@ -1,0 +1,59 @@
+
+PHASE A — BASELINE (20250825_130802)
+
+1) Containers:
+NAMES                                                   PORTS                                                             STATUS
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                       Up 2 hours (healthy)
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                       Up 2 hours
+splits-oddsfeed-sugarhouse-1-1                          0.0.0.0:9132-9133->9132-9133/tcp, [::]:9132-9133->9132-9133/tcp   Up 3 hours
+splits-oddsfeed-collector-pinnacle-1                    0.0.0.0:9110->9110/tcp, [::]:9110->9110/tcp                       Up 3 hours (healthy)
+splits-oddsfeed-collector-kambi-browser-parx-1          0.0.0.0:9122->9118/tcp, [::]:9122->9118/tcp                       Up 32 seconds
+splits-oddsfeed-collector-kambi-browser-1               0.0.0.0:9118->9118/tcp, [::]:9118->9118/tcp                       Up About a minute
+splits-oddsfeed-collector-kambi-browser-2-1                                                                               Restarting (0) 49 seconds ago
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   0.0.0.0:9126->9118/tcp, [::]:9126->9118/tcp                       Up 11 seconds
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                       Up 3 hours (healthy)
+buildx_buildkit_ghcr-builder0                                                                                             Up 3 hours
+splits-oddsfeed-collector-mgm-1                         0.0.0.0:9103->9103/tcp, [::]:9103->9103/tcp                       Up 3 hours
+splits-oddsfeed-collector-dk-1                          0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp                       Up 3 hours
+splits-oddsfeed-collector-stake-1                       0.0.0.0:9105->9105/tcp, [::]:9105->9105/tcp                       Up 3 hours
+splits-oddsfeed-collector-fd-1                          0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp                       Up 3 hours
+splits-oddsfeed-collector-b365-1                        0.0.0.0:9104->9104/tcp, [::]:9104->9104/tcp                       Up 3 hours
+splits-oddsfeed-collector-agg-1                         0.0.0.0:9106->9106/tcp, [::]:9106->9106/tcp                       Up 3 hours
+splits-oddsfeed-collector-kambi-1                       0.0.0.0:9117->9107/tcp, [::]:9117->9107/tcp                       Up 3 hours
+splits-oddsfeed-grafana-1                                                                                                 Restarting (1) 17 seconds ago
+splits-oddsfeed-store-1                                 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       Up 3 hours (healthy)
+splits-oddsfeed-prometheus-1                            0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                       Up 3 hours
+splits-oddsfeed-proxy-manager-1                         0.0.0.0:8099->8099/tcp, [::]:8099->8099/tcp                       Up 3 hours
+
+2) Healthz:
+SugarHouse (9133):
+{"status": "idle", "last_status": 418, "last_200_ts": null, "last_429_ts": null, "backoff_seconds": 271}
+BetParx (9124):
+curl: (7) Failed to connect to 127.0.0.1 port 9124 after 0 ms: Couldn't connect to server
+fail_9124
+
+Unibet (9125):
+curl: (7) Failed to connect to 127.0.0.1 port 9125 after 0 ms: Couldn't connect to server
+fail_9125
+
+3) API counts (15/60/180m):
+betrivers (15 m): 275
+betrivers (60 m): 434
+betrivers (180 m): 434
+sugarhouse (15 m): 0
+sugarhouse (60 m): 0
+sugarhouse (180 m): 0
+betparx (15 m): 0
+betparx (60 m): 0
+betparx (180 m): 0
+unibet (15 m): 0
+unibet (60 m): 0
+unibet (180 m): 0
+
+4) DB counts (15m):
+ERROR:  column "ts" does not exist
+LINE 1: ...ELECT brand, COUNT(DISTINCT id) FROM events WHERE ts >= now(...
+                                                             ^
+DB query correction - using created_at column:
+|91
+betrivers|21

@@ -1,0 +1,3 @@
+total 1912
+-rw-r--r--    1 root     root       1702959 Aug 30 00:06 odds_br_60m_20250830_000629.csv
+-rw-r--r--    1 root     root        252847 Aug 30 00:06 ticks_br_60m_20250830_000629.csv

@@ -1,0 +1,61 @@
+services:
+  collector-fanduel:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./collectors/fanduel_sandbox:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/fd_mobile_api_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.fanduel
+    depends_on: [broker]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  fanduel-listener:
+    image: python:3.11-slim
+    command: |
+      bash -c "pip install redis && python - <<'EOF'
+      import redis
+      import json
+      import time
+
+      r = redis.from_url('redis://broker:6379/0')
+      p = r.pubsub()
+      p.psubscribe('odds.raw.fanduel')
+
+      print('FanDuel listener started', flush=True)
+
+      for msg in p.listen():
+          if msg['type'] == 'pmessage':
+              try:
+                  data = json.loads(msg['data'])
+                  odds_count = len(data.get('raw_odds', []))
+                  events_count = len(data.get('events', []))
+                  print(f'[{time.strftime(\"%H:%M:%S\")}] FanDuel: {odds_count} odds, {events_count} events', flush=True)
+              except:
+                  pass
+      EOF"
+    depends_on: [broker]
+    restart: unless-stopped
+
+  fanduel-normalizer:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/fanduel_sandbox:/app
+    working_dir: /app
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python /app/fd_normalizer_fixed.py"]
+    depends_on: [broker, store]
+    restart: unless-stopped
+
+  fanduel-ticks:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/fanduel_sandbox:/app
+    working_dir: /app
+    command: ["bash", "-c", "pip install psycopg2-binary && python /app/fd_ticks_processor.py"]
+    depends_on: [store]
+    restart: unless-stopped

@@ -1,0 +1,679 @@
+{
+  "brand": "betparx",
+  "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/139.0.7258.5 Safari/537.36",
+  "cookies": [
+    {
+      "name": "taboola_session_id",
+      "value": "v2_5ad6186d4bc6114b440a492208691901_fcea5ef4-82c0-487a-abae-158774893d78-tuctfa656ef_1756156271_1756156271_CNawjgYQj5xTGIWyyJiOMyABKAEwJjiJ6AdAsvEHSLnR2QNQ____________AVgAYABoiMzO-LTlleZdcAGAAQA",
+      "domain": ".taboola.com",
+      "path": "/aethermedia-sc/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "X-AB",
+      "value": "735bc5705bd3466485fa0f0b29ec79fe",
+      "domain": "sc-static.net",
+      "path": "/scevent.min.js",
+      "expires": 1756242670.493409,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "io_token_7c6a6574-f011-4c9a-abdd-9894a102ccef",
+      "value": "nowM9Qbco2TuNjtw7+/LIwF0Aqayzgd8SpbFCdS8ufw=",
+      "domain": "mpsnare.iesnare.com",
+      "path": "/",
+      "expires": 1787692269.843659,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://betparx.com",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "cookie_acknowledge",
+      "value": "0",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1787692270,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "m3ETXI.RYiaxZ.c9VHNdfID5_G1NgSDvfK2QOtfvupA-1756156270-1.0.1.1-w5aR0aTz2niq9UqMbLAn4c_JDVTeCoK49gcB5LJv9sTX7FzBJehse8thrkZXOXHGCE2wmzNrrkfbteVwX_4slzGOKLJjPEy7S06eckrUqBc",
+      "domain": ".login.pa.betparx.com",
+      "path": "/",
+      "expires": 1756158070.36866,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_gcl_au",
+      "value": "1.1.477240955.1756156270",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1763932270,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_rdt_uuid",
+      "value": "1756156270886.5193acee-a36e-42a0-a5cc-4144c8fbcde8",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1763932270,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "_gid",
+      "value": "GA1.2.484985355.1756156271",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1756242670,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gat_UA-194646529-6",
+      "value": "1",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1756156330,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "akaalb_Instance-1",
+      "value": "~op=Prod_WSDK_S3:Prod-SDK-S3|~rv=6~m=Prod-SDK-S3:0|~os=141f223fa3e939d66e4926adb7c49b34~id=f2af599ac619c5549e6df0251f34b20b",
+      "domain": "apps.rokt.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "t_gid",
+      "value": "fcea5ef4-82c0-487a-abae-158774893d78-tuctfa656ef",
+      "domain": ".taboola.com",
+      "path": "/",
+      "expires": 1787692280.968024,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "t_pt_gid",
+      "value": "fcea5ef4-82c0-487a-abae-158774893d78-tuctfa656ef",
+      "domain": ".taboola.com",
+      "path": "/",
+      "expires": 1787692280.968337,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://betparx.com",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "_scid",
+      "value": "vO5VbFj9-Yzu5KdAIFnqAMDzEexITVVY",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790342968,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_scid_r",
+      "value": "vO5VbFj9-Yzu5KdAIFnqAMDzEexITVVY",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790342968,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "guest_id_marketing",
+      "value": "v1%3A175615627108268364",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1790716270.970324,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "guest_id_ads",
+      "value": "v1%3A175615627108268364",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1790716270.970359,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "guest_id",
+      "value": "v1%3A175615627108268364",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1790716270.970378,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "personalization_id",
+      "value": "\"v1_4cT8Jnolr0dxp2ZEGT72aw==\"",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1790716270.970902,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "u8StHyyh99LhBjGyxhk3GTo7zkqiLvaIZwyJv9NPMOo-1756156271-1.0.1.1-i.GnuATc24vdaFsqBV12cALyFB9N7CZG1A2A_3oC4W6DcUewsezLcDX0oMLzZVC.7kNktBYmCARecANPU8RoixVa76UlSCSOJ0kZRJIPPOM",
+      "domain": ".twitter.com",
+      "path": "/",
+      "expires": 1756158070.970919,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "muc_ads",
+      "value": "9e900599-1fd3-480e-ac15-08652846bd3d",
+      "domain": ".t.co",
+      "path": "/",
+      "expires": 1790716271.120146,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "NiFVQtpy6jq2k6wsF9HCkQz1d7nCc2c9zFJP69PVLQU-1756156271-1.0.1.1-eASuoNdu6SKPgmqOJRERFDvXWCMx8vaQs93xowzUj3D2ZJH9X377LZU5NL7uuMwf_8bLs3yIEOQLo8X2FCj9ypYenmtz.WhRe14LxQh44e0",
+      "domain": ".t.co",
+      "path": "/",
+      "expires": 1756158071.120203,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.1196875557.1756156271",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790716271.141522,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_REVBTX8E1C",
+      "value": "GS2.1.s1756156271$o1$g1$t1756156271$j60$l0$h403741586",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790716271.186657,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ScCbts",
+      "value": "%5B%5D",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1756761071,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "A3",
+      "value": "d=AQABBG_RrGgCENaXvhb6wRZcPn3Eow-dU4AFEgEBAQEirmi2aCXaxyMA_eMCAA&S=AQAAAptdvs9skqbGVLHL8zHu-hA",
+      "domain": ".yahoo.com",
+      "path": "/",
+      "expires": 1787713871.317416,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sc_at",
+      "value": "v2|H4sIAAAAAAAAAE3GwQ3AIAwDwIki2SiJodsUCFMwfL+91yFzqHRsndrmHtM6i7ZeDPQm7alLx0NFMrKJ91d8AsBr7UAAAAA=",
+      "domain": ".snapchat.com",
+      "path": "/",
+      "expires": 1789852271.600913,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_TS",
+      "value": "1756156271584",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1761340271.532121,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_DID",
+      "value": "67b432f7-e1f8-478a-8d1f-f6cf11d2d048",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1761340271.532172,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TapAd_3WAY_SYNCS",
+      "value": "",
+      "domain": ".tapad.com",
+      "path": "/",
+      "expires": 1761340271.532186,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_tq_id.TV-4581544509-1.ef7e",
+      "value": "2633dd05bab61827.1756156272.0.1756156272..",
+      "domain": "pa.betparx.com",
+      "path": "/",
+      "expires": 1790716271.803578,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_sctr",
+      "value": "1%7C1756080000000",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790342969,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_fbp",
+      "value": "fb.1.1756156271937.87464373637807772",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1763932271,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "dicbo_id",
+      "value": "%7B%22dicbo_fetch%22%3A1756156272212%7D",
+      "domain": "pa.betparx.com",
+      "path": "/",
+      "expires": 1756156572,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "zuuid",
+      "value": "237844fc-bdcf-460b-bc82-5724ea61ade2",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.388077,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "c",
+      "value": "1756156272",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.335928,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "zuuid_lu",
+      "value": "1756156272",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.388156,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "af_id",
+      "value": "02cd770e-f7cc-456a-bf48-17b8fba695af-p",
+      "domain": ".appsflyer.com",
+      "path": "/",
+      "expires": 1790284272.351666,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "afUserId",
+      "value": "02cd770e-f7cc-456a-bf48-17b8fba695af-p",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790716272.354046,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "zuuid_k",
+      "value": "1",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.388171,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "zuuid_k_lu",
+      "value": "1756156272",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.38818,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "cm2",
+      "value": "!bidswitch=525485472",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.38819,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bss",
+      "value": "!bidswitch=525413472",
+      "domain": ".sportradarserving.com",
+      "path": "/",
+      "expires": 1787605872.3882,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "af_id",
+      "value": "02cd770e-f7cc-456a-bf48-17b8fba695af-p",
+      "domain": ".onelink.me",
+      "path": "/",
+      "expires": 1790284272.456515,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "AF_SYNC",
+      "value": "1756156272463",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1756761072,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "c",
+      "value": "1756156272",
+      "domain": ".bidswitch.net",
+      "path": "/",
+      "expires": 1787692272.552242,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "tuuid_lu",
+      "value": "1756156272",
+      "domain": ".bidswitch.net",
+      "path": "/",
+      "expires": 1787692272.600836,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "tuuid",
+      "value": "e38f47d8-5aad-4b36-9f22-63d9f0cb846e",
+      "domain": ".bidswitch.net",
+      "path": "/",
+      "expires": 1787692272.600787,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "tuuid",
+      "value": "96c27496-97cd-4bf4-b7c4-4595d5c0e5a7",
+      "domain": ".360yield.com",
+      "path": "/",
+      "expires": 1763932272.679347,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "tuuid_lu",
+      "value": "1756156272",
+      "domain": ".360yield.com",
+      "path": "/",
+      "expires": 1763932272.679402,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "umeh",
+      "value": "!191,1,1818364272,-1",
+      "domain": ".360yield.com",
+      "path": "/",
+      "expires": 1763932272.713251,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_sp_srt_ses.4655",
+      "value": "*",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1756158072,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_sp_srt_id.4655",
+      "value": "d6185590-bd8b-40ed-8cac-f3700d6afcf2.1756156273.1.1756156273..2f52871e-0124-4a09-ac22-04baec467e85....0",
+      "domain": ".betparx.com",
+      "path": "/",
+      "expires": 1790716272.767978,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "KRTBCOOKIE_466",
+      "value": "16530-e38f47d8-5aad-4b36-9f22-63d9f0cb846e&KRTB&23280-e38f47d8-5aad-4b36-9f22-63d9f0cb846e",
+      "domain": ".pubmatic.com",
+      "path": "/",
+      "expires": 1763932272.859598,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "PugT",
+      "value": "1756156272",
+      "domain": ".pubmatic.com",
+      "path": "/",
+      "expires": 1758748272.859679,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TDID",
+      "value": "e3fff84b-840e-4c2a-866f-084726d2f95a",
+      "domain": ".adsrvr.org",
+      "path": "/",
+      "expires": 1787692273.183915,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "Parx",
+      "value": "P%7Chomepage%7C1%7C202508252211",
+      "domain": ".connextra.com",
+      "path": "/",
+      "expires": 1787692273.135682,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bitoIsSecure",
+      "value": "ok",
+      "domain": ".bidr.io",
+      "path": "/",
+      "expires": 1790269873.141338,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bito",
+      "value": "AAB4x07RWaMAABvDzeNRHg",
+      "domain": ".bidr.io",
+      "path": "/",
+      "expires": 1790269873.1413,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "khaos",
+      "value": "MERM3OTY-E-LO3A",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1787692273.207377,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "khaos_p",
+      "value": "MERM3OTY-E-LO3A",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1787692273.207397,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://betparx.com",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "IDE",
+      "value": "AHWqTUlJJzAgk-aS3XESCXJjwxaTpY14NaF8qyaxCpzvRaPbjELGWt4yFDe5197mOjg",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1790716273.15187,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TDCPM",
+      "value": "CAESFQoGZ29vZ2xlEgsIhMW9xr6Jsj4QBRgFIAIoAjILCJ6q6_HUibI-EAU4AQ..",
+      "domain": ".adsrvr.org",
+      "path": "/",
+      "expires": 1787692273.183957,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "audit_p",
+      "value": "1|hi34LTenyQsVSbHqVgHxkHPRNbF5kSLFnBjMA/JhsoDVSjEWts3xqUvJIYO3T1PKf8ST+cvhvpCM1KxoLazIt9i2Wk5FrGos0XY24Ec+XLtGwhrbwAb7UVEFhiKXU2JtV4anKyroH4qREs8ec88GVlcyRFp/v9McRZgcto6CYGlbOz6AjJtUa8ZnH3r7x5VAdeodiyl5GGjkt77VmXBK7kiCfUmSYXqD+ohH/uuQN8oOr/S07bYDcYQkZmofZQkSVSwKu1RXSJT0/fhu8/pkBO4VeIulq+4M1TRwmTZWV3Xc6UO785F0Pw==",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1787692273.207301,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://betparx.com",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "audit",
+      "value": "1|hi34LTenyQsVSbHqVgHxkHPRNbF5kSLFnBjMA/JhsoDVSjEWts3xqUvJIYO3T1PKf8ST+cvhvpCM1KxoLazIt9i2Wk5FrGos0XY24Ec+XLtGwhrbwAb7UVEFhiKXU2JtV4anKyroH4qREs8ec88GVlcyRFp/v9McRZgcto6CYGlbOz6AjJtUa8ZnH3r7x5VAdeodiyl5GGjkt77VmXBK7kiCfUmSYXqD+ohH/uuQN8oOr/S07bYDcYQkZmofZQkSVSwKu1RXSJT0/fhu8/pkBO4VeIulq+4M1TRwmTZWV3Xc6UO785F0Pw==",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1787692273.2075,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "receive-cookie-deprecation",
+      "value": "1",
+      "domain": ".rubiconproject.com",
+      "path": "/",
+      "expires": 1763932273.207533,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://betparx.com",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "CxtId",
+      "value": "5528b8f8-ab31-4704-8afc-72eadb1b5304",
+      "domain": ".connextra.com",
+      "path": "/",
+      "expires": 1787692273.308281,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "offering_url": "https://e0-api.kambi.com/offering/v2018/bp2uspa/listView/all/all/matches.json?lang=en_US&market=US&client_id=2&channel_id=1&ncid=1000",
+  "ok": false,
+  "ts": 1756156284.7463338
+}

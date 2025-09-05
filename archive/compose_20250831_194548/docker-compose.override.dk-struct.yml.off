@@ -1,0 +1,26 @@
+services:
+  collector-dom-draftkings-struct:
+    build:
+      context: ./collectors/dom_draftkings
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        RUN pip install --no-cache-dir requests redis
+        WORKDIR /app
+        COPY extract_dk.py collector_struct.py /app/
+        CMD ["python","/app/collector_struct.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - BOOK=draftkings
+      - BRAND=draftkings
+      - URL=https://sportsbook.draftkings.com/leagues/football/88670846?category=game-lines
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  dk-struct-listener:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install --no-cache-dir redis >/dev/null && python /app/listener.py"]
+    volumes:
+      - ./collectors/dom_draftkings:/app
+    depends_on: [broker]
+    restart: unless-stopped

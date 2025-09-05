@@ -1,0 +1,11 @@
+FanDuel Pipeline Verification - Sat Aug 30 13:24:24 EDT 2025
+=====================================
+Initial odds (15m): 450
+Events (15m): 1
+Ticks growth: 3732 -> 3750 (delta: 18)
+
+Status: OPERATIONAL
+- Collector: Running (10-12s intervals)
+- Normalizer: Writing to DB
+- Ticks: Accumulating
+- BR/SH: Untouched (as per guardrails)

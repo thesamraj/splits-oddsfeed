@@ -1,0 +1,9 @@
+CONTAINER ID   IMAGE                               COMMAND                  CREATED         STATUS                   PORTS                                         NAMES
+661a435d691f   splits-oddsfeed-api                 "uvicorn api.main:ap…"   7 minutes ago   Up 7 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   splits-oddsfeed-api-1
+0aa17c591277   splits-oddsfeed-normalizer          "python -m normalize…"   7 minutes ago   Up 7 minutes             0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp   splits-oddsfeed-normalizer-1
+a1457596c823   redis:7.2                           "docker-entrypoint.s…"   7 minutes ago   Up 7 minutes (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   splits-oddsfeed-broker-1
+3856a4d4c58e   timescale/timescaledb:2.21.2-pg16   "docker-entrypoint.s…"   7 minutes ago   Up 7 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp   splits-oddsfeed-store-1
+b8b2cc22938d   1d70b07a5d89                        "python3 sh_cdp_scra…"   15 hours ago    Up 15 hours              0.0.0.0:9135->9135/tcp, [::]:9135->9135/tcp   splits-oddsfeed-collector-sh-cdp-1
+af9b766f94de   br_prematch:latest                  "python -u br_premat…"   17 hours ago    Up 17 hours              0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp   collector-br-prematch-b
+b091e04e083f   br_prematch:latest                  "python -u br_premat…"   17 hours ago    Up 17 hours              0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp   collector-br-prematch-a
+bf591e206a45   moby/buildkit:buildx-stable-1       "buildkitd --allow-i…"   13 days ago     Up 26 hours                                                            buildx_buildkit_ghcr-builder0

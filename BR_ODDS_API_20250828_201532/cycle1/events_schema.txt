@@ -1,0 +1,22 @@
+                         Table "public.events"
+   Column   |           Type           | Collation | Nullable | Default
+------------+--------------------------+-----------+----------+---------
+ id         | text                     |           | not null |
+ league     | text                     |           | not null |
+ start_time | timestamp with time zone |           | not null |
+ home       | text                     |           | not null |
+ away       | text                     |           | not null |
+ sport      | text                     |           |          |
+ created_at | timestamp with time zone |           |          | now()
+ updated_at | timestamp with time zone |           |          | now()
+ brand      | text                     |           |          |
+Indexes:
+    "events_pkey" PRIMARY KEY, btree (id)
+    "idx_events_league" btree (league, start_time DESC)
+    "idx_events_start_time" btree (start_time)
+Referenced by:
+    TABLE "_timescaledb_internal._hyper_2_2_chunk" CONSTRAINT "2_1_odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+    TABLE "_timescaledb_internal._hyper_2_3_chunk" CONSTRAINT "3_2_odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+    TABLE "_timescaledb_internal._hyper_2_5_chunk" CONSTRAINT "5_3_odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+    TABLE "_timescaledb_internal._hyper_2_9_chunk" CONSTRAINT "9_5_odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+    TABLE "odds" CONSTRAINT "odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)

@@ -1,0 +1,35 @@
+name: Nightly Verification
+
+on:
+  schedule:
+    # Run daily at 3:17 AM UTC
+    - cron: "17 3 * * *"
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run verification checks
+        id: verify
+        run: |
+          chmod +x scripts/verify_no_secrets.sh
+          chmod +x scripts/deny_generators.sh
+          make verify
+        continue-on-error: true
+
+      - name: Notify Slack on failure
+        if: failure() && secrets.SLACK_WEBHOOK
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          chmod +x scripts/notify_slack.sh
+          ./scripts/notify_slack.sh "🚨 Nightly verify failed for splits-oddsfeed\nJob: $JOB_URL\nBranch: ${{ github.ref_name }}\nTime: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Fail job if verify failed
+        if: steps.verify.outcome == 'failure'
+        run: exit 1

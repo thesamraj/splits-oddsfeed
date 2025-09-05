@@ -1,0 +1,419 @@
+version: '3.8'
+
+# Unified Docker Compose - All 13 Sportsbooks
+# Consolidates 40+ files into one manageable configuration
+
+services:
+  # =========================
+  # INFRASTRUCTURE SERVICES
+  # =========================
+
+  broker:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  store:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      - POSTGRES_USER=odds
+      - POSTGRES_PASSWORD=odds
+      - POSTGRES_DB=oddsfeed
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - REDIS_URL=redis://broker:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      store:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # =========================
+  # UNIVERSAL NORMALIZER
+  # =========================
+
+  normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.*
+      - ENABLE_VALIDATION=true
+      - ENABLE_CONVERSION=true
+    depends_on:
+      - broker
+      - store
+    volumes:
+      - ./normalizer:/app
+      - ./config:/config
+    restart: unless-stopped
+
+  # =========================
+  # COLLECTORS - AMERICAN ODDS BOOKS
+  # =========================
+
+  collector-bovada:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/bovada_real:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/bovada_real.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.bovada
+      - INTERVAL=10
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # WebSocket Collectors (Priority - Real-time data)
+  collector-draftkings-ws:
+    image: draftkings-ws:latest
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-fanduel-ws:
+    image: fanduel-ws:latest
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # Legacy HTTP Collectors (Fallback)
+  collector-draftkings:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/draftkings:/app
+    command: ["bash", "-c", "pip install redis requests websockets && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.draftkings
+      - BOOK=draftkings
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+    profiles: ["legacy"]  # Only start with --profile legacy
+
+  collector-fanduel:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/fanduel_sandbox:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/fd_mobile_api_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.fanduel
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+    profiles: ["legacy"]  # Only start with --profile legacy
+
+  collector-betmgm:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betmgm:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/betmgm_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.betmgm
+      - INTERVAL=30
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-pointsbet:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/pointsbet:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/pointsbet_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.pointsbet
+      - INTERVAL=30
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # Browser-based collectors for DraftKings and FanDuel
+  collector-draftkings-browser:
+    build:
+      context: ./collectors/draftkings_browser
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.draftkings
+      - INTERVAL=60
+      - HEADLESS=true
+    depends_on:
+      - broker
+    restart: unless-stopped
+    shm_size: '2gb'  # Required for headless Chrome
+
+  collector-fanduel-browser:
+    build:
+      context: ./collectors/fanduel_browser
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.fanduel
+      - INTERVAL=60
+      - HEADLESS=true
+    depends_on:
+      - broker
+    restart: unless-stopped
+    shm_size: '2gb'  # Required for headless Chrome
+
+  # Legacy HTTP collectors (kept but disabled)
+  # collector-draftkings-http:
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./collectors/draftkings_http:/app
+  #   command: ["bash", "-c", "pip install redis requests && python /app/draftkings_http.py"]
+  #   environment:
+  #     - REDIS_URL=redis://broker:6379/0
+  #     - CHANNEL=odds.raw.draftkings
+  #     - INTERVAL=30
+  #   depends_on:
+  #     - broker
+  #   restart: unless-stopped
+
+  # collector-fanduel-http:
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./collectors/fanduel_http:/app
+  #   command: ["bash", "-c", "pip install redis requests && python /app/fanduel_http.py"]
+  #   environment:
+  #     - REDIS_URL=redis://broker:6379/0
+  #     - CHANNEL=odds.raw.fanduel
+  #     - INTERVAL=30
+  #   depends_on:
+  #     - broker
+  #   restart: unless-stopped
+
+  # =========================
+  # COLLECTORS - KAMBI BOOKS (DECIMAL ODDS)
+  # =========================
+
+  collector-barstool:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.barstool
+      - KAMBI_TOKEN=us2pa
+      - INTERVAL=15
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-betrivers:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.betrivers
+      - KAMBI_TOKEN=rsi2uspa
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-sugarhouse:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.sugarhouse
+      - KAMBI_TOKEN=rsi2uspa
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-unibet:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.unibet
+      - KAMBI_TOKEN=usnj2
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  collector-caesars:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.caesars
+      - KAMBI_TOKEN=us3pa
+      - INTERVAL=20
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # =========================
+  # COLLECTORS - OTHER BOOKS
+  # =========================
+
+  collector-pinnacle:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/pinnacle:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/pinnacle_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.pinnacle
+      - INTERVAL=30
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # collector-bet365:  # DISABLED - Mock data only
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./collectors/bet365_api:/app
+  #   command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+  #   environment:
+  #     - REDIS_URL=redis://broker:6379/0
+  #     - CHANNEL=odds.raw.bet365
+  #     - INTERVAL=20
+  #   depends_on:
+  #     - broker
+  #   restart: unless-stopped
+
+  # collector-stake:  # DISABLED - Mock data only
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./collectors/stake_api:/app
+  #   command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+  #   environment:
+  #     - REDIS_URL=redis://broker:6379/0
+  #     - CHANNEL=odds.raw.stake
+  #     - INTERVAL=20
+  #   depends_on:
+  #     - broker
+  #   restart: unless-stopped
+
+  # =========================
+  # MONITORING STACK
+  # =========================
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      - REDIS_ADDR=redis://broker:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      - DATA_SOURCE_NAME=postgresql://odds:odds@store:5432/oddsfeed?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      - store
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  pgdata:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: oddsfeed_network
+    driver: bridge

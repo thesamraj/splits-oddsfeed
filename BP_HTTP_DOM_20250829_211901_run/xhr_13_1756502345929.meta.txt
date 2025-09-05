@@ -1,0 +1,3 @@
+https://pa.betparx.com/initialResources/games/en_US?t=1756495946535
+application/json
+len=80406

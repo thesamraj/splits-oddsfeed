@@ -1,0 +1,43 @@
+=== BR SMOKE 20250828_022558 ===
+
+--- docker ps ---
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   0.0.0.0:9126->9118/tcp, 0.0.0.0:9127->9118/tcp, [::]:9126->9118/tcp, [::]:9127->9118/tcp   Up 59 seconds
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                                                Up 58 minutes
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                                                Up 4 hours (healthy)
+splits-oddsfeed-collector-kambi-browser-betrivers-2-1   0.0.0.0:9124->9118/tcp, [::]:9124->9118/tcp                                                Up 49 seconds
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                                                Up 16 hours (healthy)
+
+--- healthz (t0) ---
+:9118 ->
+:9124 ->
+:9127 ->
+
+--- healthz (t1) ---
+:9118 ->
+:9124 ->
+:9127 ->
+
+--- healthz monotonic check ---
+:9118 MONOTONIC ✅ (0 → 0)
+:9124 MONOTONIC ✅ (0 → 0)
+:9127 MONOTONIC ✅ (0 → 0)
+
+--- redis pubsub ---
+PONG
+odds.raw.kambi
+0
+1
+
+--- normalizer log pulse (after synthetic publish) ---
+BRAND_EVAL(last 5s)=1  E2E(last 5s)=0
+0
+
+--- API checks ---
+API count (15m) = 0
+API price points (sampled) = 0
+
+--- summary ---
+Collectors monotonic: PASS  (ports checked: 3 / ok: 3)
+Normalizer logging:     (BRAND_EVAL=1, E2E=0
+0)
+API returns prices:   FAIL  (count=0, prices=0)

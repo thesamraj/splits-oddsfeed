@@ -1,0 +1,56 @@
+# DEPRECATED / SANDBOX (archived)
+# Not used in production. Left for reference only.
+# CI excludes archive/**. Do not symlink into prod compose.
+# Use docker-compose.prod.yml for deployments.
+
+version: '3.8'
+
+# TODO: DEPRECATED - Use hardened normalizers in normalizer/src/normalizer/*_hardened.py
+# This file references sandbox paths and should not be used in production
+services:
+  # # Fixed DraftKings normalizer - DISABLED (use hardened version)
+  # dk-normalizer-fixed:
+  #   image: python:3.9-slim
+  #   container_name: dk-normalizer-fixed
+  #   restart: unless-stopped
+  #   networks:
+  #     - default
+  #   volumes:
+  #     - ./normalizer/src/normalizer/draftkings_normalizer_hardened.py:/app/normalizer.py
+  #   working_dir: /app
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - METRICS_PORT=9090
+  #     - HEALTH_PORT=9091
+  #   command: >
+  #     sh -c "pip install redis psycopg2-binary prometheus_client flask &&
+  #            python normalizer.py"
+  #   depends_on:
+  #     - broker
+
+  # # Fixed FanDuel normalizer - DISABLED (use hardened version)
+  # fd-normalizer-fixed:
+  #   image: python:3.9-slim
+  #   container_name: fd-normalizer-fixed
+  #   restart: unless-stopped
+  #   networks:
+  #     - default
+  #   volumes:
+  #     - ./normalizer/src/normalizer/fanduel_normalizer_hardened.py:/app/normalizer.py
+  #   working_dir: /app
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - METRICS_PORT=9090
+  #     - HEALTH_PORT=9091
+  #   command: >
+  #     sh -c "pip install redis psycopg2-binary prometheus_client flask &&
+  #            python normalizer.py"
+  #   depends_on:
+  #     - broker
+
+networks:
+  default:
+    name: splits-oddsfeed_default
+    external: true

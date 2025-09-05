@@ -1,0 +1,30 @@
+                                   View "public.event_activity"
+   Column    |           Type           | Collation | Nullable | Default | Storage  | Description
+-------------+--------------------------+-----------+----------+---------+----------+-------------
+ id          | text                     |           |          |         | extended |
+ brand       | text                     |           |          |         | extended |
+ sport       | text                     |           |          |         | extended |
+ league      | text                     |           |          |         | extended |
+ home        | text                     |           |          |         | extended |
+ away        | text                     |           |          |         | extended |
+ start_time  | timestamp with time zone |           |          |         | plain    |
+ activity_at | timestamp with time zone |           |          |         | plain    |
+ odds_count  | bigint                   |           |          |         | plain    |
+View definition:
+ SELECT e.id,
+        CASE
+            WHEN (EXISTS ( SELECT 1
+               FROM odds o2
+              WHERE o2.event_id = e.id AND o2.book = 'betrivers'::text)) THEN 'betrivers'::text
+            ELSE COALESCE(e.brand, 'unknown'::text)
+        END AS brand,
+    e.sport,
+    e.league,
+    e.home,
+    e.away,
+    e.start_time,
+    GREATEST(e.start_time, COALESCE(max(o.ts), e.start_time)) AS activity_at,
+    count(o.id) AS odds_count
+   FROM events e
+     LEFT JOIN odds o ON o.event_id = e.id
+  GROUP BY e.id, e.brand, e.sport, e.league, e.home, e.away, e.start_time;

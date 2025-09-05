@@ -1,0 +1,5 @@
+Baseline snapshot saved
+BR containers: 6 running, frozen state preserved
+BR API: 1 events, 32 odds flowing
+Redis: 1 subscriber, 2 patterns active
+SH: 0 events, 0 odds (expected - scraper not deployed)

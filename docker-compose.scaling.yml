@@ -1,0 +1,44 @@
+# Horizontal scaling configuration for high-volume collectors
+
+services:
+  # Scale Bovada collector (2 instances)
+  collector-bovada-2:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/bovada_real:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/bovada_real.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.bovada
+      - INTERVAL=20
+    restart: unless-stopped
+
+  # Scale Barstool collector (2 instances)
+  collector-barstool-2:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.barstool
+      - KAMBI_TOKEN=us2pa
+      - INTERVAL=30
+    restart: unless-stopped
+
+  # Additional normalizer for load balancing
+  normalizer-2:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.*
+      - store
+    restart: unless-stopped
+
+networks:
+  default:
+    name: oddsfeed_network
+    external: true

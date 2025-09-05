@@ -1,0 +1,32 @@
+                                        Table "public.odds"
+    Column     |           Type           | Collation | Nullable |             Default
+---------------+--------------------------+-----------+----------+----------------------------------
+ id            | bigint                   |           | not null | nextval('odds_id_seq'::regclass)
+ event_id      | text                     |           | not null |
+ book          | text                     |           | not null |
+ market        | text                     |           | not null |
+ line          | numeric                  |           |          |
+ price_home    | numeric                  |           |          |
+ price_away    | numeric                  |           |          |
+ price_over    | numeric                  |           |          |
+ price_under   | numeric                  |           |          |
+ total         | numeric                  |           |          |
+ ts            | timestamp with time zone |           | not null | now()
+ outcome_name  | text                     |           |          |
+ outcome_price | numeric                  |           |          |
+ outcome_point | numeric                  |           |          |
+Indexes:
+    "idx_odds_book" btree (book, ts DESC)
+    "idx_odds_dedupe" btree (event_id, book, market, outcome_name, ts)
+    "idx_odds_event_id" btree (event_id, ts DESC)
+    "idx_odds_market" btree (market, ts DESC)
+    "idx_odds_sanity_check" btree (outcome_price) WHERE outcome_price IS NOT NULL
+    "idx_odds_ts_range" btree (ts)
+    "odds_ts_idx" btree (ts DESC)
+Foreign-key constraints:
+    "odds_event_id_fkey" FOREIGN KEY (event_id) REFERENCES events(id)
+Triggers:
+    br_sync_event_brand_trg AFTER INSERT ON odds FOR EACH ROW WHEN (new.book = 'betrivers'::text) EXECUTE FUNCTION br_sync_event_brand()
+    trg_br_touch_event_on_odds AFTER INSERT ON odds FOR EACH ROW EXECUTE FUNCTION br_touch_event_on_odds()
+    ts_insert_blocker BEFORE INSERT ON odds FOR EACH ROW EXECUTE FUNCTION _timescaledb_functions.insert_blocker()
+Number of child tables: 4 (Use \d+ to list them.)

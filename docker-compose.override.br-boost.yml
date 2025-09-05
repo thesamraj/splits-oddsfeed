@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  collector-br-prematch-a:
+    environment:
+      POLL_SECONDS: "8"  # Boost from ~20s to 8s
+      KAMBI_TOKEN: "rsi2uspa"
+      KAMBI_HOST: "eu.offering-api.kambicdn.com"
+      REDIS_URL: "redis://broker:6379/0"
+      REDIS_CHANNEL: "odds.raw.kambi"
+      HEALTHZ_PORT: "9129"
+
+  collector-br-prematch-b:
+    environment:
+      POLL_SECONDS: "11"  # Boost from ~27s to 11s
+      KAMBI_TOKEN: "rsi2uspa"
+      KAMBI_HOST: "eu.offering-api.kambicdn.com"
+      REDIS_URL: "redis://broker:6379/0"
+      REDIS_CHANNEL: "odds.raw.kambi"
+      HEALTHZ_PORT: "9130"

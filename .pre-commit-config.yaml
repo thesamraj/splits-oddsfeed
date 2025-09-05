@@ -1,16 +1,51 @@
+# Pre-commit hooks for security and quality checks
+# Install: pip install pre-commit && pre-commit install
+
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.5.7
-  hooks:
-    - id: ruff
-      args: ["--fix"]
-- repo: https://github.com/psf/black
-  rev: 24.4.2
-  hooks:
-    - id: black
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.6.0
-  hooks:
-    - id: check-merge-conflict
-    - id: end-of-file-fixer
-    - id: trailing-whitespace
+  # Local security checks
+  - repo: local
+    hooks:
+      - id: verify-no-secrets
+        name: Check for secrets
+        entry: bash scripts/verify_no_secrets.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: deny-generators
+        name: Check for banned patterns
+        entry: bash scripts/deny_generators.sh --dry-run
+        language: system
+        pass_filenames: false
+        files: '\.(yml|yaml|py|sh)$'
+        exclude: '^(archive/|docs/)'
+
+  # Python formatting and linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+        exclude: '^archive/'
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+
+  # Secret scanning
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.1
+    hooks:
+      - id: gitleaks

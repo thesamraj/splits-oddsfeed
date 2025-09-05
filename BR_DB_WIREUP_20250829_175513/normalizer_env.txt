@@ -1,0 +1,3 @@
+DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+REDIS_CHANNEL_KAMBI=odds.raw.kambi
+REDIS_URL=redis://broker:6379/0

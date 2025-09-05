@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  betmgm-collector:
+    build: ./collectors/betmgm_sandbox
+    container_name: betmgm-collector
+    depends_on:
+      - broker
+    volumes:
+      - ./collectors/betmgm_sandbox:/app
+    working_dir: /app
+    command: python mgm_browser_collector.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  betmgm-normalizer:
+    build: ./collectors/betmgm_sandbox
+    container_name: betmgm-normalizer
+    depends_on:
+      - broker
+      - store
+    volumes:
+      - ./collectors/betmgm_sandbox:/app
+    working_dir: /app
+    command: python mgm_normalizer.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  betmgm-ticks:
+    build: ./collectors/betmgm_sandbox
+    container_name: betmgm-ticks
+    depends_on:
+      - broker
+      - store
+    volumes:
+      - ./collectors/betmgm_sandbox:/app
+    working_dir: /app
+    command: python mgm_ticks_processor.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1

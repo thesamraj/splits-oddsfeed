@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  collector-draftkings-api:
+    build:
+      context: ./collectors/draftkings_api
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+  collector-fanduel-api:
+    build:
+      context: ./collectors/fanduel_api
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+networks:
+  oddsfeed:
+    external: true
+    name: oddsfeed_network

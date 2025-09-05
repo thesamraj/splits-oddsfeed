@@ -1,0 +1,149 @@
+version: '3.8'
+
+# Health checks and stability improvements for all services
+
+services:
+  broker:
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
+  store:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  api:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+    depends_on:
+      store:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+
+  normalizer:
+    restart: always
+    depends_on:
+      store:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - RETRY_ATTEMPTS=3
+      - RETRY_DELAY=5
+
+  # Collectors with auto-restart on failure
+  collector-bovada:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0  # Infinite restarts
+
+  collector-barstool:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-betrivers:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-sugarhouse:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-unibet:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-caesars:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-betmgm:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-pointsbet:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0
+
+  collector-pinnacle:
+    restart: always
+    depends_on:
+      broker:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 0

@@ -1,0 +1,42 @@
+services:
+  collector-stake-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/stake_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.stake
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  stake-normalizer:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python - <<'EOF'\nimport redis, psycopg2, json, os\nr = redis.from_url(os.getenv('REDIS_URL', 'redis://broker:6379/0'))\np = r.pubsub()\np.psubscribe('odds.raw.stake')\nconn = psycopg2.connect(os.getenv('DATABASE_URL', 'postgresql://odds:odds@store:5432/oddsfeed'))\ncur = conn.cursor()\nprint('Stake normalizer started', flush=True)\nfor msg in p.listen():\n    if msg['type'] != 'pmessage': continue\n    try:\n        data = json.loads(msg['data'])\n        for event in data.get('events', []):\n            event_id = f\"stake_{event.get('id', '')}\"\n            home = event.get('home', '')\n            away = event.get('away', '')\n            for market in event.get('markets', []):\n                for outcome in market.get('outcomes', []):\n                    cur.execute('''\n                        INSERT INTO odds (book, event_id, sport, league, home, away, \n                                        market, outcome, price, ts)\n                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())\n                        ON CONFLICT DO NOTHING\n                    ''', ('stake', event_id, 'NFL', 'NFL', home, away,\n                          market.get('type', 'h2h'), outcome.get('name'), outcome.get('price')))\n        conn.commit()\n        print(f'Processed {len(data.get(\"events\", []))} events', flush=True)\n    except Exception as e:\n        print(f'Error: {e}', flush=True)\n        conn.rollback()\nEOF"]
+    environment:
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - REDIS_URL=redis://broker:6379/0
+    depends_on: [broker, store]
+    restart: unless-stopped
+
+  collector-bet365-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/bet365_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.bet365
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  bet365-normalizer:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python - <<'EOF'\nimport redis, psycopg2, json, os\nr = redis.from_url(os.getenv('REDIS_URL', 'redis://broker:6379/0'))\np = r.pubsub()\np.psubscribe('odds.raw.bet365')\nconn = psycopg2.connect(os.getenv('DATABASE_URL', 'postgresql://odds:odds@store:5432/oddsfeed'))\ncur = conn.cursor()\nprint('Bet365 normalizer started', flush=True)\nfor msg in p.listen():\n    if msg['type'] != 'pmessage': continue\n    try:\n        data = json.loads(msg['data'])\n        for event in data.get('events', []):\n            event_id = event.get('id', '')\n            home = event.get('home', '')\n            away = event.get('away', '')\n            for market in event.get('markets', []):\n                for outcome in market.get('outcomes', []):\n                    cur.execute('''\n                        INSERT INTO odds (book, event_id, sport, league, home, away, \n                                        market, outcome, price, ts)\n                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())\n                        ON CONFLICT DO NOTHING\n                    ''', ('bet365', event_id, 'NFL', 'NFL', home, away,\n                          market.get('type', 'h2h'), outcome.get('name'), outcome.get('price')))\n        conn.commit()\n        print(f'Processed {len(data.get(\"events\", []))} events', flush=True)\n    except Exception as e:\n        print(f'Error: {e}', flush=True)\n        conn.rollback()\nEOF"]
+    environment:
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - REDIS_URL=redis://broker:6379/0
+    depends_on: [broker, store]
+    restart: unless-stopped

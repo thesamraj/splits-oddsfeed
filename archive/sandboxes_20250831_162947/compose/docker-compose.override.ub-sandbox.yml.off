@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Unibet Orchestrator - manages HTTP and CDP collectors
+  ub-orchestrator:
+    build:
+      context: ./api/collectors
+      dockerfile: ub_orchestrator/Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - HEALTHZ_PORT=9136
+    ports:
+      - "9136:9136"  # Orchestrator health
+    volumes:
+      - ./api/collectors/ub_http:/app/collectors/ub_http:ro
+      - ./api/collectors/ub_cdp:/app/collectors/ub_cdp:ro
+      - ./api/collectors/ub_orchestrator:/app/collectors/ub_orchestrator:ro
+    depends_on:
+      - broker
+    restart: unless-stopped
+    networks:
+      - default
+
+  # Standalone HTTP collector (managed by orchestrator in production)
+  ub-http-collector:
+    build:
+      context: ./api/collectors/ub_http
+      dockerfile: Dockerfile
+    environment:
+      - UB_BASE_URL=https://eu.offering-api.kambicdn.com/offering/v2018/ub2uspa
+      - UB_MARKETS=US-PA
+      - REDIS_URL=redis://broker:6379/0
+      - PUBLISH_CHANNEL=odds.raw.unibet
+      - HEALTHZ_PORT=9134
+      - FETCH_INTERVAL_SEC=60
+    ports:
+      - "9134:9134"  # HTTP collector health
+    depends_on:
+      - broker
+    profiles:
+      - ub-standalone  # Only run if explicitly requested
+    restart: unless-stopped
+
+  # Standalone CDP collector (managed by orchestrator in production)
+  ub-cdp-collector:
+    build:
+      context: ./api/collectors/ub_cdp
+      dockerfile: Dockerfile
+    environment:
+      - UB_URL=https://pa.unibet.com/?page=sportsbook#home
+      - REDIS_URL=redis://broker:6379/0
+      - PUBLISH_CHANNEL=odds.raw.unibet
+      - HEALTHZ_PORT=9135
+      - SCRAPE_INTERVAL_SEC=120
+    ports:
+      - "9135:9135"  # CDP collector health
+    depends_on:
+      - broker
+    profiles:
+      - ub-standalone  # Only run if explicitly requested
+    restart: unless-stopped
+
+  # Unibet-specific normalizer instance (optional)
+  normalizer-unibet:
+    image: normalizer:latest
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=splits
+      - DB_USER=splits
+      - DB_PASS=splits
+      - REDIS_URL=redis://broker:6379/0
+      - SUBSCRIBE_CHANNELS=odds.raw.unibet
+      - PUBLISH_CHANNEL=odds.norm.unibet
+      - LOG_LEVEL=INFO
+      - BRAND_FILTER=unibet
+    depends_on:
+      - db
+      - broker
+      - ub-orchestrator
+    profiles:
+      - ub-normalizer
+    restart: unless-stopped
+
+# To launch Unibet sandbox:
+# docker compose -f docker-compose.yml -f docker-compose.override.br-only.yml -f docker-compose.override.ub.yml up -d ub-orchestrator
+
+# To run standalone collectors for testing:
+# docker compose -f docker-compose.yml -f docker-compose.override.ub.yml --profile ub-standalone up -d
+
+# To include Unibet normalizer:
+# docker compose -f docker-compose.yml -f docker-compose.override.ub.yml --profile ub-normalizer up -d

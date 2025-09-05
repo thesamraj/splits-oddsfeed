@@ -1,0 +1,1 @@
+::ALERT:: FD ticks flat last 5m (all values: 0)

@@ -1,0 +1,4 @@
+Plan:
+- KEEP: betrivers (w/ sugarhouse alias), fanduel, draftkings, pointsbet (host collector), barstool (espnbet)
+- ARCHIVE: unibet, betparx, caesars, betmgm*, demos/sandboxes/tests
+- Add smoke tests for all 5 books + aliases; keep DB/ticks jobs intact

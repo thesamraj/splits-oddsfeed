@@ -1,0 +1,29 @@
+=== BRINGUP_SNAP_20250826_090712 ===
+
+1) CONTAINER STATUS:
+NAMES                             PORTS                                         STATUS
+splits-oddsfeed-api-1             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   Up 8 hours (healthy)
+collector-kambi-wsbridge-unibet   0.0.0.0:9128->9127/tcp, [::]:9128->9127/tcp   Up 8 hours
+splits-oddsfeed-normalizer-1      0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp   Up 8 hours
+splits-oddsfeed-broker-1          0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp   Up 8 hours (healthy)
+splits-oddsfeed-store-1           0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp   Up 8 hours (healthy)
+collector-kambi-http-unibet       0.0.0.0:9125->9125/tcp, [::]:9125->9125/tcp   Up 16 hours
+collector-kambi-http-parx         0.0.0.0:9124->9124/tcp, [::]:9124->9124/tcp   Up 16 hours
+buildx_buildkit_ghcr-builder0                                                   Up 23 hours
+
+2) HEALTHZ STATUS:
+fail_9133
+
+3) REDIS PUBSUB:
+odds.raw.kambi
+0
+
+4) NORMALIZER LOGS (2min):
+
+5) API COUNTS (15m/180m):
+BetRivers 15m:
+0
+BetRivers 180m:
+654
+
+6) DB COUNTS (atomic):

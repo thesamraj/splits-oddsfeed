@@ -1,0 +1,12 @@
+=== TOKEN DISCOVERY RESULTS ===
+TESTED TOKENS:
+- rsi2uspa: 404 (invalid path - expected, this is BR)
+- sg2uspa: No access → HTTP 429 (rate limited - potentially valid)
+- sugarhouse2uspa: No access
+- sh2uspa: No access
+- rsish2uspa: No access
+- rsi2sh: No access
+- rsi2ussh: 404 (invalid path)
+
+CONCLUSION: sg2uspa shows different response pattern (429 vs No access)
+However, rate limiting prevents meaningful testing

@@ -35,9 +35,12 @@ services:
     build: ./api
     ports:
       - "8080:8080"
+    volumes:
+      - ./config:/app/config:ro
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
+      API_USE_SIMPLE: "0"
     depends_on:
       broker:
         condition: service_healthy
@@ -271,6 +274,23 @@ services:
       METRICS_PORT: 9118
       KAMBI_ROTATE_URLS: https://pa.betparx.com/?page=sportsbook#american_football/nfl,https://pa.betparx.com/?page=sportsbook#baseball/mlb,https://pa.betparx.com/?page=sportsbook#basketball/nba,https://pa.betparx.com/?page=sportsbook#ice_hockey/nhl
       KAMBI_ROTATE_DWELL_SEC: 8
+
+  collector-kambi-browser-unibet:
+    image: ${COLLECTOR_KAMBI_BROWSER_IMAGE:-ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser:latest}
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://broker:6379/0}
+      REDIS_CHANNEL: ${REDIS_CHANNEL_KAMBI:-odds.raw.kambi}
+      KAMBI_STATE_URL: ${KAMBI_STATE_URL_UNIBET:-https://pa.unibet.com/?page=sportsbook#american_football/nfl}
+      KAMBI_CAPTURE_PATTERNS: ${KAMBI_CAPTURE_PATTERNS:-/offering/.*(v2018|events|selections)|e0-api.kambi.com/.*}
+      KAMBI_STORAGE: ${KAMBI_STORAGE_UNIBET:-/app/state/kambi-browser/unibet-state.json}
+      KAMBI_BROWSER_HEADFUL: ${KAMBI_BROWSER_HEADFUL:-false}
+      KAMBI_LAST_RESORT_AFTER_SEC: ${KAMBI_LAST_RESORT_AFTER_SEC:-15}
+      KAMBI_NAV_TIMEOUT_SEC: ${KAMBI_NAV_TIMEOUT_SEC:-25}
+      PROXY_URL: ${PROXY_URL:-}
+      PROXY_MANAGER_URL: ${PROXY_MANAGER_URL:-}
+      METRICS_PORT: 9118
+      KAMBI_ROTATE_URLS: https://pa.unibet.com/?page=sportsbook#american_football/nfl,https://pa.unibet.com/?page=sportsbook#baseball/mlb,https://pa.unibet.com/?page=sportsbook#basketball/nba,https://pa.unibet.com/?page=sportsbook#ice_hockey/nhl
+      KAMBI_ROTATE_DWELL_SEC: 8
       KAMBI_AUTOSCROLL: 1
       KAMBI_AUTOSCROLL_PASSES: 6
       KAMBI_CLICK_MORE: 1
@@ -281,7 +301,13 @@ services:
       broker:
         condition: service_healthy
     ports:
-      - "9122:9118"
+      - "9124:9118"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    shm_size: "1g"
     restart: unless-stopped
 
   # Additional BetRivers collector for scaling

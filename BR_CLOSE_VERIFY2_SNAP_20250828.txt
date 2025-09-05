@@ -1,0 +1,37 @@
+=== BR ACCEPTANCE CRITERIA RE-VERIFICATION SNAP_20250828 ===
+After self-heal fixes - Started: Thu Aug 28 10:49:52 EDT 2025
+
+=== T1: REDIS SUBSCRIPTION RE-TEST ===
+NUMSUB result: 0
+T1: FAIL (0 < 1)
+
+=== T3: HEALTHZ RE-TEST ===
+T3 Port 9129: Missing counters ✗
+T3 Port 9130: Missing counters ✗
+T3: FAIL
+
+Waiting 60s for data pipeline to process...
+
+=== T2: NORMALIZER LOGGING RE-TEST ===
+BRAND_EVAL count: 5
+E2E count: 0
+0
+T2a: BRAND_EVAL < 6 ✗ (5)
+T2b: E2E lines < 6 ✗ (0
+0)
+T2c: Max E2E ≥ 1.0s ✗ (s)
+T2: FAIL
+
+=== T4: API↔DB ALIGNMENT RE-TEST ===
+API events (60m): 0
+API events via book=betrivers (60m): 0
+DB events with betrivers connection (60m): 0
+T4: PASS (Perfect alignment: 0 events)
+
+=== T5/O1/O2: FINAL DATA CHECK ===
+T5 - DB events (15m): 10 (need ≥30)
+O1 - DB odds (15m): 0 (need ≥50)
+O2 - API events with prices: 0 (need >0)
+T5: FAIL
+O1: FAIL
+O2: FAIL

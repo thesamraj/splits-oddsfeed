@@ -1,0 +1,1 @@
+16895 root      0:00 {bash} /run/rosetta/rosetta /bin/bash bash /tmp/br_export_daemon.sh

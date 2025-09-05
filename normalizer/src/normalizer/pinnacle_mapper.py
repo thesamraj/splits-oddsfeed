@@ -52,42 +52,85 @@ def normalize_pinnacle_data(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _normalize_mock_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Normalize a single mock event."""
     try:
-        event_id = f"pin_{event['id']}"
+        # Handle both 'event_id' and 'id' fields
+        raw_id = event.get("event_id") or event.get("id")
+        if not raw_id:
+            logger.error(f"No event ID found in event: {event.keys()}")
+            return None
+
+        # Don't double-prefix if already prefixed
+        if raw_id.startswith("pinnacle_"):
+            event_id = raw_id
+        else:
+            event_id = f"pin_{raw_id}"
 
         # Extract markets
         markets = []
 
-        # Process each market type
-        for market_type, market_data in event.get("markets", {}).items():
-            normalized_market = {
-                "book": "pin",
-                "market_type": _map_market_type(market_type),
-                "outcomes": [],
-            }
+        # Handle different market formats
+        market_data = event.get("markets", [])
 
-            # Process outcomes
-            for outcome in market_data.get("outcomes", []):
-                normalized_outcome = {
-                    "name": outcome["name"],
-                    "price": _normalize_price(outcome["price"]),
+        # If markets is a list (universal collector format)
+        if isinstance(market_data, list):
+            for market in market_data:
+                normalized_market = {
+                    "book": "pin",
+                    "market_type": _map_market_type(market.get("type", "moneyline")),
+                    "outcomes": [],
                 }
 
-                # Add point if present
-                if "point" in outcome:
-                    normalized_outcome["point"] = _normalize_point(outcome["point"])
+                # Process selections/outcomes
+                for selection in market.get("selections", []):
+                    normalized_outcome = {
+                        "name": selection.get("name"),
+                        "price": _normalize_price(selection.get("price")),
+                    }
 
-                normalized_market["outcomes"].append(normalized_outcome)
+                    # Add line/point if present
+                    if "line" in selection:
+                        normalized_outcome["point"] = _normalize_point(
+                            selection["line"]
+                        )
 
-            if normalized_market["outcomes"]:
-                markets.append(normalized_market)
+                    normalized_market["outcomes"].append(normalized_outcome)
+
+                if normalized_market["outcomes"]:
+                    markets.append(normalized_market)
+
+        # If markets is a dict (older format)
+        elif isinstance(market_data, dict):
+            for market_type, market_info in market_data.items():
+                normalized_market = {
+                    "book": "pin",
+                    "market_type": _map_market_type(market_type),
+                    "outcomes": [],
+                }
+
+                # Process outcomes
+                for outcome in market_info.get("outcomes", []):
+                    normalized_outcome = {
+                        "name": outcome["name"],
+                        "price": _normalize_price(outcome["price"]),
+                    }
+
+                    # Add point if present
+                    if "point" in outcome:
+                        normalized_outcome["point"] = _normalize_point(outcome["point"])
+
+                    normalized_market["outcomes"].append(normalized_outcome)
+
+                if normalized_market["outcomes"]:
+                    markets.append(normalized_market)
 
         return {
             "event_id": event_id,
             "league": event.get("league", "NFL"),
-            "sport": "american_football",
-            "start_time": event.get("starts"),
-            "home_team": event.get("home_team"),
-            "away_team": event.get("away_team"),
+            "sport": event.get("sport", "american_football"),
+            "start_time": event.get("start_time")
+            or event.get("starts")
+            or datetime.utcnow().isoformat(),
+            "home_team": event.get("home_team") or event.get("home", "TBD"),
+            "away_team": event.get("away_team") or event.get("away", "TBD"),
             "markets": markets,
         }
 

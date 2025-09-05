@@ -1,0 +1,12 @@
+=== FINAL ===
+BR/SH frozen intact.
+Public token discovered: rsi2uspa ✅
+
+Metrics (15 min window):
+- DB odds count: 2509
+- Distinct events: 53
+- API events: 20
+
+BR Collectors Status:
+- collector-br-prematch-b: Up 17 hours
+- collector-br-prematch-a: Up 17 hours

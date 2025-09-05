@@ -1,0 +1,73 @@
+groups:
+  - name: collector_alerts
+    interval: 30s
+    rules:
+      # Alert when a collector is down
+      - alert: CollectorDown
+        expr: up{job=~"collector.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Collector {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} has been down for more than 2 minutes."
+
+      # Alert when no data is being collected
+      - alert: NoDataFlow
+        expr: rate(odds_collected_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No odds collected from {{ $labels.book }}"
+          description: "{{ $labels.book }} has not collected any odds in the last 5 minutes."
+
+      # Alert on high error rate
+      - alert: HighErrorRate
+        expr: rate(collector_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for {{ $labels.collector }}"
+          description: "{{ $labels.collector }} is experiencing {{ $value }} errors per second."
+
+      # Alert on database connection issues
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+      # Alert on Redis connection issues
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis broker has been down for more than 1 minute."
+
+      # Alert on normalizer backlog
+      - alert: NormalizerBacklog
+        expr: redis_queue_size > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large normalizer backlog"
+          description: "Normalizer queue has {{ $value }} messages pending."
+
+      # Alert on container restarts
+      - alert: ExcessiveRestarts
+        expr: rate(container_restarts_total[1h]) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.container }} restarting frequently"
+          description: "{{ $labels.container }} has restarted {{ $value }} times in the last hour."

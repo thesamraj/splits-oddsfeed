@@ -1,0 +1,16 @@
+services:
+  collector-dk-cdp:
+    image: mcr.microsoft.com/playwright/python:v1.45.0-jammy
+    working_dir: /app
+    volumes:
+      - ./collectors/dk_cdp:/app
+    command: ["bash", "-c", "pip install redis && python -m playwright install chromium && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.dk.cdp
+      - URL=https://sportsbook.draftkings.com/leagues/football/88670846?category=game-lines
+      - MIN_JSON_BYTES=800
+      - ALLOW_ALL=0
+      - EXTRA_KEYS=offer,offerCategories,displayOdds,americanOdds,price
+    depends_on: [broker]
+    restart: unless-stopped

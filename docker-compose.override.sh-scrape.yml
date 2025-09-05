@@ -1,0 +1,39 @@
+version: '3.8'
+
+# SH Scrape Sandbox - DOM-based SugarHouse scraper (BR frozen preserved)
+services:
+  # SugarHouse DOM Scraper (Playwright)
+  collector-sh-scrape:
+    build:
+      context: ./collectors/sh_scrape
+      dockerfile: Dockerfile
+    environment:
+      - SH_BASE_URL=https://pa.sugarhouse.com/sports
+      - SCRAPE_INTERVAL_SEC=30
+      - PUBLISH_CHANNEL=odds.raw.kambi
+      - BRAND_HINT=sugarhouse
+      - HEALTHZ_PORT=9141
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "9141:9141"
+    depends_on:
+      - broker
+    restart: unless-stopped
+
+  # SH Backup Scraper (staggered)
+  collector-sh-scrape-b:
+    build:
+      context: ./collectors/sh_scrape
+      dockerfile: Dockerfile
+    environment:
+      - SH_BASE_URL=https://pa.sugarhouse.com/sports
+      - SCRAPE_INTERVAL_SEC=45
+      - PUBLISH_CHANNEL=odds.raw.kambi
+      - BRAND_HINT=sugarhouse
+      - HEALTHZ_PORT=9142
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "9142:9142"
+    depends_on:
+      - broker
+    restart: unless-stopped

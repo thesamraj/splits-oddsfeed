@@ -1,0 +1,12 @@
+FROM mcr.microsoft.com/playwright:v1.55.0-jammy
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install playwright ioredis express pako
+
+COPY pusher_ws_bridge.js ./
+
+EXPOSE 9118
+
+CMD ["node", "pusher_ws_bridge.js"]

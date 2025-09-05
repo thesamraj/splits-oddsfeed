@@ -1,0 +1,12 @@
+odds|event_id|text
+_hyper_1_1_chunk|event_id|text
+_hyper_1_4_chunk|event_id|text
+_hyper_1_6_chunk|event_id|text
+_hyper_1_8_chunk|event_id|text
+_hyper_2_2_chunk|event_id|text
+_hyper_2_3_chunk|event_id|text
+_hyper_2_5_chunk|event_id|text
+_hyper_2_9_chunk|event_id|text
+odds|event_id|text
+odds_events|event_id|text
+odds_ticks|event_id|bigint

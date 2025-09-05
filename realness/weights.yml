@@ -1,0 +1,93 @@
+# Realness scoring weights configuration
+# Hard signals (must pass): price_variance, team_entropy, duplicate_ratio
+# Soft signals (context-aware): event_diversity, time_spread
+
+default:
+  weights:
+    price_variance: 0.30    # HARD: must be >= 0.8
+    team_entropy: 0.25       # HARD: must be >= 0.8
+    duplicate_ratio: 0.25    # HARD: must be >= 0.6
+    event_diversity: 0.10    # SOFT: context-aware
+    time_spread: 0.10        # SOFT: context-aware
+  thresholds:
+    hard_minimum: 0.85       # If all hard signals pass, accept >= 0.85
+    standard: 0.90           # Standard threshold
+  hard_signals:
+    - price_variance: 0.8
+    - team_entropy: 0.8
+    - duplicate_ratio: 0.6
+
+bovada:
+  weights:
+    price_variance: 0.30
+    team_entropy: 0.25
+    duplicate_ratio: 0.20    # Lower weight due to aggressive dedup
+    event_diversity: 0.15    # Higher weight for diversity
+    time_spread: 0.10
+  expected_hourly_events:
+    # Baseline expectations by hour (0-23 UTC)
+    # Based on typical Bovada slate sizes
+    0: 150   # Evening games (8PM ET)
+    1: 180   # Prime time (9PM ET)
+    2: 200   # Late games (10PM ET)
+    3: 180   # West coast prime
+    4: 150   # Late west coast
+    5: 100   # Overnight
+    6: 80    # Early morning
+    7: 60    # Morning
+    8: 60
+    9: 60
+    10: 80   # Noon ET
+    11: 100
+    12: 120  # Afternoon
+    13: 150  # 1PM ET games
+    14: 180  # 2PM ET
+    15: 200  # 3PM ET
+    16: 220  # 4PM ET NFL window
+    17: 250  # 5PM ET peak
+    18: 250  # 6PM ET peak
+    19: 220  # 7PM ET
+    20: 200  # 8PM ET primetime
+    21: 180  # 9PM ET
+    22: 160  # 10PM ET
+    23: 140  # 11PM ET
+
+fanduel:
+  weights:
+    price_variance: 0.30
+    team_entropy: 0.30
+    duplicate_ratio: 0.20
+    event_diversity: 0.10
+    time_spread: 0.10
+
+draftkings:
+  weights:
+    price_variance: 0.30
+    team_entropy: 0.30
+    duplicate_ratio: 0.20
+    event_diversity: 0.10
+    time_spread: 0.10
+
+# Kambi books share similar characteristics
+kambi_default:
+  weights:
+    price_variance: 0.25
+    team_entropy: 0.25
+    duplicate_ratio: 0.25
+    event_diversity: 0.15
+    time_spread: 0.10
+
+betrivers:
+  inherit: kambi_default
+
+caesars:
+  inherit: kambi_default
+
+barstool:
+  inherit: kambi_default
+
+sugarhouse:
+  inherit: kambi_default
+
+unibet:
+  inherit: kambi_default

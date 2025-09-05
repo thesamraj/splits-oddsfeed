@@ -1,0 +1,44 @@
+=== PHASE B VERIFICATION ===
+Started: Thu Aug 28 19:10:06 EDT 2025
+
+=== T2: NORMALIZER LOG ANALYSIS ===
+BRAND_EVAL count: 10 (need ≥6)
+E2E count: 1 (need ≥6)
+Max E2E: s (need <1.0s)
+T2a: BRAND_EVAL ≥ 6 ✓
+T2b: E2E < 6 ✗
+T2c: Max E2E ≥ 1.0s ✗
+T2: FAIL
+
+=== T5: EVENT THROUGHPUT ===
+DB events (15m):  (need ≥30)
+T5: FAIL
+
+=== O1: ODDS THROUGHPUT ===
+DB odds (15m):  (need ≥50)
+O1: FAIL
+
+=== O2: API EVENTS WITH PRICES ===
+API events with prices: 0 (need >0)
+O2: FAIL
+
+=== 3-MINUTE HEALTHZ WATCH ===
+Quick healthz monotonic check:
+Sample 1:
+12035
+9008
+Sample 2:
+12035
+9040
+Sample 3:
+12067
+9040
+
+=== CYCLE 1 RESULTS ===
+T2: false
+T5: false
+O1: false
+O2: false
+
+FAILURES: 4/4 criteria
+Verification completed: Thu Aug 28 19:11:04 EDT 2025

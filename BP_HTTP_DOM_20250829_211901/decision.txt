@@ -1,0 +1,6 @@
+::BP_HTTP_DOM:: GO — captured JSON via XHR/fetch (json_count=8). Next: wire parser in sandbox and publish to odds.raw.betparx_http.
+/Users/sam/Desktop/splits-oddsfeed/BP_HTTP_DOM_20250829_211901_run/xhr_13_1756502345929.json
+/Users/sam/Desktop/splits-oddsfeed/BP_HTTP_DOM_20250829_211901_run/xhr_1_1756502345117.json
+/Users/sam/Desktop/splits-oddsfeed/BP_HTTP_DOM_20250829_211901_run/xhr_22_1756502346253.json
+/Users/sam/Desktop/splits-oddsfeed/BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346533.json
+/Users/sam/Desktop/splits-oddsfeed/BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346535.json

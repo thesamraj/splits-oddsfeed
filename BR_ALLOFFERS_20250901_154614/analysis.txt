@@ -1,0 +1,30 @@
+BR_ALL_BETOFFERS Analysis
+========================
+
+BASELINE: 4,965 odds in 15 minutes
+AFTER: 4,591 odds in 15 minutes
+
+Result: NO LIFT (actually slight decrease)
+
+Market Breakdown After Changes:
+- h2h: 4,595 (100%)
+- spreads: 0
+- totals: 0
+- other: 0
+
+Root Cause Analysis:
+1. Normalizer enhanced mapper IS working correctly
+2. Enhanced mapper is being called for each event
+3. BUT: Only finding 1 bet offer per event (mainBetOffer)
+
+Issue: The Kambi browser collector is NOT sending all betOffers
+- Collector only extracts mainBetOffer from the page
+- betOffers array is not included in the published data
+- Enhanced normalizer can't process data that isn't there
+
+Solution Required:
+- Modify the Kambi browser collector to extract ALL betOffers
+- This requires changes to the collector code itself
+- Current collector is a prebuilt Docker image (ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser)
+
+Status: BLOCKED - collector modification needed

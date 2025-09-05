@@ -1,0 +1,1 @@
+t0 ticks_bovada_15m=2960

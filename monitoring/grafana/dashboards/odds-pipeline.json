@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "title": "Odds Collection Pipeline",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Odds Collected",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(odds_collected_total)",
+            "legendFormat": "Total Odds"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}
+      },
+      {
+        "id": 2,
+        "title": "Active Collectors",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(up{job=~\"collector.*\"})",
+            "legendFormat": "Active Collectors"
+          }
+        ],
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}
+      },
+      {
+        "id": 3,
+        "title": "Odds Per Minute by Book",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(odds_collected_total[1m]) * 60",
+            "legendFormat": "{{book}}"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}
+      },
+      {
+        "id": 4,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(collector_errors_total[5m])",
+            "legendFormat": "{{collector}}"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6}
+      },
+      {
+        "id": 5,
+        "title": "Database Storage Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(database_writes_total[1m]) * 60",
+            "legendFormat": "Writes/min"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 6, "w": 12, "h": 6}
+      },
+      {
+        "id": 6,
+        "title": "Normalizer Processing Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(message_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99 latency"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 6}
+      },
+      {
+        "id": 7,
+        "title": "Redis Queue Size",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "redis_queue_size",
+            "legendFormat": "Queue Size"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 6}
+      }
+    ],
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "uid": "odds-pipeline"
+  }
+}

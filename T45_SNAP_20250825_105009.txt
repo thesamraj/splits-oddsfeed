@@ -1,0 +1,41 @@
+
+PHASE A — SNAPSHOT (20250825_105009)
+
+2) API Health Check
+{"status":"ok","components":{"redis":"ok","database":"ok"}}
+3) Healthz Endpoints
+SugarHouse (9133):
+{"status": "idle", "last_status": 418, "last_200_ts": null, "last_429_ts": null, "backoff_seconds": 307}
+BetParx (9124):
+curl: (7) Failed to connect to 127.0.0.1 port 9124 after 0 ms: Couldn't connect to server
+4) Redis PUBSUB Check
+odds.raw.kambi
+0
+
+5) DB Ground Truth (15m) - DISTINCT events per brand
+betrivers|54
+
+6) API per-brand events (15m)
+betrivers:
+0
+betparx:
+0
+unibet:
+0
+
+API per-brand (15m) - AFTER FIX:
+betrivers:
+51
+betparx:
+0
+unibet:
+0
+
+=== T4 ALIGNMENT VERIFICATION ===
+DB vs API comparison:
+Brand | DB_Events | API_Events | %_Diff
+BR    | 54        | 51         | 5.6%
+BP    | 0         | 0          | 0%
+UB    | 0         | 0          | 0%
+
+T4 STATUS: MARGINAL (BR: 5.6% > 5% threshold)

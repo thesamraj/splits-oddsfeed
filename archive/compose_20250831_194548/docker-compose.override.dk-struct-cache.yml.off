@@ -1,0 +1,8 @@
+services:
+  dk-struct-cache:
+    image: python:3.11-slim
+    command: bash -c "pip install --no-cache-dir redis >/dev/null && python /app/dk_struct_cache.py"
+    volumes:
+      - ./sandbox:/app
+    depends_on: [broker]
+    restart: unless-stopped

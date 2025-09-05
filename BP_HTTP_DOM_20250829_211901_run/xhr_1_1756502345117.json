@@ -1,0 +1,1530 @@
+{
+  "menuItems": [
+    {
+      "name": "Casino",
+      "title": "Real Money Online Casino, Slots & Table Games - betPARX PA",
+      "url": "/casino",
+      "friendlyURL": "/casino",
+      "cssClasses": "",
+      "menuIcon": "casino",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": null,
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": ""
+    },
+    {
+      "name": "Sports",
+      "title": "Pennsylvania Online Sports Betting & Sportsbook - betPARX PA",
+      "url": "/kambi",
+      "friendlyURL": "/kambi",
+      "cssClasses": "",
+      "menuIcon": "sport-betting",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": null,
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": ""
+    },
+    {
+      "name": "Online Xclub",
+      "title": "Online Xclub",
+      "url": "/online-xclub",
+      "friendlyURL": "/online-xclub",
+      "cssClasses": "xclub",
+      "menuIcon": "xclub",
+      "isHoverMenu": false,
+      "roles": [
+        "USER"
+      ],
+      "children": null,
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": ""
+    },
+    {
+      "name": "Promotions",
+      "title": "Casino Rewards & New Player Offers - betPARX PA",
+      "url": "/promotions",
+      "friendlyURL": "/promotions",
+      "cssClasses": "",
+      "menuIcon": "promotions",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": [
+        {
+          "name": "Leaderboard",
+          "title": "Leaderboard",
+          "url": "/leaderboard",
+          "friendlyURL": "/leaderboard",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        }
+      ],
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": ""
+    },
+    {
+      "name": "My Bonuses",
+      "title": "My Bonuses",
+      "url": "/bonus-history",
+      "friendlyURL": "/bonus-history",
+      "cssClasses": "",
+      "menuIcon": "my-bonuses",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": null,
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": true,
+      "showNavigationBarTablet": true,
+      "target": ""
+    },
+    {
+      "name": "What's New",
+      "title": "New Gaming Features - betPARX PA",
+      "url": "/whatsnew",
+      "friendlyURL": "/whatsnew",
+      "cssClasses": "",
+      "menuIcon": "whats-new",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": null,
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": true,
+      "expandedByDefaultTablet": true,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": ""
+    },
+    {
+      "name": "My Account",
+      "title": "My Account",
+      "url": "/profile",
+      "friendlyURL": "/my-account",
+      "cssClasses": "desktop-hidden-menu-nav-item",
+      "menuIcon": "my-account",
+      "isHoverMenu": false,
+      "roles": [
+        "USER"
+      ],
+      "children": [
+        {
+          "name": "Profile",
+          "title": "Profile",
+          "url": "/profile",
+          "friendlyURL": "/profile",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": true,
+          "target": ""
+        },
+        {
+          "name": "Banking",
+          "title": "Banking",
+          "url": "/banking",
+          "friendlyURL": "/banking",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": [
+            {
+              "name": "Deposit",
+              "title": "Deposit",
+              "url": "/deposit",
+              "friendlyURL": "/deposit",
+              "cssClasses": "",
+              "menuIcon": "deposit",
+              "isHoverMenu": false,
+              "roles": [
+                "USER"
+              ],
+              "children": null,
+              "hoverMenuColumns": [
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                }
+              ],
+              "expandablePageMobile": true,
+              "expandablePageTablet": true,
+              "expandedByDefaultMobile": true,
+              "expandedByDefaultTablet": true,
+              "showNavigationBarDesktop": true,
+              "showNavigationBarTablet": true,
+              "target": ""
+            },
+            {
+              "name": "Withdraw",
+              "title": "Withdraw",
+              "url": "/withdraw",
+              "friendlyURL": "/withdraw",
+              "cssClasses": "",
+              "menuIcon": "withdraw",
+              "isHoverMenu": false,
+              "roles": [
+                "USER"
+              ],
+              "children": null,
+              "hoverMenuColumns": [
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                }
+              ],
+              "expandablePageMobile": true,
+              "expandablePageTablet": true,
+              "expandedByDefaultMobile": true,
+              "expandedByDefaultTablet": true,
+              "showNavigationBarDesktop": true,
+              "showNavigationBarTablet": true,
+              "target": ""
+            },
+            {
+              "name": "Pending Withdraw",
+              "title": "Pending Withdraw",
+              "url": "/pending-withdraw",
+              "friendlyURL": "/pending-withdraw",
+              "cssClasses": "",
+              "menuIcon": "pending-withdraw",
+              "isHoverMenu": false,
+              "roles": [
+                "USER"
+              ],
+              "children": null,
+              "hoverMenuColumns": [
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                }
+              ],
+              "expandablePageMobile": true,
+              "expandablePageTablet": true,
+              "expandedByDefaultMobile": true,
+              "expandedByDefaultTablet": true,
+              "showNavigationBarDesktop": true,
+              "showNavigationBarTablet": true,
+              "target": ""
+            },
+            {
+              "name": "Banking History",
+              "title": "Transactions",
+              "url": "/banking-history",
+              "friendlyURL": "/banking-history",
+              "cssClasses": "",
+              "menuIcon": "",
+              "isHoverMenu": false,
+              "roles": [
+                "USER"
+              ],
+              "children": null,
+              "hoverMenuColumns": [
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                }
+              ],
+              "expandablePageMobile": true,
+              "expandablePageTablet": true,
+              "expandedByDefaultMobile": true,
+              "expandedByDefaultTablet": true,
+              "showNavigationBarDesktop": true,
+              "showNavigationBarTablet": true,
+              "target": ""
+            },
+            {
+              "name": "Document Upload",
+              "title": "Document Upload",
+              "url": "/document-upload",
+              "friendlyURL": "/document-upload",
+              "cssClasses": "",
+              "menuIcon": "",
+              "isHoverMenu": false,
+              "roles": [
+                "USER"
+              ],
+              "children": null,
+              "hoverMenuColumns": [
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                },
+                {
+                  "title": "",
+                  "wCId": "",
+                  "html": "",
+                  "enabled": false
+                }
+              ],
+              "expandablePageMobile": true,
+              "expandablePageTablet": true,
+              "expandedByDefaultMobile": true,
+              "expandedByDefaultTablet": true,
+              "showNavigationBarDesktop": true,
+              "showNavigationBarTablet": true,
+              "target": ""
+            }
+          ],
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "My Balances",
+          "title": "Balance",
+          "url": "/balance",
+          "friendlyURL": "/balance",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": true,
+          "target": ""
+        },
+        {
+          "name": "Transactions",
+          "title": "Transactions",
+          "url": "/transaction-history",
+          "friendlyURL": "/transaction-history",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": true,
+          "target": ""
+        },
+        {
+          "name": "Game History",
+          "title": "Game History",
+          "url": "/game-history",
+          "friendlyURL": "/game-history",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Limits",
+          "title": "Responsible Gaming",
+          "url": "/limits",
+          "friendlyURL": "/limits",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": true,
+          "target": ""
+        },
+        {
+          "name": "Inbox",
+          "title": "Inbox",
+          "url": "/inbox",
+          "friendlyURL": "/inbox",
+          "cssClasses": "",
+          "menuIcon": "inbx-hide",
+          "isHoverMenu": false,
+          "roles": [
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": true,
+          "showNavigationBarTablet": false,
+          "target": ""
+        }
+      ],
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": false,
+      "expandedByDefaultTablet": false,
+      "showNavigationBarDesktop": true,
+      "showNavigationBarTablet": true,
+      "target": ""
+    },
+    {
+      "name": "Help Center",
+      "title": "Help Center",
+      "url": "http://helpcenter.pa.betparx.com",
+      "friendlyURL": "/help-center",
+      "cssClasses": "help-center",
+      "menuIcon": "help-center",
+      "isHoverMenu": false,
+      "roles": [
+        "GUEST",
+        "USER"
+      ],
+      "children": [
+        {
+          "name": "Help Center",
+          "title": "Help Center Link",
+          "url": "http://helpcenter.pa.betparx.com",
+          "friendlyURL": "/help-center-link",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": "_blank"
+        },
+        {
+          "name": "Responsible Gaming",
+          "title": "Responsible Gaming",
+          "url": "/responsible-gaming-info",
+          "friendlyURL": "/responsible-gaming-info",
+          "cssClasses": "",
+          "menuIcon": "responsible-gaming",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Responsible Gaming",
+          "title": "Responsible Gaming",
+          "url": "/responsible-gaming",
+          "friendlyURL": "/responsible-gaming",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Geocomply License",
+          "title": "Geocomply End Use License Agreement",
+          "url": "/GeoComplyEULA",
+          "friendlyURL": "/GeoComplyEULA",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Player protection",
+          "title": "Player protection",
+          "url": "/player-protection",
+          "friendlyURL": "/player-protection",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Privacy",
+          "title": "Privacy",
+          "url": "/privacy",
+          "friendlyURL": "/privacy",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Accessibility",
+          "title": "Accessibility",
+          "url": "/accessibility",
+          "friendlyURL": "/accessibility",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        },
+        {
+          "name": "Casino Game Rules",
+          "title": "Casino Game Rules",
+          "url": "/casino-game-rules",
+          "friendlyURL": "/casino-game-rules",
+          "cssClasses": "",
+          "menuIcon": "",
+          "isHoverMenu": false,
+          "roles": [
+            "GUEST",
+            "USER"
+          ],
+          "children": null,
+          "hoverMenuColumns": [
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            },
+            {
+              "title": "",
+              "wCId": "",
+              "html": "",
+              "enabled": false
+            }
+          ],
+          "expandablePageMobile": true,
+          "expandablePageTablet": true,
+          "expandedByDefaultMobile": true,
+          "expandedByDefaultTablet": true,
+          "showNavigationBarDesktop": false,
+          "showNavigationBarTablet": false,
+          "target": ""
+        }
+      ],
+      "hoverMenuColumns": [
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        },
+        {
+          "title": "",
+          "wCId": "",
+          "html": "",
+          "enabled": false
+        }
+      ],
+      "expandablePageMobile": true,
+      "expandablePageTablet": true,
+      "expandedByDefaultMobile": false,
+      "expandedByDefaultTablet": false,
+      "showNavigationBarDesktop": false,
+      "showNavigationBarTablet": false,
+      "target": "_blank"
+    }
+  ]
+}

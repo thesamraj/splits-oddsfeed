@@ -1,0 +1,9 @@
+=== PHASE B VERIFICATION RESULTS ===
+O1: PASS - 3832 BR odds rows (≥50 required)
+O2: PASS - API returns events with prices
+T1: PASS - API response sub-second
+T2: PASS - Latest odds sub-second
+T3: PARTIAL - /odds/history exists but returns 0 ticks
+T4: PASS - DB queries sub-second
+T5: PASS - E2E data flow active (3 recent odds)
+ISSUE: T3 needs odds_ticks table and data

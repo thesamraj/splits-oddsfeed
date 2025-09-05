@@ -1,0 +1,10 @@
+Issues to resolve:
+1. API: Needs server update to handle brand=fanduel parameter
+2. Ticks: psql command not in PATH for background job
+   Fix: Use docker exec or install postgresql-client
+
+Pipeline Status: OPERATIONAL
+- Collector: Running ✅
+- Normalizer: Writing ✅
+- Events: Properly identified ✅
+- Database: Healthy ✅

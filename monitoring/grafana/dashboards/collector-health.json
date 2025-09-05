@@ -1,0 +1,98 @@
+{
+  "dashboard": {
+    "title": "Collector Health Dashboard",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Collector Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up{job=~\"collector.*\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 6}
+      },
+      {
+        "id": 2,
+        "title": "Books Publishing Data",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by(book) (rate(odds_published_total[5m]) * 300)",
+            "legendFormat": "{{book}}"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8}
+      },
+      {
+        "id": 3,
+        "title": "Books Storing Data",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by(book) (rate(odds_stored_total[5m]) * 300)",
+            "legendFormat": "{{book}}"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8}
+      },
+      {
+        "id": 4,
+        "title": "Container Restarts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(container_restarts_total)",
+            "legendFormat": "Total Restarts"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 14, "w": 6, "h": 4}
+      },
+      {
+        "id": 5,
+        "title": "Failed Health Checks",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(health_check_failures_total)",
+            "legendFormat": "Failed Checks"
+          }
+        ],
+        "gridPos": {"x": 6, "y": 14, "w": 6, "h": 4}
+      },
+      {
+        "id": 6,
+        "title": "Browser Collector Success Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(sum(browser_scrape_success_total) / sum(browser_scrape_attempts_total)) * 100",
+            "legendFormat": "Success %"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 14, "w": 6, "h": 4}
+      },
+      {
+        "id": 7,
+        "title": "WebSocket Connection Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "websocket_connected",
+            "legendFormat": "{{collector}}"
+          }
+        ],
+        "gridPos": {"x": 18, "y": 14, "w": 6, "h": 4}
+      }
+    ],
+    "refresh": "5s",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "uid": "collector-health"
+  }
+}

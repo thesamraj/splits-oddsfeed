@@ -1,0 +1,308 @@
+{
+  "sports": [
+    {
+      "key": "rugby-league",
+      "name": "NRL",
+      "competitionKey": "7593",
+      "competitionName": "NRL",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "aussie-rules",
+      "name": "AFL",
+      "competitionKey": "7523",
+      "competitionName": "AFL",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "cricket",
+      "name": "ODIs",
+      "competitionKey": "7492",
+      "competitionName": "One Day Internationals",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "aussie-rules",
+      "name": "AFLW",
+      "competitionKey": "7303",
+      "competitionName": "AFLW",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "rugby-league",
+      "name": "NRLW",
+      "competitionKey": "17818",
+      "competitionName": "NRLW",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "mma",
+      "name": "UFC",
+      "competitionKey": "7874",
+      "competitionName": "UFC",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "baseball",
+      "name": "MLB",
+      "competitionKey": "112658",
+      "competitionName": "MLB",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "EFL Cup",
+      "competitionKey": "156281",
+      "competitionName": "EFL Cup",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "English Premier League",
+      "competitionKey": "136535",
+      "competitionName": "English Premier League",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "US Open Men's",
+      "competitionKey": "16637",
+      "competitionName": "US Open Men's",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "English Premier League Futures Multi Hub",
+      "competitionKey": "179460",
+      "competitionName": "English Premier League Futures Multi Hub",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "Champions League Playoffs",
+      "competitionKey": "176819",
+      "competitionName": "UEFA Champions League Playoffs",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "cricket",
+      "name": "Test Matches",
+      "competitionKey": "7287",
+      "competitionName": "Test Matches",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "ice-hockey",
+      "name": "NHL",
+      "competitionKey": "7208",
+      "competitionName": "NHL",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "US Open Women's",
+      "competitionKey": "16638",
+      "competitionName": "US Open Women's",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "basketball",
+      "name": "NBA",
+      "competitionKey": "7176",
+      "competitionName": "NBA",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "Australia Cup",
+      "competitionKey": "180550",
+      "competitionName": "Australia Cup",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "ATP Cincinnati",
+      "competitionKey": "179365",
+      "competitionName": "ATP Cincinnati",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "Italian Serie A",
+      "competitionKey": "136704",
+      "competitionName": "Italian Serie A",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "German Bundesliga",
+      "competitionKey": "129657",
+      "competitionName": "German Bundesliga",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "cricket",
+      "name": "Twenty20 Internationals",
+      "competitionKey": "8673",
+      "competitionName": "Twenty20 Internationals",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "basketball",
+      "name": "WNBA",
+      "competitionKey": "126714",
+      "competitionName": "WNBA",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "Spanish La Liga",
+      "competitionKey": "151865",
+      "competitionName": "Spanish La Liga",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "ATP Winston Salem",
+      "competitionKey": "179836",
+      "competitionName": "ATP Winston Salem",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "american-football",
+      "name": "NFL Preseason",
+      "competitionKey": "15206",
+      "competitionName": "NFL Preseason",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "american-football",
+      "name": "NFL",
+      "competitionKey": "11444",
+      "competitionName": "NFL",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "French Ligue 1",
+      "competitionKey": "151926",
+      "competitionName": "French Ligue 1",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "UEFA Europa Conference League",
+      "competitionKey": "155642",
+      "competitionName": "UEFA Europa Conference League",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "soccer",
+      "name": "MLS",
+      "competitionKey": "135827",
+      "competitionName": "MLS",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "WTA Monterrey",
+      "competitionKey": "8723",
+      "competitionName": "WTA Monterrey",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "motor-sports",
+      "name": "Formula One",
+      "competitionKey": "8115",
+      "competitionName": "Formula One",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "tennis",
+      "name": "WTA Cleveland",
+      "competitionKey": "88366",
+      "competitionName": "WTA Cleveland",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "rugby-union",
+      "name": "The Rugby Championship",
+      "competitionKey": "15671",
+      "competitionName": "The Rugby Championship",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "basketball",
+      "name": "NBA Futures",
+      "competitionKey": "9237",
+      "competitionName": "NBA Futures",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "ice-hockey",
+      "name": "NHL Futures",
+      "competitionKey": "174195",
+      "competitionName": "NHL Futures",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "basketball",
+      "name": "WNBA Futures",
+      "competitionKey": "30086",
+      "competitionName": "WNBA Futures",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "basketball",
+      "name": "Ausmerican Aces Hub",
+      "competitionKey": "212949",
+      "competitionName": "Ausmerican Aces Hub",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    },
+    {
+      "key": "rugby-union",
+      "name": "Women's Rugby World Cup",
+      "competitionKey": "127040",
+      "competitionName": "Women's Rugby World Cup",
+      "numberOfSpreadMarkets": 0,
+      "numberOfFixedOddsMarkets": 0
+    }
+  ]
+}

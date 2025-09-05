@@ -1,0 +1,24 @@
+services:
+  collector-dom-draftkings-struct:
+    build:
+      context: ./collectors/dom_draftkings
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        RUN pip install --no-cache-dir requests redis
+        WORKDIR /app
+        COPY extract_dk.py collector_struct.py /app/
+        CMD ["python","/app/collector_struct.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - BOOK=draftkings
+      - BRAND=draftkings
+      - URL=https://sportsbook.draftkings.com/leagues/football/88670846?category=game-lines
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  dk-sbx-listener:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install --no-cache-dir redis >/dev/null && python -c 'import time,json,redis; r=redis.from_url(\"redis://broker:6379/0\"); p=r.pubsub(); p.psubscribe(\"odds.raw.dk.sandbox\"); t=time.time(); c=0; e=0; print(\"DK sandbox listener started\", flush=True); [((c:=c+1, e:=e+len(ev.get(\"events\",[])) if (ev:=json.loads(m[\"data\"])) else e) if m[\"type\"]==\"pmessage\" else None, print(f\"DK sbx msgs: {c} total events: {e}\", flush=True) if time.time()-t>60 and (t:=time.time(), c:=0, e:=0) else None) for m in p.listen()]'"]
+    depends_on: [broker]
+    restart: unless-stopped

@@ -1,0 +1,48 @@
+# Browser-based collectors for books without API credentials
+
+services:
+  collector-betmgm-browser:
+    build:
+      context: ./collectors/betmgm_browser
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.betmgm
+      - INTERVAL=60
+      - HEADLESS=true
+    restart: unless-stopped
+    shm_size: '2gb'
+    networks:
+      - oddsfeed_network
+
+  collector-pointsbet-browser:
+    build:
+      context: ./collectors/pointsbet_browser
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.pointsbet
+      - INTERVAL=60
+      - HEADLESS=true
+    restart: unless-stopped
+    shm_size: '2gb'
+    networks:
+      - oddsfeed_network
+
+  collector-pinnacle-browser:
+    build:
+      context: ./collectors/pinnacle_browser
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.pinnacle
+      - INTERVAL=60
+      - HEADLESS=true
+    restart: unless-stopped
+    shm_size: '2gb'
+    networks:
+      - oddsfeed_network
+
+networks:
+  oddsfeed_network:
+    external: true

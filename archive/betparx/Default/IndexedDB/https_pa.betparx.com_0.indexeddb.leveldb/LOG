@@ -1,0 +1,7 @@
+2025/08/25-20:15:35.988 e4d47 Reusing MANIFEST /Users/sam/Desktop/splits-oddsfeed/diag/profiles/betparx/Default/IndexedDB/https_pa.betparx.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/08/25-20:15:35.989 e4d47 Recovering log #3
+2025/08/25-20:15:35.989 e4d47 Reusing old log /Users/sam/Desktop/splits-oddsfeed/diag/profiles/betparx/Default/IndexedDB/https_pa.betparx.com_0.indexeddb.leveldb/000003.log
+2025/08/25-20:15:36.076 e4d4a Level-0 table #5: started
+2025/08/25-20:15:36.081 e4d4a Level-0 table #5: 1872 bytes OK
+2025/08/25-20:15:36.095 e4d4a Delete type=0 #3
+2025/08/25-20:15:36.096 e4d4a Manual compaction at level-0 from '\x00\x03\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at (end)

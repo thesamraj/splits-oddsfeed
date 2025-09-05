@@ -1,0 +1,17 @@
+services:
+  collector-kambi-wsbridge-parx:
+    build:
+      context: ./wsbridge
+      dockerfile: Dockerfile
+    container_name: collector-kambi-wsbridge-parx
+    environment:
+      - BRAND=betparx
+      - HOME_URL=https://pa.betparx.com/?page=sportsbook#live
+      - REDIS_URL=redis://broker:6379/0
+      - PORT=9127
+    ports:
+      - "9130:9127"
+    restart: unless-stopped
+    depends_on:
+      - broker
+    platform: linux/amd64

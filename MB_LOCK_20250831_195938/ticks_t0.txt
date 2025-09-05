@@ -1,0 +1,5 @@
+betrivers,t0=2579
+draftkings,t0=0
+fanduel,t0=0
+pointsbet,t0=0
+barstool,t0=0

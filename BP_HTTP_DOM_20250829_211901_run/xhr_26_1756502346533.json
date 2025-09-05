@@ -1,0 +1,161 @@
+{
+  "data": [
+    {
+      "game_id": "gpas_mkeeperb1_pop",
+      "confidence": 1
+    },
+    {
+      "game_id": "gpas_pigeonfslo_pop",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_02215c83_sgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_0f0b1ae3_sgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_46e3e692_gmrsgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_60f8fb4d_isbigt",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_918d1124_ingsgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_a616dc3b_h5gsgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_b5a07972_dwgsgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_b63d3a34_dwgsgi",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_ffed82ca_igt",
+      "confidence": 1
+    },
+    {
+      "game_id": "gpas_goldrlous_pop",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_283b7dce_h5gsgi",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_2b52acd9_ingsgi",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_44a2affb_ingsgi",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_47dbe3c6_dwgsgi",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_7b85733d_knm",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_a1b54ac5_dwgsgi",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "pop_d6e80915_agsgmm",
+      "confidence": 0.6667
+    },
+    {
+      "game_id": "gpas_robcopb1us_pop",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_50451de0_ingsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_65bd664d_gmrsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_7b854a0b_whgsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_7e165083_ingsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_ba3b68f1_dwgsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_c38315ad_igt",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_f14d7b48_dwgsgi",
+      "confidence": 0.3333
+    },
+    {
+      "game_id": "pop_bdc77021_igt",
+      "confidence": 0.2857
+    },
+    {
+      "game_id": "pop_202f31a3_h5gsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_2a225f3d_ingsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_51297e09_sgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_5f38e534_gmrsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_6063da82_ingsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_868866c4_igt",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_a2aee901_gmm",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_af056e86_dwgsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_c19400e9_h5gsgi",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_e9f3ce22_knm",
+      "confidence": 0
+    },
+    {
+      "game_id": "pop_fb24eaaa_knm",
+      "confidence": 0
+    }
+  ],
+  "status": "success"
+}

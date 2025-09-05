@@ -1,0 +1,19 @@
+services:
+  collector-ub-dom:
+    build: ./collectors/ub_dom
+    environment:
+      UB_URL: "https://pa.unibet.com/?page=sportsbook#live"
+      REDIS_URL: "redis://broker:6379/0"
+      DURATION_SEC: "360"
+    depends_on: [ broker ]
+    shm_size: "1g"
+    restart: unless-stopped
+    ports: [ "9138:9138" ]
+
+  ub-dom-shim:
+    build: ./shims/ub_dom_shim
+    environment:
+      REDIS_URL: "redis://broker:6379/0"
+      SUB: "odds.raw.unibet_dom"
+    depends_on: [ broker ]
+    restart: unless-stopped

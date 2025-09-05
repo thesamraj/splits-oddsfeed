@@ -1,0 +1,14 @@
+{
+  "brand": "betparx",
+  "ws_urls": 3,
+  "ws_frames": 11,
+  "hs_req": 3,
+  "hs_resp": 3,
+  "tokens": [],
+  "inpage_http": {
+    "tried": false,
+    "status": null,
+    "token": null,
+    "snippet": null
+  }
+}

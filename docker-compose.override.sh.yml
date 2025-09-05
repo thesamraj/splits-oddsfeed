@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  collector-sh-cdp:
+    build:
+      context: ./collectors/sh_cdp
+      dockerfile: Dockerfile
+    environment:
+      - SH_URL=https://pa.playsugarhouse.com/?page=sportsbook#home
+      - SCRAPE_INTERVAL_SEC=60
+      - PUBLISH_CHANNEL=odds.raw.kambi
+      - HEALTHZ_PORT=9135
+      - REDIS_URL=redis://broker:6379/0
+    ports:
+      - "9135:9135"
+    depends_on:
+      - broker
+    restart: unless-stopped

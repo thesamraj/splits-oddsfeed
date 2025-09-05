@@ -1,0 +1,70 @@
+[
+  {
+    "ts": 1756501815.377,
+    "size": 44,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501815.419,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501815.455,
+    "size": 122,
+    "kind": "embedded-json",
+    "hasJson": true,
+    "sampleFile": "frame_3_embedded-json.json"
+  },
+  {
+    "ts": 1756501815.476,
+    "size": 308,
+    "kind": "embedded-json",
+    "hasJson": true,
+    "sampleFile": "frame_4_embedded-json.json"
+  },
+  {
+    "ts": 1756501815.773,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501840.54,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501840.759,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501865.659,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501865.86,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501890.758,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  },
+  {
+    "ts": 1756501890.96,
+    "size": 3,
+    "kind": null,
+    "hasJson": false
+  }
+]

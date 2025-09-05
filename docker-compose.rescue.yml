@@ -1,0 +1,6 @@
+version: '3.8'
+services:
+  normalizer:
+    environment:
+      - RESCUE_NORMALIZER=1
+    command: ["/app/entrypoint.sh"]

@@ -1,0 +1,72 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Odds Collection Dashboard",
+    "tags": ["odds", "sportsbooks"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "graph",
+        "title": "Odds per Minute by Book",
+        "targets": [
+          {
+            "expr": "rate(odds_collected_total[1m])",
+            "legendFormat": "{{book}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Total Odds Collected",
+        "targets": [
+          {
+            "expr": "sum(odds_collected_total)"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "graph",
+        "title": "Conversion Rate",
+        "targets": [
+          {
+            "expr": "rate(odds_converted_total[5m]) / rate(odds_processed_total[5m]) * 100",
+            "legendFormat": "Conversion %"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "table",
+        "title": "Active Sportsbooks",
+        "targets": [
+          {
+            "expr": "up{job=~'collector.*'}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "type": "graph",
+        "title": "Error Rate by Collector",
+        "targets": [
+          {
+            "expr": "rate(collector_errors_total[5m])",
+            "legendFormat": "{{collector}}"
+          }
+        ]
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 16,
+    "version": 1
+  },
+  "overwrite": true
+}

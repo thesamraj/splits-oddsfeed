@@ -1,0 +1,52 @@
+services:
+  collector-betrivers-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.betrivers
+      - KAMBI_TOKEN=rsi2uspa
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  collector-sugarhouse-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.sugarhouse
+      - KAMBI_TOKEN=rsi2uspa
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  collector-unibet-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.unibet
+      - KAMBI_TOKEN=usnj2
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  collector-caesars-api:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/betrivers_api:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.caesars
+      - KAMBI_TOKEN=us3pa
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped

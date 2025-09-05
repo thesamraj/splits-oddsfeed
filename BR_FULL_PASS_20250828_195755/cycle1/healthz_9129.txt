@@ -1,0 +1,1 @@
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T23:58:12.142169+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":135,"published":3954,"status":"active"}

@@ -1,0 +1,19 @@
+T2: Check for BRAND_EVAL and E2E logs in last 60 seconds
+       0
+
+T5: Events count (15m)
+ distinct_events
+-----------------
+               0
+(1 row)
+
+
+O1: Odds count (15m)
+ odds_count
+------------
+          0
+(1 row)
+
+
+O2: API test
+ERROR

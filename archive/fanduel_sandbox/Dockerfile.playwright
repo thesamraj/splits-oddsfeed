@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/playwright/python:v1.40.0-focal
+
+WORKDIR /app
+
+# Install Redis client and playwright
+RUN pip install redis playwright
+
+# Copy collector script
+COPY fd_playwright_collector.py .
+
+# Install Playwright browsers
+RUN python -m playwright install chromium
+
+CMD ["python", "fd_playwright_collector.py"]

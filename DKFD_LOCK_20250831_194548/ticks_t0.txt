@@ -1,0 +1,1 @@
+ticks_15m start: dk=22580 fd=119

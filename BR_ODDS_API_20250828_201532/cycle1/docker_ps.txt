@@ -1,0 +1,8 @@
+NAMES                           STATUS                  PORTS
+splits-oddsfeed-normalizer-1    Up 7 minutes            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+collector-br-prematch-b         Up 36 minutes           0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp
+collector-br-prematch-a         Up 36 minutes           0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp
+splits-oddsfeed-api-1           Up 10 hours (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+splits-oddsfeed-broker-1        Up 10 hours (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+splits-oddsfeed-store-1         Up 10 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+buildx_buildkit_ghcr-builder0   Up 9 hours

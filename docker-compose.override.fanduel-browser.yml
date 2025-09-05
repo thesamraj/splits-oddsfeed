@@ -1,0 +1,27 @@
+services:
+  collector-fanduel-browser:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./collectors/fanduel_sandbox:/app
+    command: ["bash", "-c", "pip install redis requests beautifulsoup4 && python /app/fd_browser.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.fanduel.browser
+      - URL=https://sportsbook.fanduel.com/football
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  fanduel-browser-normalizer:
+    image: python:3.11-slim
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python - <<'EOF'\nimport redis, psycopg2, json, time, os\nfrom datetime import datetime\n\nr = redis.from_url(os.getenv('REDIS_URL', 'redis://broker:6379/0'))\np = r.pubsub()\np.psubscribe('odds.raw.fanduel.browser')\n\nconn = psycopg2.connect(os.getenv('DATABASE_URL', 'postgresql://odds:odds@store:5432/oddsfeed'))\ncur = conn.cursor()\n\nprint('FanDuel browser normalizer started', flush=True)\n\nfor msg in p.listen():\n    if msg['type'] != 'pmessage': continue\n    try:\n        data = json.loads(msg['data'])\n        \n        # Parse browser-scraped data\n        for event in data.get('events', []):\n            event_id = f\"fd_{event.get('id', '')}\"\n            home = event.get('home', '')\n            away = event.get('away', '')\n            \n            for market in event.get('markets', []):\n                market_type = market.get('type', 'h2h')\n                \n                for outcome in market.get('outcomes', []):\n                    cur.execute('''\n                        INSERT INTO odds (book, event_id, sport, league, home, away, \n                                        market, outcome, price, ts)\n                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())\n                        ON CONFLICT DO NOTHING\n                    ''', (\n                        'fanduel', event_id, 'NFL', 'NFL', home, away,\n                        market_type, outcome.get('name'), outcome.get('price')\n                    ))\n        \n        conn.commit()\n        print(f'Processed {len(data.get(\"events\", []))} events', flush=True)\n        \n    except Exception as e:\n        print(f'Error: {e}', flush=True)\n        conn.rollback()\nEOF"]
+    environment:
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - REDIS_URL=redis://broker:6379/0
+    depends_on: [broker, store]
+    restart: unless-stopped

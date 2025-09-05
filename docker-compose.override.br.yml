@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  collector-kambi-http-betrivers:
+    build:
+      context: ./collector-kambi-http-br
+      dockerfile: Dockerfile
+    container_name: collector-kambi-http-betrivers
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - POLL_INTERVAL=30
+      - PORT=9126
+    ports:
+      - "9126:9126"
+    restart: unless-stopped
+    depends_on:
+      - broker
+    platform: linux/amd64

@@ -1,0 +1,7 @@
+ERROR:  column "book" does not exist
+LINE 1: ...ELECT COUNT(*) as ticks_15m FROM odds_ticks WHERE book='betr...
+                                                             ^
+ ticks_15m
+-----------
+         0
+(1 row)

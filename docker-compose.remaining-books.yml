@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  collector-betmgm:
+    build:
+      context: ./collectors/universal_collector
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - BOOK=betmgm
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+  collector-pointsbet:
+    build:
+      context: ./collectors/universal_collector
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - BOOK=pointsbet
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+  collector-pinnacle:
+    build:
+      context: ./collectors/universal_collector
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - BOOK=pinnacle
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+  collector-mybookie:
+    build:
+      context: ./collectors/universal_collector
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - BOOK=mybookie
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+  collector-stake:
+    build:
+      context: ./collectors/universal_collector
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=broker
+      - REDIS_PORT=6379
+      - BOOK=stake
+      - INTERVAL=30
+    restart: always
+    networks:
+      - oddsfeed
+
+networks:
+  oddsfeed:
+    external: true
+    name: oddsfeed_network

@@ -1,0 +1,115 @@
+version: '3.8'
+
+# Production Docker Compose - Real data only
+# No mock/fake/generator services allowed
+
+networks:
+  oddsfeed:
+    driver: bridge
+
+services:
+  # Redis broker (required)
+  broker:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - oddsfeed
+
+  # API Server
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+      - "9090:9090"  # Metrics
+      - "9091:9091"  # Health
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://broker:6379
+      - METRICS_PORT=9090
+      - HEALTH_PORT=9091
+      - ENVIRONMENT=production
+    depends_on:
+      - broker
+    restart: always
+
+  # Normalizer
+  normalizer:
+    build: ./normalizer
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://broker:6379
+      - ENABLE_REALNESS_GATE=true
+      - REAL_ONLY=true
+      - METRICS_PORT=9090
+      - HEALTH_PORT=9091
+    depends_on:
+      - broker
+    restart: always
+    networks:
+      - oddsfeed
+
+  # Metrics proxy - scrapes internal services
+  metrics-proxy:
+    image: python:3.11-slim
+    ports:
+      - "8000:8000"
+    environment:
+      - METRICS_TARGETS=http://bovada-collector:9090/metrics http://normalizer:9090/metrics
+      - PORT=8000
+      - SCRAPE_INTERVAL=30
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - ./services/metrics_proxy.py:/app/metrics_proxy.py
+    working_dir: /app
+    command: bash -c "pip install flask prometheus-client requests psycopg2-binary && python metrics_proxy.py"
+    depends_on:
+      - normalizer
+      - bovada-collector
+    restart: always
+    networks:
+      - oddsfeed
+
+  # Stage 0: Bovada (LIVE NOW)
+  bovada-collector:
+    build:
+      context: .
+      dockerfile: ./collectors/bovada_real/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://broker:6379
+      - REAL_ONLY=true
+      - REALNESS_THRESHOLD=0.9
+      - METRICS_PORT=9090
+      - HEALTH_PORT=9091
+      - COLLECTION_INTERVAL=60
+      - PROXY_URL=${PROXY_URL:-}
+    depends_on:
+      - broker
+      - normalizer
+    restart: always
+    networks:
+      - oddsfeed
+
+  # Stage 1: Kambi brands (enable one at a time)
+  # Uncomment when ready to enable
+  # betrivers-collector:
+  #   build: ./collectors/kambi_unified
+  #   environment:
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - REDIS_URL=redis://broker:6379
+  #     - KAMBI_BRAND=betrivers
+  #     - REAL_ONLY=true
+  #     - REALNESS_THRESHOLD=0.9
+  #     - METRICS_PORT=9090
+  #     - HEALTH_PORT=9091
+  #   depends_on:
+  #     - broker
+  #     - normalizer
+  #   restart: always
+
+volumes:
+  redis_data:

@@ -1,0 +1,9 @@
+NAMES                                STATUS
+splits-oddsfeed-normalizer-1         Up 5 hours
+splits-oddsfeed-api-1                Up 3 hours (healthy)
+splits-oddsfeed-broker-1             Up 7 hours (healthy)
+splits-oddsfeed-store-1              Up 5 hours (healthy)
+splits-oddsfeed-collector-sh-cdp-1   Up 22 hours
+collector-br-prematch-b              Up 6 hours
+collector-br-prematch-a              Up 6 hours
+buildx_buildkit_ghcr-builder0        Up 32 hours

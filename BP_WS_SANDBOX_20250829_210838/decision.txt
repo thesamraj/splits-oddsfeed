@@ -1,0 +1,7 @@
+::BP_WS_SANDBOX:: GO — JSON detected in WebSocket frames (json_frames=2, ws_total=11)
+Sample JSON files:
+/Users/sam/Desktop/splits-oddsfeed/BP_WS_20250829_210838_a/frame_3_embedded-json.json
+/Users/sam/Desktop/splits-oddsfeed/BP_WS_20250829_210838_a/frame_4_embedded-json.json
+/Users/sam/Desktop/splits-oddsfeed/BP_WS_20250829_210838_a/frames_meta.json
+/Users/sam/Desktop/splits-oddsfeed/BP_WS_20250829_210838_a/summary.json
+/Users/sam/Desktop/splits-oddsfeed/BP_WS_20250829_210838_b/frame_3_embedded-json.json

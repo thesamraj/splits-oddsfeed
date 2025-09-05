@@ -1,0 +1,71 @@
+=== BR_FULL_PASS_AUTOPILOT CYCLE 1 ===
+Started: Thu Aug 28 19:36:35 EDT 2025
+
+=== DOCKER STATUS ===
+NAMES                           IMAGE                               STATUS                 PORTS
+splits-oddsfeed-normalizer-1    splits-oddsfeed-normalizer          Up 20 minutes          0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp
+collector-br-prematch-a         br_prematch:latest                  Up 9 hours             0.0.0.0:9129->9129/tcp, [::]:9129->9129/tcp
+collector-br-prematch-b         br_prematch:latest                  Up 9 hours             0.0.0.0:9130->9130/tcp, [::]:9130->9130/tcp
+splits-oddsfeed-api-1           splits-oddsfeed-api                 Up 9 hours (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+splits-oddsfeed-broker-1        redis:7.2                           Up 9 hours (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+splits-oddsfeed-store-1         timescale/timescaledb:2.21.2-pg16   Up 9 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+buildx_buildkit_ghcr-builder0   moby/buildkit:buildx-stable-1       Up 8 hours
+
+=== REDIS STATUS ===
+PING:
+PONG
+PUBSUB NUMSUB odds.raw.kambi:
+odds.raw.kambi
+1
+PUBSUB NUMPAT:
+2
+
+=== HEALTHZ ENDPOINTS ===
+Port 9129:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T23:36:45.095855+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":346,"published":14296,"status":"active"}
+
+Port 9130:
+{"brand":"betrivers","channel":"odds.raw.kambi","host":"eu.offering-api.kambicdn.com","last_err":null,"last_ok_ts":"2025-08-28T23:36:24.231924+00:00","last_status":200,"last_url":"https://eu.offering-api.kambicdn.com/offering/v2018/rsi2uspa/event/live/open.json","polls":259,"published":10703,"status":"active"}
+
+=== API PROBES ===
+API Test 1 - brand=betrivers:
+{"error":"Failed to fetch odds: current transaction is aborted, commands ignored until end of transaction block"}
+API Test 2 - book=betrivers:
+{"error":"Failed to fetch odds: current transaction is aborted, commands ignored until end of transaction block"}
+=== DATABASE QUERIES ===
+BetRivers Events (15m):
+ count
+-------
+     0
+(1 row)
+
+
+BetRivers Odds (15m):
+ count
+-------
+     0
+(1 row)
+
+
+BetRivers Events with Prices (top 5):
+ id | prices
+----+--------
+(0 rows)
+
+
+Event Activity View:
+                      View "public.event_activity"
+   Column    |           Type           | Collation | Nullable | Default
+-------------+--------------------------+-----------+----------+---------
+ id          | text                     |           |          |
+ brand       | text                     |           |          |
+ sport       | text                     |           |          |
+ league      | text                     |           |          |
+ home        | text                     |           |          |
+ away        | text                     |           |          |
+ start_time  | timestamp with time zone |           |          |
+ activity_at | timestamp with time zone |           |          |
+ odds_count  | bigint                   |           |          |
+
+
+=== SNAPSHOT COMPLETE Thu Aug 28 19:37:10 EDT 2025 ===

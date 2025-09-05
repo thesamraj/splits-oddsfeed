@@ -1,0 +1,54 @@
+# DEPRECATED / SANDBOX (archived)
+# Not used in production. Left for reference only.
+# CI excludes archive/**. Do not symlink into prod compose.
+# Use docker-compose.prod.yml for deployments.
+
+version: '3.8'
+
+# TODO: DEPRECATED - Barstool uses Kambi, use kambi_next collector instead
+# This file references sandbox paths and should not be used in production
+services:
+  # # barstool-normalizer - DISABLED (use kambi normalizer)
+  # barstool-normalizer:
+  #   image: python:3.11-slim
+  #   container_name: barstool-normalizer
+  #   restart: unless-stopped
+  #   networks:
+  #     - default
+  #   volumes:
+  #     - ./normalizer/src/normalizer/kambi_mapper.py:/app/kambi_mapper.py
+  #   working_dir: /app
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - DATABASE_URL=${DATABASE_URL}
+  #     - BOOK=barstool
+  #     - METRICS_PORT=9090
+  #     - HEALTH_PORT=9091
+  #   command: >
+  #     sh -c "
+  #       pip install --no-cache-dir redis psycopg2-binary requests prometheus_client flask &&
+  #       python3 kambi_mapper.py
+  #     "
+  #   depends_on:
+  #     - broker
+
+  barstool-listener:
+    image: redis:7-alpine
+    container_name: barstool-listener
+    restart: unless-stopped
+    networks:
+      - default
+    command: >
+      sh -c "
+        while true; do
+          redis-cli -h broker SUBSCRIBE odds.raw.barstool | head -100
+          sleep 30
+        done
+      "
+    depends_on:
+      - broker
+
+networks:
+  default:
+    name: splits-oddsfeed_default
+    external: true

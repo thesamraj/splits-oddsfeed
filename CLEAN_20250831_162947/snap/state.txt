@@ -1,0 +1,324 @@
+git status:
+A  AUTOPILOT_kambi_next_20250829_160420/verify.sh
+A  BP_HTTP_DOM_20250829_211901/README.txt
+A  BP_HTTP_DOM_20250829_211901/decision.txt
+A  BP_HTTP_DOM_20250829_211901/prod_services.txt
+A  BP_HTTP_DOM_20250829_211901/proof_bundle.tgz
+A  BP_HTTP_DOM_20250829_211901_run/summary.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_12_1756502345913.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_12_1756502345913.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_13_1756502345929.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_13_1756502345929.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_19_1756502346089.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_19_1756502346089.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_1_1756502345117.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_1_1756502345117.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_22_1756502346253.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_22_1756502346253.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346533.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346533.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346535.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346535.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346536.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_26_1756502346536.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_2_1756502345250.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_2_1756502345250.meta.txt
+A  BP_HTTP_DOM_20250829_211901_run/xhr_8_1756502345907.json
+A  BP_HTTP_DOM_20250829_211901_run/xhr_8_1756502345907.meta.txt
+A  BP_MD_20250829_221248/sniff.json
+A  BP_MD_DOM_20250829_224138/probe.json
+A  BP_MD_STEALTH_20250829_221856/sniff.json
+A  BP_WS_20250829_210838_a/frame_1.txt
+A  BP_WS_20250829_210838_a/frame_2.txt
+A  BP_WS_20250829_210838_a/frame_3_embedded-json.json
+A  BP_WS_20250829_210838_a/frame_4_embedded-json.json
+A  BP_WS_20250829_210838_a/frame_5.txt
+A  BP_WS_20250829_210838_a/frames_meta.json
+A  BP_WS_20250829_210838_a/summary.json
+A  BP_WS_20250829_210838_b/frame_1.txt
+A  BP_WS_20250829_210838_b/frame_2.txt
+A  BP_WS_20250829_210838_b/frame_3_embedded-json.json
+A  BP_WS_20250829_210838_b/frame_4_embedded-json.json
+A  BP_WS_20250829_210838_b/frame_5.txt
+A  BP_WS_20250829_210838_b/frames_meta.json
+A  BP_WS_20250829_210838_b/summary.json
+A  BP_WS_SANDBOX_20250829_210838/README.txt
+A  BP_WS_SANDBOX_20250829_210838/decision.txt
+A  BP_WS_SANDBOX_20250829_210838/prod_services.txt
+A  BP_WS_SANDBOX_20250829_210838/proof_bundle.tgz
+A  BR_DB_WIREUP_20250829_175513/baseline.txt
+A  BR_DB_WIREUP_20250829_175513/br_live.json
+A  BR_DB_WIREUP_20250829_175513/final_counts.txt
+A  BR_DB_WIREUP_20250829_175513/normalizer_db_probe.txt
+A  BR_DB_WIREUP_20250829_175513/normalizer_env.txt
+A  BR_DB_WIREUP_20250829_175513/normalizer_errors.txt
+A  BR_DB_WIREUP_20250829_175513/normalizer_ls.txt
+A  BR_DB_WIREUP_20250829_175513/odds_tables.txt
+A  BR_DB_WIREUP_20250829_175513/ps.txt
+A  BR_DB_WIREUP_20250829_175513/results.txt
+A  BR_EXPAND_20250829_165208/decision.txt
+A  BR_EXPAND_20250829_165208/git_status.pre.txt
+A  BR_EXPAND_20250829_165208/ps.pre.txt
+A  BR_GUARD_20250829_205953/api_br_history_120m.json
+A  BR_GUARD_20250829_205953/api_br_latest.json
+A  BR_GUARD_20250829_205953/api_sh_latest.json
+A  BR_GUARD_20250829_205953/event_sample.txt
+A  BR_GUARD_20250829_205953/odds_15m_t0.txt
+A  BR_GUARD_20250829_205953/odds_15m_tend.txt
+A  BR_GUARD_20250829_205953/tag.txt
+A  BR_GUARD_20250829_205953/ticks_15m_t0.txt
+A  BR_GUARD_20250829_205953/ticks_15m_tend.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/br_live.json
+A  BR_SCHEMA_NORMALIZE_20250829_181336/last_odds.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/normalizer_after.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/odds_15m_t1.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/odds_bad_ids.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/summary.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/type_pair.txt
+A  BR_SCHEMA_NORMALIZE_20250829_181336/types.txt
+A  BR_SLA_20250830_000627/exports_ls.txt
+A  BR_SLA_20250830_000627/guard_tail.txt
+A  BR_SLA_20250830_000627/odds_15m.txt
+A  BR_SLA_20250830_000627/pids.txt
+A  BR_SLA_20250830_000627/summary.txt
+A  BR_SLA_20250830_000627/ticks_15m.txt
+A  BR_SOAK_20250829_205216/api_br_history_120m.json
+A  BR_SOAK_20250829_205216/api_br_latest.json
+A  BR_SOAK_20250829_205216/api_sh_latest.json
+A  BR_SOAK_20250829_205216/event_sample.txt
+A  BR_SOAK_20250829_205216/freeze.txt
+A  BR_SOAK_20250829_205216/odds_15m_t0.txt
+A  BR_SOAK_20250829_205216/odds_15m_tend.txt
+A  BR_SOAK_20250829_205216/soak_samples.txt
+A  BR_SOAK_20250829_205216/ticks_15m_t0.txt
+A  BR_SOAK_20250829_205216/ticks_15m_tend.txt
+A  BR_STABLE_20250829_170008/api.sample.json
+A  BR_STABLE_20250829_170008/ps.txt
+A  BR_STABLE_20250829_170008/redis.numpat.txt
+A  BR_TICKS_20250829_171021/api.sample.json
+A  BR_TICKS_20250829_171021/ps.txt
+A  BR_TICKS_20250829_171021/verify.txt
+A  BR_TICKS_LOCK_20250829_191826/api_br_latest.json
+A  BR_TICKS_LOCK_20250829_191826/api_sh_latest.json
+A  BR_TICKS_LOCK_20250829_191826/odds_15m.txt
+A  BR_TICKS_LOCK_20250829_191826/ticks_15m.txt
+A  BR_TICKS_LOCK_20250829_191826/ticks_growth.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/api_smoke.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/br_live.json
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/odds_15m_t0.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/odds_15m_t1.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/schema.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/ticks_15m_t0.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/ticks_15m_t1.txt
+A  BR_TICK_TRIGGER_REPAIR_20250829_182746/trigger_repair.sql.out
+A  BR_V1_POST_20250829_235731.tar.gz
+A  BR_V1_POST_20250829_235731/api/br_history_180m.json
+A  BR_V1_POST_20250829_235731/api/br_latest.json
+A  BR_V1_POST_20250829_235731/api/sh_latest.json
+A  BR_V1_POST_20250829_235731/exports/odds_br_15m.csv
+A  BR_V1_POST_20250829_235731/exports/odds_sh_15m.csv
+A  BR_V1_POST_20250829_235731/exports/ticks_15m.csv
+A  BR_V1_POST_20250829_235731/odds_15m_t0.txt
+A  BR_V1_POST_20250829_235731/odds_15m_t1.txt
+A  BR_V1_POST_20250829_235731/ps.txt
+A  BR_V1_POST_20250829_235731/public_scout.json
+A  BR_V1_POST_20250829_235731/summary.txt
+A  BR_V1_POST_20250829_235731/ticks_15m_t0.txt
+A  BR_V1_POST_20250829_235731/ticks_15m_t1.txt
+A  BR_V1_SHIP_20250829_233357/api_history_br_24h.json
+A  BR_V1_SHIP_20250829_233357/api_latest_br.json
+A  BR_V1_SHIP_20250829_233357/api_latest_sh.json
+A  BR_V1_SHIP_20250829_233357/exports/odds_br_15m.csv
+A  BR_V1_SHIP_20250829_233357/exports/odds_br_15m.json
+A  BR_V1_SHIP_20250829_233357/exports/odds_sh_15m.csv
+A  BR_V1_SHIP_20250829_233357/guard.sh
+A  BR_V1_SHIP_20250829_233357/odds_15m.txt
+A  BR_V1_SHIP_20250829_233357/odds_ticks_exists.txt
+A  BR_V1_SHIP_20250829_233357/ps.txt
+A  BR_V1_SHIP_20250829_233357/public_scout.py
+A  BR_V1_SHIP_20250829_233357/public_scout_results.json
+A  KAMBI_NEXT_FINAL_REPORT.md
+A  PUBLIC_FEED_EXPANDER_20250829_231832/archive/bp_md_20250829_231832.tgz
+A  SAFETY_REPORT.md
+A  SH_ALIAS_FREEZE_PROOF.md
+A  UB_AUTOPILOT_REPORT.md
+A  UB_DOM_FINAL_REPORT.md
+A  UB_FIX_REPORT.md
+A  UB_PUBLIC_FINAL_REPORT.md
+A  UB_RETRY_FINAL_REPORT.md
+A  UB_SANDBOX_STATUS.md
+M  api/SH_PARITY_LOG/parity_20250829.jsonl
+AM api/SH_PARITY_LOG/parity_20250830.jsonl
+A  api/collectors/ub_cdp/Dockerfile
+A  api/collectors/ub_cdp/ub_cdp_collector.py
+A  api/collectors/ub_http/Dockerfile
+A  api/collectors/ub_http/ub_http_collector.py
+A  api/collectors/ub_orchestrator/Dockerfile
+A  api/collectors/ub_orchestrator/ub_orchestrator.py
+ M api/src/api/main.py
+A  backups/pgdump_20250830_002639.sql.gz
+A  bp_md/collect.js
+A  bp_md/package-lock.json
+A  bp_md/package.json
+A  bp_md/sniff.js
+A  bp_md/sniff_token.js
+A  bp_md/sniff_token_v2.js
+A  bp_md_dom/dom_collect.js
+A  bp_md_dom/package-lock.json
+A  bp_md_dom/package.json
+A  collectors/kambi_next/Dockerfile
+A  collectors/kambi_next/kambi_next.py
+A  collectors/ub_autopilot/http/ub_http.py
+A  collectors/ub_autopilot/orchestrator/orchestrator.py
+A  collectors/ub_dom/Dockerfile
+A  collectors/ub_dom/ub_dom.js
+A  collectors/ub_dom_final/Dockerfile
+A  collectors/ub_dom_final/ub_dom.js
+M  collectors/ub_http/Dockerfile
+A  collectors/ub_http/ub_http.py
+A  collectors/ub_orchestrator/orchestrator.py
+A  collectors/ub_stealth/Dockerfile
+A  collectors/ub_stealth/ub_stealth.js
+A  dashboard/index.html
+A  dashboard/status.json
+A  demos/nfl/README.md
+AM docker-compose.override.dashboard.yml
+A  docker-compose.override.kambi-next.yml
+A  docker-compose.override.ub-autopilot.yml
+A  docker-compose.override.ub-dom.yml
+A  docker-compose.override.ub-fix.yml
+A  docker-compose.override.ub-public.yml
+A  docker-compose.override.ub-sandbox.yml
+M  docker-compose.override.ub.yml
+M  normalizer/src/normalizer/kambi_mapper.py
+AM ops_status/status.json
+A  sandbox/newbook/README.md
+A  sandbox_bp/package-lock.json
+A  sandbox_bp/package.json
+A  sandbox_bp/ws_probe.js
+A  sandbox_bp_http/capture.js
+A  sandbox_bp_http/package-lock.json
+A  sandbox_bp_http/package.json
+A  scouts/public_kambi_scout.sh
+A  scripts/backup_loop.sh
+A  scripts/ops_monitor.sh
+A  scripts/ticks_watchdog.sh
+A  shims/ub_dom_shim/Dockerfile
+A  shims/ub_dom_shim/shim.py
+A  shims/ub_dom_shim_final/Dockerfile
+A  shims/ub_dom_shim_final/shim.py
+?? BR_PRODUCTIZE_20250830_014630/
+?? CLEAN_20250831_162947/
+?? DK_CDP_VERIFY_20250830_160549/
+?? DK_STRUCT_PROMOTE_20250830_153703/
+?? DK_SUCCESS_REPORT_20250830.md
+?? FD_API_TICKS_20250830_182108/
+?? FD_FINAL_20250830_175424/
+?? FD_FINAL_REPORT_20250830.md
+?? FD_FIX_20250830_185954/
+?? FD_GLUE_20250830_183527/
+?? FD_GUARD_20250830_180537/
+?? FD_V1_20250830_171547/
+?? FD_V1_20250830_171608/
+?? FD_V1_CLOSEOUT_20250830_173025/
+?? NEW_BOOK_20250830_031200/
+?? api/SH_PARITY_LOG/SUMMARY.md
+?? backups/pgdump_20250831_002756.sql.gz
+?? collectors/barstool_sandbox/
+?? collectors/betmgm_sandbox/
+?? collectors/caesars_sandbox/
+?? collectors/dk_cdp/
+?? collectors/dom_draftkings/
+?? collectors/draftkings_sandbox/
+?? collectors/fanduel_sandbox/
+?? collectors/pointsbet_sandbox/
+?? docker-compose.override.barstool.yml
+?? docker-compose.override.betmgm.yml
+?? docker-compose.override.caesars.yml
+?? docker-compose.override.dk-cache.yml
+?? docker-compose.override.dk-cdp.yml
+?? docker-compose.override.dk-sandbox-api.yml
+?? docker-compose.override.dk-struct-cache.yml
+?? docker-compose.override.dk-struct.yml
+?? docker-compose.override.dom-draftkings-struct.yml
+?? docker-compose.override.dom-draftkings.yml
+?? docker-compose.override.draftkings.yml
+?? docker-compose.override.fanduel.yml
+?? docker-compose.override.pointsbet.yml
+?? docs/
+?? sandbox/api/
+?? sandbox/dk_cache.py
+?? sandbox/dk_struct_cache.py
+?? scripts/ops_monitor_enhanced.sh
+?? scripts/public_kambi_scout.sh
+?? web/
+
+compose ps:
+NAME                                                    STATUS
+barstool-listener                                       Up About an hour
+barstool-normalizer                                     Up About an hour
+collector-br-prematch-a                                 Up 47 hours
+collector-br-prematch-b                                 Up 47 hours
+oddsops-dashboard                                       Up 39 hours
+splits-oddsfeed-api-1                                   Up About an hour (healthy)
+splits-oddsfeed-broker-1                                Up 2 days (healthy)
+splits-oddsfeed-collector-agg-1                         Up 20 hours
+splits-oddsfeed-collector-b365-1                        Up 20 hours
+splits-oddsfeed-collector-dk-1                          Up 20 hours
+splits-oddsfeed-collector-dk-cdp-1                      Restarting (1) 4 seconds ago
+splits-oddsfeed-collector-dom-draftkings-1              Up 37 hours
+splits-oddsfeed-collector-dom-draftkings-struct-1       Up 25 hours
+splits-oddsfeed-collector-draftkings-1                  Up 20 hours
+splits-oddsfeed-collector-fanduel-1                     Up 23 hours
+splits-oddsfeed-collector-fd-1                          Up 20 hours
+splits-oddsfeed-collector-kambi-1                       Up 20 hours
+splits-oddsfeed-collector-kambi-browser-1               Up 20 hours
+splits-oddsfeed-collector-kambi-browser-2-1             Up About a minute
+splits-oddsfeed-collector-kambi-browser-betrivers-2-1   Up About a minute
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   Up About a minute
+splits-oddsfeed-collector-mgm-1                         Up 20 hours
+splits-oddsfeed-collector-pinnacle-1                    Up 20 hours (healthy)
+splits-oddsfeed-collector-pointsbet-1                   Up 14 hours
+splits-oddsfeed-collector-sh-cdp-1                      Up 2 days
+splits-oddsfeed-collector-stake-1                       Up 20 hours
+splits-oddsfeed-dk-sandbox-api-1                        Up 25 hours
+splits-oddsfeed-dk-sbx-cache-1                          Up 36 hours
+splits-oddsfeed-dk-sbx-listener-1                       Up 36 hours
+splits-oddsfeed-dk-struct-cache-1                       Up 25 hours
+splits-oddsfeed-dk-struct-listener-1                    Up 25 hours
+splits-oddsfeed-dom-listener-1                          Up 37 hours
+splits-oddsfeed-draftkings-listener-1                   Up 20 hours
+splits-oddsfeed-draftkings-normalizer-1                 Up 20 hours
+splits-oddsfeed-fanduel-listener-1                      Up 24 hours
+splits-oddsfeed-fanduel-normalizer-1                    Up 21 hours
+splits-oddsfeed-fanduel-ticks-1                         Up 21 hours
+splits-oddsfeed-grafana-1                               Restarting (1) Less than a second ago
+splits-oddsfeed-normalizer-1                            Up 46 hours
+splits-oddsfeed-pointsbet-listener-1                    Up 14 hours
+splits-oddsfeed-pointsbet-normalizer-1                  Up 14 hours
+splits-oddsfeed-prometheus-1                            Up 20 hours
+splits-oddsfeed-proxy-manager-1                         Up 20 hours
+splits-oddsfeed-store-1                                 Up 46 hours (healthy)
+splits-oddsfeed-sugarhouse-1-1                          Up 20 hours
+
+collectors:
+barstool_sandbox
+betmgm_sandbox
+br_http
+br_prematch
+br_prematch.sh
+caesars_sandbox
+dk_cdp
+dom_draftkings
+draftkings_sandbox
+fanduel_sandbox
+kambi_next
+pointsbet_sandbox
+sh_cdp
+sh_scrape
+ub_autopilot
+ub_dom
+ub_dom_final
+ub_http
+ub_orchestrator
+ub_stealth

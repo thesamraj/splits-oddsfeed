@@ -1,0 +1,49 @@
+=== BRIDGE PROOF 20250826_005258 ===
+--- docker ps ---
+NAMES                                                   PORTS                                                             STATUS
+splits-oddsfeed-collector-kambi-push-betparx-1          0.0.0.0:9119->9118/tcp, [::]:9119->9118/tcp                       Up 6 minutes
+collector-kambi-http-unibet                             0.0.0.0:9125->9125/tcp, [::]:9125->9125/tcp                       Up 4 hours
+collector-kambi-http-parx                               0.0.0.0:9124->9124/tcp, [::]:9124->9124/tcp                       Up 4 hours
+splits-oddsfeed-api-1                                   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                       Up 8 hours (healthy)
+splits-oddsfeed-normalizer-1                            0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp                       Up 10 hours
+splits-oddsfeed-sugarhouse-1-1                          0.0.0.0:9132-9133->9132-9133/tcp, [::]:9132-9133->9132-9133/tcp   Up 10 hours
+splits-oddsfeed-collector-pinnacle-1                    0.0.0.0:9110->9110/tcp, [::]:9110->9110/tcp                       Up 10 hours (healthy)
+splits-oddsfeed-collector-kambi-browser-1               0.0.0.0:9118->9118/tcp, [::]:9118->9118/tcp                       Up About a minute
+splits-oddsfeed-collector-kambi-browser-2-1             0.0.0.0:9120->9118/tcp, [::]:9120->9118/tcp                       Up 1 second
+splits-oddsfeed-collector-kambi-browser-betrivers-3-1   0.0.0.0:9126->9118/tcp, [::]:9126->9118/tcp                       Up 15 seconds
+splits-oddsfeed-broker-1                                0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp                       Up 10 hours (healthy)
+buildx_buildkit_ghcr-builder0                                                                                             Up 10 hours
+splits-oddsfeed-collector-mgm-1                         0.0.0.0:9103->9103/tcp, [::]:9103->9103/tcp                       Up 10 hours
+splits-oddsfeed-collector-dk-1                          0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp                       Up 10 hours
+splits-oddsfeed-collector-stake-1                       0.0.0.0:9105->9105/tcp, [::]:9105->9105/tcp                       Up 10 hours
+splits-oddsfeed-collector-fd-1                          0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp                       Up 10 hours
+splits-oddsfeed-collector-b365-1                        0.0.0.0:9104->9104/tcp, [::]:9104->9104/tcp                       Up 10 hours
+splits-oddsfeed-collector-agg-1                         0.0.0.0:9106->9106/tcp, [::]:9106->9106/tcp                       Up 10 hours
+splits-oddsfeed-collector-kambi-1                       0.0.0.0:9117->9107/tcp, [::]:9117->9107/tcp                       Up 10 hours
+splits-oddsfeed-grafana-1                                                                                                 Restarting (1) 23 seconds ago
+splits-oddsfeed-store-1                                 0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                       Up 10 hours (healthy)
+splits-oddsfeed-prometheus-1                            0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp                       Up 10 hours
+splits-oddsfeed-proxy-manager-1                         0.0.0.0:8099->8099/tcp, [::]:8099->8099/tcp                       Up 10 hours
+
+--- redis numsub ---
+odds.raw.kambi
+0
+
+--- redis numpat ---
+1
+
+--- healthz 9119 (last sample) ---
+{"status":"active","brand":"betparx","messages_received":33,"last_msg_ts":1756169566172,"ws_urls":["wss://mpsnare.iesnare.com/star","wss://oapi.penshared.com/socket.io/1/websocket/b5618de9-b40d-420b-9836-819f8128d13d","wss://oapi.penshared.com/socket.io/1/websocket/c395f354-7d23-439d-a5b7-b7f1f6c11602"],"last_fetch_status":"ERR","last_fetch_err":"status=ERR"}
+
+--- normalizer logs 120s ---
+
+--- API/DB 15m (betparx) ---
+API=0 (WebSocket frames don't generate structured odds data)
+DB=0 (WebSocket frames processed but no database events)
+
+--- pusher success metrics ---
+✅ S1: WebSocket frames captured (11 frames from 3 connections)
+✅ S2: Healthz monotonic counters (19→21→23→27 messages_received)
+✅ S3: Pattern subscriber=1, BRAND_EVAL logs confirmed for betparx
+❌ S4: Cannot calculate alignment with 0 events
+❌ S5: 0 events < 10 events/15min target

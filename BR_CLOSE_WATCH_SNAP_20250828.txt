@@ -1,0 +1,26 @@
+=== HEALTHZ 3-MINUTE WATCH LOG ===
+Monitoring ports:  9129 9130
+
+=== Sample 1/6 at Thu Aug 28 10:44:46 EDT 2025 ===
+Port  9129 9130:
+  FAILED
+
+
+=== Sample 2/6 at Thu Aug 28 10:45:16 EDT 2025 ===
+Port  9129 9130:
+  FAILED
+
+
+=== Sample 3/6 at Thu Aug 28 10:45:46 EDT 2025 ===
+Port  9129 9130:
+  FAILED
+
+
+=== Sample 4/6 at Thu Aug 28 10:46:16 EDT 2025 ===
+Port  9129 9130:
+  FAILED
+
+
+=== Sample 5/6 at Thu Aug 28 10:46:46 EDT 2025 ===
+Port  9129 9130:
+  FAILED

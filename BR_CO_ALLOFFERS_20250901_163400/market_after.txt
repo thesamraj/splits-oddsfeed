@@ -1,0 +1,6 @@
+ market  | count
+---------+-------
+ h2h     |  5854
+ totals  |  1043
+ spreads |   515
+(3 rows)

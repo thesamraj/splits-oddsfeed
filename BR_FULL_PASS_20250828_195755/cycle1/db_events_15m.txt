@@ -1,0 +1,4 @@
+ distinct_events
+-----------------
+               0
+(1 row)

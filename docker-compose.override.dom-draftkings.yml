@@ -1,0 +1,46 @@
+services:
+  collector-dom-draftkings:
+    build:
+      context: ./collectors/dom_draftkings
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        RUN pip install --no-cache-dir requests redis
+        WORKDIR /app
+        COPY collector.py /app/collector.py
+        CMD ["python","/app/collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - BOOK=draftkings
+      - BRAND=draftkings
+      - URL=https://sportsbook.draftkings.com/leagues/football/88670846?category=game-lines
+      - INTERVAL=20
+      - UA=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36
+    depends_on: [broker]
+    restart: unless-stopped
+
+  dom-listener:
+    image: python:3.11-slim
+    command: |
+      bash -c "pip install --no-cache-dir redis >/dev/null 2>&1 && python - <<'EOF'
+      import os,sys,time,json,redis
+      r=redis.from_url('redis://broker:6379/0')
+      p=r.pubsub()
+      p.psubscribe('odds.raw.dom')
+      t0=time.time()
+      counts=0
+      print('DOM listener started', flush=True)
+      for m in p.listen():
+          if m['type']!='pmessage': continue
+          counts+=1
+          try:
+              data = json.loads(m['data'])
+              print(f'DOM msg: brand={data.get(\"brand\")} tokens={len(data.get(\"price_tokens\",[]))}', flush=True)
+          except:
+              pass
+          if time.time()-t0>60:
+              print(f'DOM msgs in last 60s: {counts}', flush=True)
+              counts=0
+              t0=time.time()
+      EOF"
+    depends_on: [broker]
+    restart: unless-stopped

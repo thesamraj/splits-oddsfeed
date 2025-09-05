@@ -1,0 +1,405 @@
+{
+  "data": [
+    {
+      "game_id": "gpas_goldrlous_pop",
+      "confidence": 1
+    },
+    {
+      "game_id": "pop_b6c3222c_ingsgi",
+      "confidence": 0.9711111111111111
+    },
+    {
+      "game_id": "pop_220db57a_sgi",
+      "confidence": 0.9555555555555556
+    },
+    {
+      "game_id": "pop_ac8057e3_igt",
+      "confidence": 0.94
+    },
+    {
+      "game_id": "pop_bdc77021_igt",
+      "confidence": 0.9244444444444444
+    },
+    {
+      "game_id": "gpas_betpce_pop",
+      "confidence": 0.8888888888888888
+    },
+    {
+      "game_id": "gpas_oinka1_pop",
+      "confidence": 0.7311111111111112
+    },
+    {
+      "game_id": "pop_50451de0_ingsgi",
+      "confidence": 0.7133333333333334
+    },
+    {
+      "game_id": "pop_44a2affb_ingsgi",
+      "confidence": 0.7022222222222222
+    },
+    {
+      "game_id": "gpas_robcopb1us_pop",
+      "confidence": 0.6622222222222223
+    },
+    {
+      "game_id": "pop_283b7dce_h5gsgi",
+      "confidence": 0.5511111111111111
+    },
+    {
+      "game_id": "pop_cptlgn_agsgmm",
+      "confidence": 0.5288888888888889
+    },
+    {
+      "game_id": "gpas_gwizardpa_pop",
+      "confidence": 0.5155555555555555
+    },
+    {
+      "game_id": "pop_7b854a0b_whgsgi",
+      "confidence": 0.4911111111111111
+    },
+    {
+      "game_id": "pop_a2aee901_gmm",
+      "confidence": 0.46444444444444444
+    },
+    {
+      "game_id": "pop_7e165083_ingsgi",
+      "confidence": 0.4111111111111111
+    },
+    {
+      "game_id": "pop_e5cdbae7_rplsgi",
+      "confidence": 0.35777777777777775
+    },
+    {
+      "game_id": "bjsd2us2",
+      "confidence": 0.34444444444444444
+    },
+    {
+      "game_id": "pop_65bd664d_gmrsgi",
+      "confidence": 0.3288888888888889
+    },
+    {
+      "game_id": "pop_2001173001_igt",
+      "confidence": 0.3288888888888889
+    },
+    {
+      "game_id": "pop_2001137002_igt",
+      "confidence": 0.30444444444444446
+    },
+    {
+      "game_id": "pop_2bd03451_rplsgi",
+      "confidence": 0.3
+    },
+    {
+      "game_id": "pop_4054c539_h5gsgi",
+      "confidence": 0.29555555555555557
+    },
+    {
+      "game_id": "gpas_tsgiftpa_pop",
+      "confidence": 0.29333333333333333
+    },
+    {
+      "game_id": "pop_762b6ee7_ntnevm",
+      "confidence": 0.2866666666666667
+    },
+    {
+      "game_id": "pop_02215c83_sgi",
+      "confidence": 0.27111111111111114
+    },
+    {
+      "game_id": "pop_5acc08af_rdtevm",
+      "confidence": 0.27111111111111114
+    },
+    {
+      "game_id": "pop_fbf25ae3_rdtevm",
+      "confidence": 0.2577777777777778
+    },
+    {
+      "game_id": "pop_2b52acd9_ingsgi",
+      "confidence": 0.2577777777777778
+    },
+    {
+      "game_id": "gpas_sorome_pop",
+      "confidence": 0.2511111111111111
+    },
+    {
+      "game_id": "pop_210e1371_rplsgi",
+      "confidence": 0.24444444444444444
+    },
+    {
+      "game_id": "gpas_hitbarglb1_pop",
+      "confidence": 0.24444444444444444
+    },
+    {
+      "game_id": "pop_0571b270_igt",
+      "confidence": 0.24444444444444444
+    },
+    {
+      "game_id": "pop_bc8c6b9f_igt",
+      "confidence": 0.24222222222222223
+    },
+    {
+      "game_id": "pop_c19400e9_h5gsgi",
+      "confidence": 0.24222222222222223
+    },
+    {
+      "game_id": "pop_f5d41d39_ntnevm",
+      "confidence": 0.23555555555555555
+    },
+    {
+      "game_id": "gpas_fmhitbarlo_pop",
+      "confidence": 0.23555555555555555
+    },
+    {
+      "game_id": "gpas_kgomoonpa_pop",
+      "confidence": 0.23333333333333334
+    },
+    {
+      "game_id": "gpas_brkbadb1us_pop",
+      "confidence": 0.2311111111111111
+    },
+    {
+      "game_id": "pop_2001466003_igt",
+      "confidence": 0.22444444444444445
+    },
+    {
+      "game_id": "gpas_bblitz2pa_pop",
+      "confidence": 0.21555555555555556
+    },
+    {
+      "game_id": "pop_d48a0c3e_dwgsgi",
+      "confidence": 0.21555555555555556
+    },
+    {
+      "game_id": "pop_c38315ad_igt",
+      "confidence": 0.21333333333333335
+    },
+    {
+      "game_id": "pop_2a225f3d_ingsgi",
+      "confidence": 0.21333333333333335
+    },
+    {
+      "game_id": "pop_fb24eaaa_knm",
+      "confidence": 0.2088888888888889
+    },
+    {
+      "game_id": "pop_af1666d2_igt",
+      "confidence": 0.20666666666666667
+    },
+    {
+      "game_id": "pop_47dbe3c6_dwgsgi",
+      "confidence": 0.20444444444444446
+    },
+    {
+      "game_id": "pop_062aef3c_h5gsgi",
+      "confidence": 0.20222222222222222
+    },
+    {
+      "game_id": "pop_f14d7b48_dwgsgi",
+      "confidence": 0.19111111111111112
+    },
+    {
+      "game_id": "gpas_aogrotsk_pop",
+      "confidence": 0.18444444444444444
+    },
+    {
+      "game_id": "gpas_plinkpa_pop",
+      "confidence": 0.18222222222222223
+    },
+    {
+      "game_id": "pop_7b85733d_knm",
+      "confidence": 0.18222222222222223
+    },
+    {
+      "game_id": "pop_dc663eac_rplsgi",
+      "confidence": 0.17777777777777778
+    },
+    {
+      "game_id": "gpas_ssammctb1us_pop",
+      "confidence": 0.17777777777777778
+    },
+    {
+      "game_id": "gpas_mfbdagb1_pop",
+      "confidence": 0.17555555555555555
+    },
+    {
+      "game_id": "gpas_wdeadccus_pop",
+      "confidence": 0.17555555555555555
+    },
+    {
+      "game_id": "gpas_alohacca1us_pop",
+      "confidence": 0.1688888888888889
+    },
+    {
+      "game_id": "gpas_ccluckpaus_pop",
+      "confidence": 0.1688888888888889
+    },
+    {
+      "game_id": "gpas_wpistolo_pop",
+      "confidence": 0.16666666666666666
+    },
+    {
+      "game_id": "pop_2c87ffd7_knm",
+      "confidence": 0.16666666666666666
+    },
+    {
+      "game_id": "pop_ca246272_rdtevm",
+      "confidence": 0.16666666666666666
+    },
+    {
+      "game_id": "pop_51297e09_sgi",
+      "confidence": 0.16444444444444445
+    },
+    {
+      "game_id": "gpas_betwilds_pop",
+      "confidence": 0.16
+    },
+    {
+      "game_id": "pop_72976142_ingsgi",
+      "confidence": 0.16
+    },
+    {
+      "game_id": "gpas_mgbwizardlo_pop",
+      "confidence": 0.15555555555555556
+    },
+    {
+      "game_id": "pop_cb2275b1_whgsgi",
+      "confidence": 0.15333333333333332
+    },
+    {
+      "game_id": "gpas_bcircuslo_pop",
+      "confidence": 0.15333333333333332
+    },
+    {
+      "game_id": "gpas_jmoon_pop",
+      "confidence": 0.1511111111111111
+    },
+    {
+      "game_id": "pop_d6e80915_agsgmm",
+      "confidence": 0.14888888888888888
+    },
+    {
+      "game_id": "pop_2001221001_igt",
+      "confidence": 0.14444444444444443
+    },
+    {
+      "game_id": "pop_46a216bb_evoevm",
+      "confidence": 0.14222222222222222
+    },
+    {
+      "game_id": "pop_a1b54ac5_dwgsgi",
+      "confidence": 0.14222222222222222
+    },
+    {
+      "game_id": "abwl",
+      "confidence": 0.14
+    },
+    {
+      "game_id": "pop_e9f3ce22_knm",
+      "confidence": 0.13777777777777778
+    },
+    {
+      "game_id": "pop_6063da82_ingsgi",
+      "confidence": 0.13777777777777778
+    },
+    {
+      "game_id": "gpas_rwizard_pop",
+      "confidence": 0.13555555555555557
+    },
+    {
+      "game_id": "gpas_squeen_pop",
+      "confidence": 0.13333333333333333
+    },
+    {
+      "game_id": "pop_5f38e534_gmrsgi",
+      "confidence": 0.13333333333333333
+    },
+    {
+      "game_id": "gpas_mgccsahlous_pop",
+      "confidence": 0.13333333333333333
+    },
+    {
+      "game_id": "pop_a78b22b3_evr",
+      "confidence": 0.13111111111111112
+    },
+    {
+      "game_id": "pop_fad78305_igt",
+      "confidence": 0.13111111111111112
+    },
+    {
+      "game_id": "gpas_koiharb1_pop",
+      "confidence": 0.13111111111111112
+    },
+    {
+      "game_id": "pop_15e1fc7c_whgsgi",
+      "confidence": 0.1288888888888889
+    },
+    {
+      "game_id": "gpas_bbob_pop",
+      "confidence": 0.12666666666666668
+    },
+    {
+      "game_id": "gpas_elady_pop",
+      "confidence": 0.12666666666666668
+    },
+    {
+      "game_id": "bjl",
+      "confidence": 0.12444444444444444
+    },
+    {
+      "game_id": "gpas_sqmwaysb1_pop",
+      "confidence": 0.12444444444444444
+    },
+    {
+      "game_id": "pop_9e56bc6c_dwgsgi",
+      "confidence": 0.12444444444444444
+    },
+    {
+      "game_id": "pop_f0e203cc_whgsgi",
+      "confidence": 0.12222222222222222
+    },
+    {
+      "game_id": "pop_8b6dbdfe_rdtevm",
+      "confidence": 0.12222222222222222
+    },
+    {
+      "game_id": "gpas_mkeeperb1_pop",
+      "confidence": 0.12
+    },
+    {
+      "game_id": "pop_ce5883ea_sgi",
+      "confidence": 0.11777777777777777
+    },
+    {
+      "game_id": "pop_0b78b3bb_rplsgi",
+      "confidence": 0.11777777777777777
+    },
+    {
+      "game_id": "gpas_bwizard_pop",
+      "confidence": 0.11777777777777777
+    },
+    {
+      "game_id": "pop_66b26ca2_sgdsgi",
+      "confidence": 0.11555555555555555
+    },
+    {
+      "game_id": "pop_380d416e_evoevm",
+      "confidence": 0.11555555555555555
+    },
+    {
+      "game_id": "pop_be800141_igt",
+      "confidence": 0.11555555555555555
+    },
+    {
+      "game_id": "pop_4749026e_btgevm",
+      "confidence": 0.11333333333333333
+    },
+    {
+      "game_id": "pop_2077911e_igt",
+      "confidence": 0.11333333333333333
+    },
+    {
+      "game_id": "gpas_afactory_pop",
+      "confidence": 0.11333333333333333
+    }
+  ],
+  "status": "success"
+}

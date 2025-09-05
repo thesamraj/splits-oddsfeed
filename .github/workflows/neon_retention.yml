@@ -1,0 +1,110 @@
+name: Neon Data Retention
+
+on:
+  schedule:
+    # Run weekly on Sunday at 4:05 AM UTC
+    - cron: "5 4 * * 0"
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Check retention counts (dry run)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret not configured, skipping retention"
+            exit 0
+          fi
+
+          echo "=== DRY RUN STATS ==="
+          echo "Ticks to delete (>45 days):"
+          psql "$DATABASE_URL" -t -c "
+            SELECT COUNT(*) FROM odds_ticks WHERE ts < now() - interval '45 days';
+          " | xargs
+
+          echo "Odds to delete (>90 days):"
+          psql "$DATABASE_URL" -t -c "
+            SELECT COUNT(*) FROM odds WHERE ts < now() - interval '90 days';
+          " | xargs
+
+      - name: Delete old ticks (>45 days)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            exit 0
+          fi
+
+          echo "Deleting ticks older than 45 days..."
+          DELETED=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -c "
+            WITH deleted AS (
+              DELETE FROM odds_ticks
+              WHERE ts < now() - interval '45 days'
+              RETURNING 1
+            )
+            SELECT COUNT(*) FROM deleted;
+          " | xargs)
+          echo "Deleted $DELETED tick rows"
+
+      - name: Delete old odds (>90 days)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret not configured, skipping retention"
+            exit 0
+          fi
+
+          echo "Deleting odds older than 90 days..."
+          DELETED=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -c "
+            WITH deleted AS (
+              DELETE FROM odds
+              WHERE ts < now() - interval '90 days'
+              RETURNING 1
+            )
+            SELECT COUNT(*) FROM deleted;
+          " | xargs)
+          echo "Deleted $DELETED odds rows"
+
+      - name: Report statistics
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            exit 0
+          fi
+
+          echo "=== Database Statistics ==="
+          psql "$DATABASE_URL" -c "
+            SELECT
+              'odds' as table_name,
+              COUNT(*) as total_rows,
+              MIN(ts) as oldest_record,
+              MAX(ts) as newest_record
+            FROM odds
+            UNION ALL
+            SELECT
+              'odds_ticks' as table_name,
+              COUNT(*) as total_rows,
+              MIN(ts) as oldest_record,
+              MAX(ts) as newest_record
+            FROM odds_ticks;
+          "
+
+      - name: Notify Slack on failure
+        if: failure() && secrets.SLACK_WEBHOOK
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          curl -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"⚠️ Neon retention job failed for splits-oddsfeed"}' \
+            "$SLACK_WEBHOOK"

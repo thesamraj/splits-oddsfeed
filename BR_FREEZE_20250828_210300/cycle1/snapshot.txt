@@ -1,0 +1,7 @@
+=== PHASE A SNAPSHOT COMPLETE ===
+Docker containers: 7 running (normalizer, 2x collector-br, api, broker, store)
+Redis PUBSUB: 1 subscriber to odds.raw.kambi, 2 patterns
+Healthz: Both BR collectors active, publishing odds
+API: Returns BR events with prices
+DB: 3832 BR odds rows (15m), 39 BR events (15m)
+Missing: odds_ticks table

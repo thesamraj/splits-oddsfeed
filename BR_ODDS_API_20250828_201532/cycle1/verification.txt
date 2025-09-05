@@ -1,0 +1,17 @@
+=== PHASE B VERIFICATION ===
+O1: BetRivers odds count (15m) - Target: ≥50
+- Current: 0 odds rows
+- FAIL: 0 < 50
+
+O2: API response - Target: ≥1 event with prices[]
+- API returning database transaction errors
+- FAIL: No events returned due to DB issues
+
+SUPPORTING METRICS:
+- Events: 33 BetRivers events in 15m (good)
+- Redis subscribers: 1 active, 2 patterns
+- Collectors: 9129(8095 published), 9130(5841 published)
+
+SUMMARY: BOTH O1 & O2 FAIL
+Primary issue: Odds extraction not working (0 odds inserted)
+Secondary issue: Database transaction errors affecting API

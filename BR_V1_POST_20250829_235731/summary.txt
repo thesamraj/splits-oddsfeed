@@ -1,0 +1,9 @@
+=== Growth Check ===
+Odds 15m:  1196 -> 1526
+Ticks 15m: 236 -> 340
+✓ Odds growing: +330 in 60s
+✓ Ticks growing: +104 in 60s
+
+=== API Health ===
+BR API response:      113 bytes
+SH API response:      113 bytes

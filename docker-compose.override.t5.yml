@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  collector-kambi-browser-parx:
+    platform: linux/amd64
+    shm_size: '1g'
+    mem_limit: 2g
+    cpus: "1.0"
+    ports:
+      - "9124:9118"
+    environment:
+      - CHROME_ARGS=--no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies
+  collector-kambi-browser-unibet:
+    platform: linux/amd64
+    shm_size: '1g'
+    mem_limit: 2g
+    cpus: "1.0"
+    ports:
+      - "9125:9118"
+    environment:
+      - CHROME_ARGS=--no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-timer-throttling --disable-breakpad --disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies

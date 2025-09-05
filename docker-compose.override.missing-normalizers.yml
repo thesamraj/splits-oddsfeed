@@ -1,0 +1,36 @@
+services:
+  betrivers-normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.betrivers
+      - BOOK_OVERRIDE=betrivers
+    depends_on: [broker, store]
+    restart: unless-stopped
+
+  sugarhouse-normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.sugarhouse
+      - BOOK_OVERRIDE=sugarhouse
+    depends_on: [broker, store]
+    restart: unless-stopped
+
+  unibet-normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.unibet
+      - BOOK_OVERRIDE=unibet
+    depends_on: [broker, store]
+    restart: unless-stopped

@@ -1,0 +1,107 @@
+<!doctype html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Splits — BR/SH/FD/DK Dashboard</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;margin:24px;color:#111}
+.card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+input,select,button{padding:8px;border:1px solid #ccc;border-radius:8px}
+table{width:100%;border-collapse:collapse} th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
+small{color:#666}
+</style>
+</head><body>
+<h2>Splits — BetRivers / SugarHouse / FanDuel / DraftKings</h2>
+<div class="row">
+  <div class="card"><b>Status</b><div id="status">Loading…</div></div>
+  <div class="card">
+    <b>Search</b><br/>
+    <label>Brand</label>
+    <select id="brand"><option value="betrivers">BetRivers</option><option value="sugarhouse">SugarHouse</option><option value="fanduel">FanDuel</option><option value="draftkings">DraftKings</option><option value="betmgm">BetMGM</option><option value="caesars">Caesars</option><option value="pointsbet">PointsBet</option><option value="barstool">Barstool/ESPN BET</option></select>
+    <label>Minutes</label><input id="minutes" type="number" value="1440" min="15" step="15"/>
+    <label>Query</label><input id="q" placeholder="e.g. NFL, Eagles, Premier"/>
+    <button id="run">Search</button>
+    <button id="csv">Download CSV</button><br/>
+    <small id="searchNote"></small>
+  </div>
+</div>
+<div class="card"><b>Results</b>
+  <table id="tbl"><thead><tr><th>Event</th><th>Market</th><th>Prices</th><th>event_id</th></tr></thead><tbody></tbody></table>
+</div>
+<div class="card"><b>7-Day History (selected event)</b>
+  <div>event_id: <span id="eid">—</span></div>
+  <canvas id="chart" height="180"></canvas>
+  <small id="histNote"></small>
+</div>
+<script>
+const API = 'http://127.0.0.1:8080';
+const SVC = 'http://127.0.0.1:8090';
+let lastData=[], picked=null, chartCtx, chartRef;
+
+async function loadStatus(){
+  try{
+    const r=await fetch(SVC+'/status.json',{cache:'no-store'}); const j=await r.json();
+    const s=document.getElementById('status');
+    s.innerHTML = \`odds_15m: \${j.odds_15m} | ticks_15m: \${j.ticks_15m} | updated: \${j.ts}\`;
+  }catch(e){ document.getElementById('status').textContent='status unavailable'; }
+}
+
+function renderRows(rows){
+  const tb=document.querySelector('#tbl tbody'); tb.innerHTML='';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    const title=\`\${r.home ?? r.team_home ?? ''} vs \${r.away ?? r.team_away ?? ''}\`.trim();
+    const prices=(r.prices||[]).slice(0,3).map(x=>\`\${x.selection}: \${x.price}\`).join(', ');
+    tr.innerHTML=\`<td>\${title}</td><td>\${r.market ?? r.market_name ?? '—'}</td><td>\${prices}</td><td><button data-id="\${r.event_id}">\${r.event_id}</button></td>\`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('button[data-id]').forEach(b=>b.onclick=()=>{ picked=b.dataset.id; document.getElementById('eid').textContent=picked; loadHist(); });
+}
+
+async function runSearch(){
+  const brand=document.getElementById('brand').value;
+  const minutes=+document.getElementById('minutes').value||1440;
+  const q=(document.getElementById('q').value||'').toLowerCase();
+  document.getElementById('searchNote').textContent='Searching…';
+  const param = (brand === 'fanduel' || brand === 'draftkings' || brand === 'betmgm' || brand === 'caesars') ? 'book' : 'brand';
+  const r=await fetch(\`\${API}/odds?\${param}=\${brand}&minutes=\${minutes}&limit=200\`,{cache:'no-store'});
+  const j=await r.json();
+  const rows=(j.events||[]).filter(ev=>{
+    const t=[ev.home,ev.away,ev.league,ev.competition,ev.market_name].join(' ').toLowerCase();
+    return !q || t.includes(q);
+  });
+  lastData=rows; renderRows(rows);
+  document.getElementById('searchNote').textContent=\`\${rows.length} events\`;
+}
+
+async function loadHist(){
+  if(!picked) return;
+  const brand=document.getElementById('brand').value;
+  const r=await fetch(\`\${API}/odds/history?brand=\${brand}&event_id=\${picked}&minutes=10080\`,{cache:'no-store'});
+  const j=await r.json();
+  const pts=(j.ticks||j.history||[]).map(x=>({x:new Date(x.ts), y:+x.price})).slice(-500);
+  document.getElementById('histNote').textContent=\`\${pts.length} ticks\`;
+  const c=document.getElementById('chart'); const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+  if(pts.length<2){ ctx.fillText('No history',10,20); return; }
+  const xs=pts.map(p=>p.x.getTime()), ys=pts.map(p=>p.y);
+  const minx=Math.min(...xs), maxx=Math.max(...xs), miny=Math.min(...ys), maxy=Math.max(...ys);
+  const w=c.width-40, h=c.height-30, ox=30, oy=10;
+  ctx.beginPath();
+  pts.forEach((p,i)=>{
+    const x=ox + ( (p.x.getTime()-minx) / (maxx-minx||1) ) * w;
+    const y=oy + (1 - ((p.y-miny)/(maxy-miny||1))) * h;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+document.getElementById('run').onclick=runSearch;
+document.getElementById('csv').onclick=()=>{
+  const brand=document.getElementById('brand').value;
+  const minutes=+document.getElementById('minutes').value||1440;
+  window.location = \`\${API}/odds?brand=\${brand}&minutes=\${minutes}&limit=500&format=csv\`;
+};
+
+loadStatus(); setInterval(loadStatus,15000);
+runSearch(); setInterval(()=>{ if(picked) loadHist(); },15000);
+</script>
+</body></html>

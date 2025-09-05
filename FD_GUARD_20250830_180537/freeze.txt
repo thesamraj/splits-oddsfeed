@@ -1,0 +1,15 @@
+FanDuel Guard/Soak/Freeze - Sat Aug 30 14:12:26 EDT 2025
+====================================
+Status: PIPELINE OPERATIONAL
+Tag: fd-pipeline-20250830_180537
+
+Metrics (15m):
+- Odds: 1422
+- Events: 790
+- API: Pending integration (returns 0 events)
+
+Alerts:
+- Ticks: Flat (background job may need adjustment)
+- Odds: Stable (1404-1422 range)
+
+BR/SH Status: Completely untouched

@@ -1,0 +1,8 @@
+=== BRINGUP_ALIGN_20250826_091321 ===
+
+T4: API↔DB alignment check (atomic cutoff):
+API betrivers 15m: 1
+DB betrivers 15m (atomic):
+DB betrivers 15m: 1
+
+Alignment difference: 0% ✅ PASS

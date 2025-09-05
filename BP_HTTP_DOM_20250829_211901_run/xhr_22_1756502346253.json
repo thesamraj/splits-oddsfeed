@@ -1,0 +1,21 @@
+{
+  "qualifier": "pt.openapi.push/getEzpushProjectConfigurationResponse",
+  "data": {
+    "applicationId": "6156f322e48bcc0001e4f135",
+    "name": "4142_parx.pa",
+    "chromeApiKey": " AAAAW6bo0ao:APA91bFFYl5XmCIIr2-EHW2tzSowzylCpaJUEVKwnEUfn030h8XEftF_gUR-ob223uQ1fNqS5LKpMGITuwPzFe9Hh3w9TabrDyPpj2ZgHB3fPp_iW7GPyQ-aabL3yOVtoJ6sRhGbtPZh",
+    "firefoxApiKey": " AAAAW6bo0ao:APA91bFFYl5XmCIIr2-EHW2tzSowzylCpaJUEVKwnEUfn030h8XEftF_gUR-ob223uQ1fNqS5LKpMGITuwPzFe9Hh3w9TabrDyPpj2ZgHB3fPp_iW7GPyQ-aabL3yOVtoJ6sRhGbtPZh",
+    "chromeSenderId": "393642299818",
+    "chromeProjectId": "betparx-pa",
+    "chromeAppId": "1:393642299818:web:db23f7f0ddaaa8038f5bd3",
+    "chromeVapidKey": "BJkmZhZPfoPa8ivw9o2V-5rFSgy6xs_g9IhDWm7uoUDF54HZ6Co_Cx-Muuf5_EQkQs8q0t1LCD1TJfNssqN8tfQ",
+    "chromeClientApiKey": "AIzaSyBsM6LlJwiKlnGcCaRTlxqjVlYjeEdCxNc",
+    "firefoxSenderId": "393642299818",
+    "firefoxProjectId": "betparx-pa",
+    "firefoxAppId": "1:393642299818:web:db23f7f0ddaaa8038f5bd3",
+    "firefoxVapidKey": "BJkmZhZPfoPa8ivw9o2V-5rFSgy6xs_g9IhDWm7uoUDF54HZ6Co_Cx-Muuf5_EQkQs8q0t1LCD1TJfNssqN8tfQ",
+    "firefoxClientApiKey": "AIzaSyBsM6LlJwiKlnGcCaRTlxqjVlYjeEdCxNc",
+    "safariWebserviceUrl": null,
+    "safariWebsitePushId": null
+  }
+}

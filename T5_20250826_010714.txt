@@ -1,0 +1,9 @@
+=== T5 THROUGHPUT CHECK - 20250826_010714 ===
+
+15min Event Counts:
+betrivers: 0 events (target: ≥30)
+unibet: 0 events (target: ≥10)
+
+T5 Results:
+❌ BetRivers: 0 < 30 FAIL
+❌ Unibet: 0 < 10 FAIL

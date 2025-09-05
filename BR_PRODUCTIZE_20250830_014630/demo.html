@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>NFL Tracker — BR/SH</title>
+<div style="font-family:system-ui,Arial,sans-serif;margin:24px">
+<h3>NFL Tracker — BetRivers</h3>
+<div id="when" style="color:#666"></div>
+<table id="t" style="border-collapse:collapse;width:100%;margin-top:12px">
+<thead><tr><th align="left">Matchup</th><th align="left">Market</th><th align="left">Prices</th><th>event_id</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<script>
+const API='http://127.0.0.1:8080';
+async function tick(){
+  document.getElementById('when').textContent = 'Updated '+new Date().toLocaleTimeString();
+  const r=await fetch(API+'/odds?brand=betrivers&minutes=360&limit=200');
+  const j=await r.json();
+  const nfl=(j.events||[]).filter(e=>(e.league||'').toLowerCase().includes('nfl'));
+  const tb=document.querySelector('#t tbody'); tb.innerHTML='';
+  nfl.slice(0,10).forEach(ev=>{
+    const title=`${ev.home??''} vs ${ev.away??''}`;
+    const prices=(ev.prices||[]).slice(0,3).map(x=>`${x.selection}:${x.price}`).join(', ');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${title}</td><td>${ev.market??'—'}</td><td>${prices}</td><td>${ev.event_id}</td>`;
+    tb.appendChild(tr);
+  });
+}
+tick(); setInterval(tick,15000);
+</script>

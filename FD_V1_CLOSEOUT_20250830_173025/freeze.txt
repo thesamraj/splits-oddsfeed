@@ -1,0 +1,15 @@
+FanDuel V1 Closeout - Sat Aug 30 13:46:12 EDT 2025
+================================
+Status: GO
+Odds (15m): 819
+Events (15m): 341
+Ticks (15m): 3820
+
+Pipeline Components:
+- Collector: Operational (fd_selenium_collector.py)
+- Normalizer: Writing to DB with event creation
+- Ticks: Accumulating
+- Event IDs: Properly generated (fd_XXXXXX format)
+- BR/SH: Untouched (as per guardrails)
+
+Freeze tag: fd-v1-ready-20250830_173025

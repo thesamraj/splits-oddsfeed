@@ -1,0 +1,7 @@
+collector-br-prematch-a
+collector-br-prematch-b
+splits-oddsfeed-api-1
+splits-oddsfeed-broker-1
+splits-oddsfeed-collector-sh-cdp-1
+splits-oddsfeed-normalizer-1
+splits-oddsfeed-store-1

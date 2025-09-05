@@ -1,0 +1,11 @@
+=== SLA Guard Installation ===
+Guard PID: not found
+Export PID: EXPORT_PID=16895
+
+Guard log location: store:/tmp/br_guard.log
+Export location: store:/tmp/exports/
+Export log: store:/tmp/br_export.log
+
+Current metrics:
+  Odds (15m): 5617
+  Ticks (15m): 1372

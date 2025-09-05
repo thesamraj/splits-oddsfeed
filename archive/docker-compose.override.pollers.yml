@@ -1,0 +1,35 @@
+services:
+  collector-kambi-http-parx:
+    image: python:3.11-slim
+    container_name: collector-kambi-http-parx
+    command: sh -c "pip install requests redis && python /app/kambi_http_poller.py"
+    environment:
+      - BRAND=betparx
+      - STATE=/state/var_betparx/state.json
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.kambi
+      - HEALTHZ_PORT=9124
+      - SPLAY_MIN=90
+      - SPLAY_MAX=150
+    volumes:
+      - ./pollers:/app:ro
+      - ./var_betparx:/state/var_betparx:ro
+    depends_on: [broker]
+    ports: ["9124:9124"]
+  collector-kambi-http-unibet:
+    image: python:3.11-slim
+    container_name: collector-kambi-http-unibet
+    command: sh -c "pip install requests redis && python /app/kambi_http_poller.py"
+    environment:
+      - BRAND=unibet
+      - STATE=/state/var_unibet/state.json
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.kambi
+      - HEALTHZ_PORT=9125
+      - SPLAY_MIN=90
+      - SPLAY_MAX=150
+    volumes:
+      - ./pollers:/app:ro
+      - ./var_unibet:/state/var_unibet:ro
+    depends_on: [broker]
+    ports: ["9125:9125"]

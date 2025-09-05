@@ -1,0 +1,55 @@
+services:
+  collector-draftkings:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./collectors/draftkings_sandbox:/app
+    command: ["bash", "-c", "pip install redis requests && python /app/dk_collector.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.draftkings
+    depends_on: [broker]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  draftkings-listener:
+    image: python:3.11-slim
+    command: |
+      bash -c "pip install redis && python - <<'EOF'
+      import redis
+      import json
+      import time
+
+      r = redis.from_url('redis://broker:6379/0')
+      p = r.pubsub()
+      p.psubscribe('odds.raw.draftkings')
+
+      print('DraftKings listener started', flush=True)
+
+      for msg in p.listen():
+          if msg['type'] == 'pmessage':
+              try:
+                  data = json.loads(msg['data'])
+                  events_count = len(data.get('events', []))
+                  total_odds = sum(len(e.get('odds', [])) for e in data.get('events', []))
+                  print(f'[{time.strftime(\"%H:%M:%S\")}] DraftKings: {events_count} events, {total_odds} odds', flush=True)
+              except:
+                  pass
+      EOF"
+    depends_on: [broker]
+    restart: unless-stopped
+
+  draftkings-normalizer:
+    image: python:3.11-slim
+    volumes:
+      - ./collectors/draftkings_sandbox:/app
+    working_dir: /app
+    command: ["bash", "-c", "pip install redis psycopg2-binary && python /app/dk_normalizer.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+    depends_on: [broker, store]
+    restart: unless-stopped

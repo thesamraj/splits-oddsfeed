@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  collector-kambi-tap-betparx:
+    build:
+      context: ./taps/betparx
+      dockerfile: Dockerfile.http_tap
+    container_name: collector-kambi-tap-betparx
+    environment:
+      - BRAND=betparx
+      - HOME_URL=https://pa.betparx.com/?page=sportsbook#live
+      - REDIS_URL=redis://broker:6379/0
+    ports:
+      - "9129:9118"
+    restart: unless-stopped
+    depends_on:
+      - broker
+    platform: linux/amd64

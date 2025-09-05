@@ -1,0 +1,5 @@
+min+1 ticks: dk=18064 fd=98
+min+2 ticks: dk=15806 fd=83
+min+3 ticks: dk=11290 fd=63
+min+4 ticks: dk=9032 fd=48
+min+5 ticks: dk=6774 fd=33

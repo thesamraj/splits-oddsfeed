@@ -1,0 +1,12 @@
+                      View "public.event_activity"
+   Column    |           Type           | Collation | Nullable | Default
+-------------+--------------------------+-----------+----------+---------
+ id          | text                     |           |          |
+ brand       | text                     |           |          |
+ sport       | text                     |           |          |
+ league      | text                     |           |          |
+ home        | text                     |           |          |
+ away        | text                     |           |          |
+ start_time  | timestamp with time zone |           |          |
+ activity_at | timestamp with time zone |           |          |
+ odds_count  | bigint                   |           |          |

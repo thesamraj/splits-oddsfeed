@@ -1,0 +1,31 @@
+ M api/SH_PARITY_LOG/parity_20250829.jsonl
+ M collectors/ub_http/Dockerfile
+ M docker-compose.override.ub.yml
+ M normalizer/src/normalizer/kambi_mapper.py
+?? AUTOPILOT_kambi_next_20250829_160420/
+?? BR_EXPAND_20250829_165208/
+?? KAMBI_NEXT_FINAL_REPORT.md
+?? SAFETY_REPORT.md
+?? SH_ALIAS_FREEZE_PROOF.md
+?? UB_AUTOPILOT_REPORT.md
+?? UB_DOM_FINAL_REPORT.md
+?? UB_FIX_REPORT.md
+?? UB_PUBLIC_FINAL_REPORT.md
+?? UB_RETRY_FINAL_REPORT.md
+?? UB_SANDBOX_STATUS.md
+?? api/collectors/
+?? collectors/kambi_next/
+?? collectors/ub_autopilot/
+?? collectors/ub_dom/
+?? collectors/ub_dom_final/
+?? collectors/ub_http/ub_http.py
+?? collectors/ub_orchestrator/
+?? collectors/ub_stealth/
+?? docker-compose.override.kambi-next.yml
+?? docker-compose.override.ub-autopilot.yml
+?? docker-compose.override.ub-dom.yml
+?? docker-compose.override.ub-fix.yml
+?? docker-compose.override.ub-public.yml
+?? docker-compose.override.ub-sandbox.yml
+?? shims/ub_dom_shim/
+?? shims/ub_dom_shim_final/

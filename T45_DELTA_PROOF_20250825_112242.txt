@@ -1,0 +1,47 @@
+
+PHASE D — FINAL PROOF (20250825_112242)
+
+D1) DB DISTINCT events (15m) table:
+betrivers|65
+
+D2) API events (15m) table:
+betrivers: 78
+betparx: 0
+unibet: 0
+
+D3) T4 ALIGNMENT ANALYSIS:
+Brand     | DB_Events | API_Events | %_Diff | Status
+----------|-----------|------------|--------|--------
+betrivers | 65        | 78         | 20.0%  | ❌ FAIL
+betparx   | 0         | 0          | 0%     | ✅ PASS
+unibet    | 0         | 0          | 0%     | ✅ PASS
+
+T4 RESULT: ❌ FAIL - BR alignment 20.0% > 5% threshold
+
+D4) T5 THROUGHPUT ANALYSIS:
+Brand     | Current_15m | Target_15m | Status
+----------|-------------|------------|--------
+betrivers | 78          | ≥30        | ✅ PASS
+betparx   | 0           | ≥10        | ❌ FAIL
+unibet    | 0           | ≥10        | ❌ FAIL
+
+T5 RESULT: ❌ FAIL - BP and UB both 0/≥10
+
+D5) ROOT CAUSE ANALYSIS:
+T4 FAILURE: API/DB alignment regression (1.5% → 20.0%)
+- Fast-changing data with timing window differences
+- API and DB queries running at different microsecond timestamps
+
+T5 FAILURES:
+- BetParx: Browser deadlock (Errno 35: Resource deadlock avoided)
+- Unibet: Docker platform incompatibility (no ARM64 manifest)
+
+CONCRETE NEXT ACTIONS:
+1. T4 Fix: Implement atomic timestamp query to eliminate timing differences
+2. BetParx Fix: Increase container resource limits or use HTTP-only collector
+3. Unibet Fix: Build ARM64-compatible collector image or use x86 emulation
+
+MOST LIKELY BLOCKER PER BRAND:
+- BetParx: Resource limits preventing browser launch (action: docker resource config)
+- Unibet: Missing ARM64 Docker image (action: platform override or rebuild)
+- BetRivers: Timing window misalignment (action: atomic query implementation)

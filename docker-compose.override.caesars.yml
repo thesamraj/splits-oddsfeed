@@ -1,0 +1,25 @@
+services:
+  collector-caesars:
+    image: ghcr.io/thesamraj/splits-oddsfeed/collector-kambi-browser:latest
+    environment:
+      - BOOK=caesars
+      - BRAND=caesars
+      - TOKEN=us3pa
+      - BASE_URL=https://eu.offering-api.kambicdn.com/offering/v2018
+      - REDIS_URL=redis://broker:6379/0
+      - CHANNEL=odds.raw.caesars
+      - INTERVAL=20
+    depends_on: [broker]
+    restart: unless-stopped
+
+  caesars-normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - DATABASE_URL=postgresql://odds:odds@store:5432/oddsfeed
+      - SUBSCRIBE_CHANNELS=odds.raw.caesars
+      - BOOK_OVERRIDE=caesars
+    depends_on: [broker, store]
+    restart: unless-stopped

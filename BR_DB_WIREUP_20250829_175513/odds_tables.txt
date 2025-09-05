@@ -1,0 +1,7 @@
+          List of relations
+ Schema |    Name     | Type  | Owner
+--------+-------------+-------+-------
+ public | odds        | table | odds
+ public | odds_events | table | odds
+ public | odds_ticks  | table | odds
+(3 rows)

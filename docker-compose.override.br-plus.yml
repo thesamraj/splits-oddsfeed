@@ -1,0 +1,15 @@
+services:
+  collector-br-http-plus:
+    build:
+      context: ./collectors/br_http_plus
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+      - KAMBI_TOKEN=rsi2uspa
+      - INTERVAL=20
+      - MAX_EVENTS=120
+      - CONC=6
+      - TIMEOUT=8
+      - BATCH_SIZE=25
+      - CHANNEL=odds.raw.kambi
+    depends_on: [broker]

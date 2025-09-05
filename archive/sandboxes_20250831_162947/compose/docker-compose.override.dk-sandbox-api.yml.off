@@ -1,0 +1,17 @@
+services:
+  dk-sandbox-api:
+    build:
+      context: ./sandbox/api
+      dockerfile_inline: |
+        FROM python:3.11-slim
+        RUN pip install --no-cache-dir flask redis
+        WORKDIR /app
+        COPY app.py /app/app.py
+        EXPOSE 8092
+        CMD ["python","/app/app.py"]
+    environment:
+      - REDIS_URL=redis://broker:6379/0
+    ports:
+      - "8092:5000"
+    depends_on: [broker]
+    restart: unless-stopped

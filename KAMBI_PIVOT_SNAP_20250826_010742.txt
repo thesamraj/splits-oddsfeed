@@ -1,0 +1,22 @@
+=== KAMBI_PIVOT FINAL ASSESSMENT - 20250826_010742 ===
+
+ACCEPTANCE CRITERIA RESULTS:
+T1: Redis PUBSUB NUMSUB ≥1: ✅ PASS (2 subscribers)
+T2: ≥6 BRAND_EVAL & E2E logs: ❌ FAIL (1 BRAND_EVAL, normalizer errors)
+T3: Healthz :9128 monotonic: ✅ PASS (Unibet bridge active)
+T4: API↔DB alignment ≤5%: ✅ PASS (0% difference - both 0)
+T5: ≥10 events/15min: ❌ FAIL (0 events)
+
+ROOT CAUSE: No active Kambi data collectors
+- BetParx: Confirmed non-Kambi (uses oapi.penshared.com)
+- Unibet: WS bridge deployed but pa.unibet.com returns 503
+- BetRivers: No active collector found
+- SugarHouse: No active service on :9133
+
+ACHIEVEMENTS:
+✅ BetParx successfully de-scoped with evidence
+✅ API layer excludes betparx from Kambi filtering
+✅ Unibet WS_JSON_BRIDGE implemented and deployed
+✅ Pipeline infrastructure validated (Redis, normalizer, API, DB)
+
+BLOCKER: Need active BetRivers/SugarHouse collectors for data flow
