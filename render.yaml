@@ -7,6 +7,7 @@ services:
   - type: redis
     name: odds-broker
     plan: starter
+    ipAllowList: []  # required by Render; empty list = internal-only access
 
   # API Server
   - type: web
