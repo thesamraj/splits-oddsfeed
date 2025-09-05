@@ -21,6 +21,7 @@ from psycopg_pool import AsyncConnectionPool
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 from flask import Flask, jsonify
 import threading
+import multiprocessing
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
 from normalizer.kambi_mapper import (
@@ -115,13 +116,29 @@ PROCESSING_LATENCY = Histogram(
 app = Flask(__name__)
 
 
+def val(metric_value, labels=None, default=0):
+    """Safely get value from multiprocessing.Value or metric"""
+    try:
+        if hasattr(metric_value, '_value'):
+            # Prometheus metric
+            if labels:
+                return metric_value._value.get(labels, default)
+            return getattr(metric_value._value, 'value', default)
+        elif hasattr(metric_value, 'value'):
+            # multiprocessing.Value
+            return metric_value.value
+        else:
+            return metric_value
+    except:
+        return default
+
 @app.route("/healthz")
 def healthz():
     return jsonify(
         {
             "status": "healthy",
             "timestamp": time.time(),
-            "last_success": LAST_SUCCESS_TS._value.get(("normalizer",), 0),
+            "last_success": val(LAST_SUCCESS_TS, ("normalizer",), 0),
         }
     )
 
@@ -1696,19 +1713,36 @@ class Normalizer:
             try:
                 await asyncio.sleep(3.0)  # More frequent E2E logging
                 if self.running:
-                    # Log current metrics and status
-                    batch_size = len(self.batch_rows)
-                    last_insert = getattr(kambi_last_insert_ts, "_value", 0)
-                    now = time.time()
-                    since_last = now - last_insert if last_insert > 0 else -1
+                    try:
+                        # Log current metrics and status - guard with try/except
+                        batch_size = len(self.batch_rows)
+                        
+                        # Safely get last_insert value
+                        last_insert = 0
+                        try:
+                            if hasattr(kambi_last_insert_ts, '_value'):
+                                # For Prometheus metrics with _value dict
+                                last_insert = kambi_last_insert_ts._value.get(tuple(), 0)
+                                if hasattr(last_insert, 'value'):
+                                    last_insert = last_insert.value
+                            elif hasattr(kambi_last_insert_ts, 'value'):
+                                # For multiprocessing.Value
+                                last_insert = kambi_last_insert_ts.value
+                        except:
+                            last_insert = 0
+                        
+                        now = time.time()
+                        since_last = now - last_insert if last_insert > 0 else -1
 
-                    logger.info(
-                        f"E2E_TIMER: batch_size={batch_size} last_insert={since_last:.1f}s_ago now={now:.0f}"
-                    )
+                        logger.info(
+                            f"E2E_TIMER: batch_size={batch_size} last_insert={since_last:.1f}s_ago now={now:.0f}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"E2E_TIMER: Periodic logger error (non-fatal): {e}")
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning(f"E2E_TIMER: Error in periodic logging: {e}")
+                logger.warning(f"E2E_TIMER: Error in periodic logging loop: {e}")
 
     async def periodic_tick_cleanup(self):
         """Clean up odds_ticks older than 7 days, runs every hour"""
