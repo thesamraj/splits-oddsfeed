@@ -7,7 +7,6 @@ services:
   - type: redis
     name: odds-broker
     plan: starter
-    maxMemoryPolicy: allkeys-lru
 
   # API Server
   - type: web
@@ -52,9 +51,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/bovada_real/Dockerfile
     dockerContext: .
-    minInstances: 1
-    maxInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
@@ -90,8 +87,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/kambi_unified/Dockerfile
     dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false  # Enable after Bovada stable
     envVars:
       - key: DATABASE_URL
@@ -116,8 +112,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/kambi_unified/Dockerfile
     dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -142,8 +137,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/kambi_unified/Dockerfile
     dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -168,8 +162,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/kambi_unified/Dockerfile
     dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -194,8 +187,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/kambi_unified/Dockerfile
     dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -221,8 +213,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/fanduel_ws/Dockerfile
     dockerContext: ./collectors/fanduel_ws
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false  # Enable after Kambi stable
     envVars:
       - key: DATABASE_URL
@@ -247,8 +238,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/draftkings_ws/Dockerfile
     dockerContext: ./collectors/draftkings_ws
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false  # Enable after FanDuel stable
     envVars:
       - key: DATABASE_URL
@@ -274,8 +264,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/betmgm_browser/Dockerfile
     dockerContext: ./collectors/betmgm_browser
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -300,8 +289,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/pinnacle/Dockerfile
     dockerContext: ./collectors/pinnacle
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -328,8 +316,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/bet365_api/Dockerfile
     dockerContext: ./collectors/bet365_api
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -354,8 +341,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/stake_api/Dockerfile
     dockerContext: ./collectors/stake_api
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -378,8 +364,7 @@ services:
     plan: starter
     dockerfilePath: ./collectors/pointsbet_browser/Dockerfile
     dockerContext: ./collectors/pointsbet_browser
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -404,8 +389,7 @@ services:
     plan: starter
     dockerfilePath: ./normalizer/Dockerfile
     dockerContext: ./normalizer
-    minInstances: 1
-    restartPolicy: always
+    numInstances: 1
     autoDeploy: true  # Normalizer always auto-deploys
     envVars:
       - key: DATABASE_URL
