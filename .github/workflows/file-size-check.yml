@@ -1,0 +1,38 @@
+name: File Size Check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-file-sizes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check for large files
+        run: |
+          MAX_SIZE=104857600  # 100MB
+          FAILED=0
+          
+          # Check all files in PR
+          for file in $(git diff --name-only origin/${{ github.base_ref }}...HEAD); do
+            if [ -f "$file" ]; then
+              size=$(stat -c%s "$file" 2>/dev/null || echo 0)
+              if [ "$size" -gt "$MAX_SIZE" ]; then
+                size_mb=$((size / 1048576))
+                echo "❌ File '$file' is ${size_mb}MB (>100MB limit)"
+                FAILED=1
+              fi
+            fi
+          done
+          
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Large files detected. Please use git-lfs or exclude them."
+            exit 1
+          fi
+          
+          echo "✅ No files exceed 100MB limit"

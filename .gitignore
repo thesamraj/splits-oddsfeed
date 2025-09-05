@@ -100,3 +100,53 @@ prometheus-data/
 grafana-data/
 .env.local
 backups/*.sql.gz
+
+# Large files and backups (added by file size guards)
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.bak
+backups/
+dumps/
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+*.7z
+*.rar
+
+# Database dumps
+pgdump_*.sql*
+mysqldump_*.sql*
+*.pgdump
+*.mysqldump
+
+# Large binaries
+*.exe
+*.dmg
+*.iso
+*.deb
+*.rpm
+*.msi
+
+# Media files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.flac
+
+# Large design files  
+*.psd
+*.ai
+*.sketch
+*.fig
+
+# Temporary large files
+*.tmp
+*.temp
+*.cache
