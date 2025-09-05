@@ -18,21 +18,23 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
-      - key: PORT
-        value: 8000
       - key: DATABASE_URL
         sync: false  # For DB fallback metrics
       - key: METRICS_TARGETS
-        value: "bovada-collector:9090,normalizer:9090"
+        value: "https://oddsfeed-bovada.onrender.com,https://oddsfeed-normalizer.onrender.com"
+      - key: SERVICE_URL_BOVADA
+        value: "https://oddsfeed-bovada.onrender.com"
+      - key: SERVICE_URL_NORMALIZER
+        value: "https://oddsfeed-normalizer.onrender.com"
 
-  # Bovada collector
-  - type: worker
+  # Bovada collector (now a web service)
+  - type: web
     name: oddsfeed-bovada
     env: docker
     plan: starter
     dockerfilePath: ./collectors/bovada_real/Dockerfile
     dockerContext: .
-    numInstances: 1
+    healthCheckPath: /healthz
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
@@ -41,26 +43,18 @@ services:
         value: redis://odds-broker:6379
       - key: LIGHT_SOCCER
         value: true  # Limit soccer payload to 25MB
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
 
-  # Normalizer service  
-  - type: worker
+  # Normalizer service (now a web service)
+  - type: web
     name: oddsfeed-normalizer
     env: docker
     plan: starter
     dockerfilePath: ./normalizer/Dockerfile
     dockerContext: ./normalizer
-    numInstances: 1
+    healthCheckPath: /healthz
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
         sync: false  # Set in Render dashboard
       - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
+        value: redis://odds-broker:6379

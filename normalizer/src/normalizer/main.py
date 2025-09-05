@@ -18,8 +18,8 @@ import hashlib
 
 import redis.asyncio as redis
 from psycopg_pool import AsyncConnectionPool
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
-from flask import Flask, jsonify
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY, generate_latest, CONTENT_TYPE_LATEST
+from flask import Flask, jsonify, Response
 import threading
 import multiprocessing
 
@@ -145,8 +145,8 @@ def healthz():
 
 @app.route("/metrics")
 def metrics():
-    # Prometheus handles this via start_http_server
-    return "Use port 9090 for metrics", 200
+    """Expose Prometheus metrics"""
+    return Response(generate_latest(REGISTRY), mimetype=CONTENT_TYPE_LATEST)
 
 
 class Normalizer:
@@ -1788,10 +1788,7 @@ class Normalizer:
                     COLLECTOR_UP.labels(book="normalizer").set(0)
                     return
 
-        # Start metrics server on configured port
-        metrics_port = int(os.getenv("METRICS_PORT", "9090"))
-        start_http_server(metrics_port)
-        logger.info(f"Prometheus metrics on :{metrics_port}")
+        # Metrics are now served via Flask on the same port
 
         self.running = True
         try:
@@ -1843,21 +1840,18 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Metrics server started in run() method
-
-    # Start Flask health server in thread
-    health_port = int(os.getenv("HEALTH_PORT", "9091"))
-    health_thread = threading.Thread(
-        target=lambda: app.run(host="0.0.0.0", port=health_port, debug=False)
-    )
-    health_thread.daemon = True
-    health_thread.start()
-    logger.info(f"Health endpoint started on port {health_port}")
-
     # Set normalizer as up
     COLLECTOR_UP.labels(book="normalizer").set(1)
-
-    asyncio.run(main())
+    
+    # Start normalizer in background thread
+    normalizer_thread = threading.Thread(target=lambda: asyncio.run(main()))
+    normalizer_thread.daemon = True
+    normalizer_thread.start()
+    
+    # Run Flask app on Render's PORT (blocks)
+    port = int(os.environ.get("PORT", "8080"))
+    logger.info(f"Starting Flask on port {port} with /healthz and /metrics")
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 def process_kambi_envelope(conn, env: dict, now_ts_func):
