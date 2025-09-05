@@ -237,9 +237,10 @@ def realness_report(book):
     """Proxy realness report from internal collector"""
     # Input validation - alphanumeric and hyphens only
     import re
-    if not re.match(r'^[a-z0-9-]+$', book.lower()):
+
+    if not re.match(r"^[a-z0-9-]+$", book.lower()):
         return jsonify({"error": "Invalid book name format"}), 400
-    
+
     # Full allowlist map for all 13 books
     service_map = {
         "bovada": "bovada-collector",
@@ -254,46 +255,50 @@ def realness_report(book):
         "pinnacle": "pinnacle-collector",
         "bet365": "bet365-collector",
         "stake": "stake-collector",
-        "pointsbet": "pointsbet-collector"
+        "pointsbet": "pointsbet-collector",
     }
-    
+
     service = service_map.get(book.lower())
     if not service:
         return jsonify({"error": "Unknown book"}), 404
-    
+
     # Proxy request with safe headers and timeout
     try:
         url = f"http://{service}:9091/realness/report"
         headers = {"User-Agent": "metrics-proxy/1.0", "Accept": "application/json"}
         resp = requests.get(url, timeout=5, headers=headers)
-        
+
         if resp.status_code == 200:
             return jsonify(resp.json())
         else:
-            return jsonify({
-                "error": f"Service returned {resp.status_code}",
-                "book": book,
-                "service": service,
-                "details": resp.text[:200] if resp.text else None
-            }), 502
+            return (
+                jsonify(
+                    {
+                        "error": f"Service returned {resp.status_code}",
+                        "book": book,
+                        "service": service,
+                        "details": resp.text[:200] if resp.text else None,
+                    }
+                ),
+                502,
+            )
     except requests.exceptions.Timeout:
-        return jsonify({
-            "error": "Service timeout",
-            "book": book,
-            "service": service
-        }), 504
+        return (
+            jsonify({"error": "Service timeout", "book": book, "service": service}),
+            504,
+        )
     except requests.exceptions.ConnectionError:
-        return jsonify({
-            "error": "Service unavailable",
-            "book": book,
-            "service": service
-        }), 503
+        return (
+            jsonify({"error": "Service unavailable", "book": book, "service": service}),
+            503,
+        )
     except Exception as e:
-        return jsonify({
-            "error": "Internal proxy error",
-            "book": book,
-            "details": str(e)[:100]
-        }), 500
+        return (
+            jsonify(
+                {"error": "Internal proxy error", "book": book, "details": str(e)[:100]}
+            ),
+            500,
+        )
 
 
 @app.route("/healthz/<book>")
@@ -301,9 +306,10 @@ def book_healthz(book):
     """Proxy health check from internal collector"""
     # Input validation
     import re
-    if not re.match(r'^[a-z0-9-]+$', book.lower()):
+
+    if not re.match(r"^[a-z0-9-]+$", book.lower()):
         return jsonify({"error": "Invalid book name format"}), 400
-    
+
     # Full allowlist map for all 13 books
     service_map = {
         "bovada": "bovada-collector",
@@ -318,39 +324,39 @@ def book_healthz(book):
         "pinnacle": "pinnacle-collector",
         "bet365": "bet365-collector",
         "stake": "stake-collector",
-        "pointsbet": "pointsbet-collector"
+        "pointsbet": "pointsbet-collector",
     }
-    
+
     service = service_map.get(book.lower())
     if not service:
         return jsonify({"error": "Unknown book"}), 404
-    
+
     try:
         url = f"http://{service}:9091/healthz"
         headers = {"User-Agent": "metrics-proxy/1.0"}
         resp = requests.get(url, timeout=3, headers=headers)
-        
+
         # Return plain text for health checks
         return resp.text, resp.status_code
     except requests.exceptions.Timeout:
-        return jsonify({
-            "error": "Service timeout",
-            "book": book,
-            "service": service
-        }), 504
+        return (
+            jsonify({"error": "Service timeout", "book": book, "service": service}),
+            504,
+        )
     except requests.exceptions.ConnectionError:
-        return jsonify({
-            "error": "Service unavailable", 
-            "book": book,
-            "service": service
-        }), 503
+        return (
+            jsonify({"error": "Service unavailable", "book": book, "service": service}),
+            503,
+        )
     except Exception as e:
-        return jsonify({
-            "error": "Internal proxy error",
-            "book": book,
-            "details": str(e)[:100]
-        }), 500
-    
+        return (
+            jsonify(
+                {"error": "Internal proxy error", "book": book, "details": str(e)[:100]}
+            ),
+            500,
+        )
+
+
 # TODO: Add rate limiting with flask-limiter when available
 
 
