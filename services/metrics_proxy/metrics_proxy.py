@@ -19,7 +19,8 @@ targets_status = {}
 db_pool = None
 if os.getenv("DATABASE_URL"):
     try:
-        db_pool = psycopg2.pool.SimpleConnectionPool(
+        from psycopg2 import pool
+        db_pool = pool.SimpleConnectionPool(
             1, 5, os.getenv("DATABASE_URL"), connect_timeout=5
         )
     except Exception as e:
@@ -27,9 +28,9 @@ if os.getenv("DATABASE_URL"):
 
 # Book to service base URL mapping from environment
 BOOK_BASE_URLS = {
-    "bovada": os.getenv("SERVICE_URL_BOVADA", ""),
-    "normalizer": os.getenv("SERVICE_URL_NORMALIZER", ""),
-    "betrivers": os.getenv("SERVICE_URL_BETRIVERS", ""),
+    "bovada": os.getenv("SERVICE_URL_BOVADA", "http://bovada:8000"),
+    "normalizer": os.getenv("SERVICE_URL_NORMALIZER", "http://normalizer:8000"),
+    "betrivers": os.getenv("SERVICE_URL_BETRIVERS", "http://betrivers:8000"),
     "barstool": os.getenv("SERVICE_URL_BARSTOOL", ""),
     "caesars": os.getenv("SERVICE_URL_CAESARS", ""),
     "sugarhouse": os.getenv("SERVICE_URL_SUGARHOUSE", ""),
@@ -45,7 +46,7 @@ BOOK_BASE_URLS = {
 
 
 def parse_targets():
-    """Parse METRICS_TARGETS env var (comma-separated base URLs)"""
+    """Parse METRICS_TARGETS env var (comma-separated FULL URLs)"""
     raw = os.getenv("METRICS_TARGETS", "")
     targets = []
     for part in raw.split(","):
@@ -53,7 +54,7 @@ def parse_targets():
         if part:
             # Ensure it's a proper URL
             if not (part.startswith("http://") or part.startswith("https://")):
-                part = f"https://{part}"
+                part = f"http://{part}"  # Default to http for local
             targets.append(part)
     return targets
 
@@ -125,14 +126,18 @@ def scrape_metrics():
     targets = parse_targets()
     aggregated = []
     failed_books = set()
+    
+    print(f"Starting scrape of {len(targets)} targets: {targets}", flush=True)
 
     for base_url in targets:
         try:
             # Append /metrics to base URL
             metrics_url = f"{base_url.rstrip('/')}/metrics"
+            print(f"Scraping {metrics_url}...", flush=True)
             resp = requests.get(metrics_url, timeout=5, allow_redirects=False)
             
             if resp.status_code == 200:
+                print(f"Got {len(resp.text)} bytes from {metrics_url}", flush=True)
                 # Filter out duplicate TYPE/HELP lines to avoid conflicts
                 lines = resp.text.split("\n")
                 filtered = []
@@ -168,7 +173,7 @@ def scrape_metrics():
                 failed_books.add("normalizer")
         except Exception as e:
             targets_status[base_url] = {"status": "error", "last_error": str(e)[:100]}
-            print(f"Failed to scrape {base_url}/metrics: {e}", flush=True)
+            print(f"Failed to scrape {metrics_url}: {e}", flush=True)
 
     # Add DB fallback metrics for failed books
     if failed_books and db_pool:
@@ -276,15 +281,19 @@ def targets():
 
 @app.route("/realness/<book>/report")
 def realness_report(book):
-    """Proxy realness report from public service"""
+    """Proxy realness report from service"""
     # Input validation - alphanumeric and hyphens only
     if not re.match(r"^[a-z0-9-]+$", book.lower()):
         return jsonify({"error": "Invalid book name format"}), 400
 
-    # Get base URL for the book
-    base_url = BOOK_BASE_URLS.get(book.lower(), "").strip()
-    if not base_url:
-        return jsonify({"error": "Unknown book or service URL not configured"}), 404
+    # For local, use hardcoded URL for bovada
+    if book.lower() == "bovada":
+        base_url = os.getenv("BOVADA_BASE", "http://bovada:8000")
+    else:
+        # Get base URL for the book from environment
+        base_url = BOOK_BASE_URLS.get(book.lower(), "").strip()
+        if not base_url:
+            return jsonify({"error": "Unknown book or service URL not configured"}), 404
 
     # Proxy request with safe headers and timeout
     try:
@@ -371,4 +380,13 @@ if __name__ == "__main__":
     print(f"Starting metrics proxy on port {port}", flush=True)
     print(f"METRICS_TARGETS: {os.getenv('METRICS_TARGETS', 'not set')}", flush=True)
     print(f"DATABASE_URL: {'configured' if os.getenv('DATABASE_URL') else 'not set'}", flush=True)
+    
+    # Wait a bit for other services to start
+    print("Waiting 15s for services to start...", flush=True)
+    time.sleep(15)
+    
+    # Initial scrape before starting server
+    print("Performing initial metrics scrape...", flush=True)
+    scrape_metrics()
+    
     app.run(host="0.0.0.0", port=port, debug=False)

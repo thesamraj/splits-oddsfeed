@@ -6,7 +6,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir flask requests psycopg2-binary
 
 # Copy the proxy script
-COPY metrics_proxy.py .
+COPY metrics_proxy/metrics_proxy.py .
 
 # Expose port
 EXPOSE 8000

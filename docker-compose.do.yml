@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Bovada collector
+  bovada:
+    build:
+      context: .
+      dockerfile: ./collectors/bovada_real/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REAL_ONLY=true
+      - REALNESS_THRESHOLD=0.85
+      - LIGHT_SOCCER=true
+      - PORT=8000
+    ports:
+      - "19081:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  # Normalizer
+  normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: ./Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19082:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  # Kambi Browser collector (Playwright-based, handles all 5 brands)
+  kambi-browser:
+    build:
+      context: ./collectors/kambi_browser
+      dockerfile: ./Dockerfile
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - KAMBI_BRANDS=betrivers,barstool,caesars,sugarhouse,unibet
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - HTTP_PROXY=http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}
+      - HTTPS_PROXY=http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}
+      - ALL_PROXY=http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}
+      - NO_PROXY=localhost,127.0.0.1,redis,postgres,metrics-proxy,normalizer,bovada
+      - PORT=8000
+      - POLL_INTERVAL_SEC=30
+    ports:
+      - "19088:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # Metrics Proxy
+  metrics-proxy:
+    build:
+      context: ./services
+      dockerfile: ./metrics_proxy/Dockerfile
+    environment:
+      - METRICS_TARGETS=http://bovada:8000,http://kambi-browser:8000,http://normalizer:8000
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - bovada
+      - normalizer
+      - kambi-browser
+    restart: unless-stopped
+
+networks:
+  odds-network:
+    driver: bridge

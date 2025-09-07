@@ -1,0 +1,6 @@
+redis==5.*
+Flask==3.*
+prometheus-client==0.19.*
+pyyaml
+requests==2.*
+playwright==1.*

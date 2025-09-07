@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Kambi Browser collector (Playwright-based, NO PROXY)
+  kambi-browser:
+    build:
+      context: ./collectors/kambi_browser
+      dockerfile: ./Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - KAMBI_BRANDS=betrivers
+      - PORT=8000
+      - POLL_INTERVAL_SEC=30
+      # Explicitly disable proxy
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - ALL_PROXY=
+      - NO_PROXY=*
+    ports:
+      - "19088:8000"
+    networks:
+      - odds-network
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+networks:
+  odds-network:
+    driver: bridge

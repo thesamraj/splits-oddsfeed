@@ -134,11 +134,17 @@ def val(metric_value, labels=None, default=0):
 
 @app.route("/healthz")
 def healthz():
+    # Get value safely
+    try:
+        last_success = LAST_SUCCESS_TS.labels(book="normalizer")._value.get()
+    except:
+        last_success = 0
+        
     return jsonify(
         {
             "status": "healthy",
             "timestamp": time.time(),
-            "last_success": val(LAST_SUCCESS_TS, ("normalizer",), 0),
+            "last_success": last_success,
         }
     )
 
@@ -146,7 +152,11 @@ def healthz():
 @app.route("/metrics")
 def metrics():
     """Expose Prometheus metrics"""
-    return Response(generate_latest(REGISTRY), mimetype=CONTENT_TYPE_LATEST)
+    try:
+        data = generate_latest(REGISTRY)
+        return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        return Response(f"metrics error: {e}", status=500, mimetype="text/plain")
 
 
 class Normalizer:
