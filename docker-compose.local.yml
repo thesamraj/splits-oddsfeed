@@ -44,6 +44,26 @@ services:
   # See KAMBI_MOBILE_PROXY_INTEGRATION.md for setup instructions
   # To enable: checkout kambi-mobile-proxy branch and follow integration guide
 
+  # BoltOdds collector (staging)
+  boltodds:
+    build: ./collectors/boltodds
+    env_file: .env
+    environment:
+      - PORT=8000
+      - POLL_INTERVAL=30
+    ports:
+      - "19098:8000"
+    networks:
+      - odds-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
   # Metrics Proxy
   metrics-proxy:
     build:

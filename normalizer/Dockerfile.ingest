@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    redis \
+    psycopg2-binary \
+    prometheus-client \
+    flask
+
+COPY src/normalizer/adapters/ /app/adapters/
+COPY src/normalizer/ingest.py /app/
+COPY utils/ /app/utils/
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "/app/ingest.py"]
