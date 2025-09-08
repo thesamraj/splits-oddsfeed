@@ -43,7 +43,9 @@ class CanonicalNormalizer:
             "odds.raw.betonline",
             "odds.raw.bookmaker",
             "odds.raw.betway",
-            "odds.raw.wynnbet"
+            "odds.raw.wynnbet",
+            "odds.raw.pinnacle",
+            "odds.raw.pointsbet"
         ]
         
         for channel in self.channels:

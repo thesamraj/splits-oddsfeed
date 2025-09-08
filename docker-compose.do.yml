@@ -63,13 +63,51 @@ services:
       - normalizer
     restart: unless-stopped
 
+  # Pinnacle Site Scraper
+  pinnacle-site:
+    build:
+      context: ./collectors/pinnacle_site
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+      - PINNACLE_SPORTS=NFL,NBA,NHL,MLB
+      - SCRAPE_INTERVAL_SEC=60
+      - PLAYWRIGHT_HEADFUL=false
+    ports:
+      - "19095:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # PointsBet Unified Collector
+  pointsbet-unified:
+    build:
+      context: ./collectors/pointsbet_unified
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+      - POINTSBET_SPORTS=NFL,NBA,NHL,MLB
+      - SCRAPE_INTERVAL_SEC=60
+      - USE_PLAYWRIGHT=auto
+    ports:
+      - "19096:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
   # Metrics Proxy
   metrics-proxy:
     build:
       context: ./services
       dockerfile: ./metrics_proxy/Dockerfile
     environment:
-      - METRICS_TARGETS=http://bovada:8000,http://kambi-browser:8000,http://normalizer:8000
+      - METRICS_TARGETS=http://bovada:8000,http://kambi-browser:8000,http://normalizer:8000,http://pinnacle-site:8000,http://pointsbet-unified:8000
       - DATABASE_URL=${DATABASE_URL}
       - PORT=8000
     ports:
@@ -80,6 +118,8 @@ services:
       - bovada
       - normalizer
       - kambi-browser
+      - pinnacle-site
+      - pointsbet-unified
     restart: unless-stopped
 
 networks:
