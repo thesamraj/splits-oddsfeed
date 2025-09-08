@@ -44,7 +44,7 @@ class CanonicalNormalizer:
             "odds.raw.bookmaker",
             "odds.raw.betway",
             "odds.raw.wynnbet",
-            "odds.raw.pinnacle",
+            "odds.raw.pinnacle_site",
             "odds.raw.pointsbet"
         ]
         

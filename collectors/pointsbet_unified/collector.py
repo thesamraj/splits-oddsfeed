@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PointsBet/Fanatics Unified Collector
-Attempts direct HTTP JSON first, falls back to Playwright if needed
+PointsBet/Fanatics Unified Collector - Deep network tracing
+HTTP-first with automatic endpoint detection, Playwright fallback
 """
 
 import os
@@ -12,8 +12,10 @@ import asyncio
 import logging
 import redis
 import requests
+import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from pathlib import Path
 from flask import Flask, jsonify
 from prometheus_client import Counter, Gauge, generate_latest
 
@@ -21,12 +23,12 @@ from prometheus_client import Counter, Gauge, generate_latest
 BOOK = "pointsbet"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 PORT = int(os.getenv("PORT", "8000"))
-POINTSBET_SPORTS = os.getenv("POINTSBET_SPORTS", "NFL,NBA,NHL,MLB").split(",")
-SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SEC", "30"))
-USE_PLAYWRIGHT = os.getenv("USE_PLAYWRIGHT", "auto").lower()  # auto, true, false
+SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SEC", "60"))
+DEBUG_NETWORK = os.getenv("DEBUG_NETWORK", "1") == "1"
+USE_PLAYWRIGHT = os.getenv("USE_PLAYWRIGHT", "auto").lower()
 
 # Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG if DEBUG_NETWORK else logging.INFO)
 logger = logging.getLogger(BOOK)
 
 # Redis
@@ -52,102 +54,425 @@ collector_state = {
     "last_success": 0,
     "errors": 0,
     "last_error": None,
-    "method": "http"  # Track which method is being used
+    "method": "http",
+    "last_payload": None,
+    "endpoints_found": [],
+    "working_endpoints": []
 }
 
+# Data directories
+DATA_DIR = Path("data/pointsbet_unified")
+TRACE_DIR = DATA_DIR / "trace"
+HAR_DIR = DATA_DIR / "har"
+WS_DIR = DATA_DIR / "ws"
+
+for d in [TRACE_DIR, HAR_DIR, WS_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
 class PointsBetCollector:
-    """Unified collector - tries HTTP first, falls back to Playwright"""
+    """Enhanced collector with deep network analysis"""
     
     def __init__(self):
-        self.http_endpoints = [
-            "https://api.pointsbet.com/api/v2/competitions",
-            "https://api.pointsbet.com/api/mes/v3/events",
-            "https://fanatics.pointsbet.com/api/v2/competitions",
-            "https://sportsbook.fanatics.com/api/v2/competitions"
-        ]
         self.browser = None
-        self.playwright_available = False
+        self.captured_endpoints = []
+        self.browser_headers = {}
+        self.json_count = 0
+        self.trace_path = None
         
+        # Known API endpoints to try
+        self.api_endpoints = [
+            # PointsBet legacy
+            "https://api.pointsbet.com/api/v2/sports/football/events/upcoming",
+            "https://api.pointsbet.com/api/v2/competitions/8/events/featured",
+            "https://api.pointsbet.com/api/mes/v3/events",
+            "https://api.pointsbet.com/api/mes/v3/competitions",
+            
+            # Fanatics new endpoints
+            "https://sportsbook-nash.fanatics.com/api/content/v1/leagues",
+            "https://sportsbook-nash.fanatics.com/api/content/v1/events",
+            "https://sportsbook.fanatics.com/api/v2/leagues",
+            "https://sportsbook.fanatics.com/api/events/v1/events",
+            
+            # Mobile API endpoints
+            "https://api.il.pointsbet.com/api/v2/sports",
+            "https://api.nj.pointsbet.com/api/v2/sports"
+        ]
+    
+    def sanitize_data(self, data: Any) -> Any:
+        """Remove sensitive info from captured data"""
+        if isinstance(data, dict):
+            sanitized = {}
+            for k, v in data.items():
+                if any(sensitive in str(k).lower() for sensitive in ['token', 'key', 'secret', 'password', 'auth']):
+                    sanitized[k] = 'REDACTED'
+                else:
+                    sanitized[k] = self.sanitize_data(v)
+            return sanitized
+        elif isinstance(data, list):
+            return [self.sanitize_data(item) for item in data[:100]]  # Limit arrays
+        elif isinstance(data, str) and len(data) > 50:
+            if any(c in data for c in ['=', '&', '?']) and 'http' not in data:
+                return f"HASH_{hashlib.md5(data.encode()).hexdigest()[:8]}"
+        return data
+    
     async def try_http_collection(self) -> Optional[List[Dict]]:
-        """Try to collect via direct HTTP requests"""
-        for endpoint in self.http_endpoints:
+        """Try HTTP collection with discovered and known endpoints"""
+        events = []
+        
+        # Build headers from captured browser headers or defaults
+        headers = self.browser_headers or {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin'
+        }
+        
+        # Try working endpoints first
+        for endpoint in collector_state["working_endpoints"]:
             try:
-                logger.info(f"Trying HTTP endpoint: {endpoint}")
+                response = requests.get(endpoint, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if self.looks_like_odds_data(data):
+                        logger.info(f"✓ Working endpoint: {endpoint[:80]}")
+                        extracted = self.extract_events_from_response(data)
+                        events.extend(extracted)
+            except Exception as e:
+                logger.debug(f"Working endpoint failed: {e}")
+        
+        # Try new endpoints
+        all_endpoints = list(set(self.api_endpoints + self.captured_endpoints))
+        
+        for endpoint in all_endpoints:
+            if endpoint in collector_state["working_endpoints"]:
+                continue
                 
-                # Try base endpoint
-                response = requests.get(endpoint, timeout=10, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
+            try:
+                logger.debug(f"Trying endpoint: {endpoint[:80]}")
+                
+                response = requests.get(endpoint, headers=headers, timeout=10)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    events = self.parse_http_response(data)
-                    if events:
-                        logger.info(f"Successfully collected {len(events)} events via HTTP")
-                        collector_state["method"] = "http"
-                        return events
+                    
+                    # Debug log first few responses
+                    if DEBUG_NETWORK and self.json_count < 10:
+                        self.json_count += 1
+                        sanitized = self.sanitize_data(data)
+                        debug_file = DATA_DIR / f"debug_http_{self.json_count}.json"
+                        with open(debug_file, 'w') as f:
+                            json.dump({
+                                'url': endpoint,
+                                'headers': headers,
+                                'status': response.status_code,
+                                'data': sanitized
+                            }, f, indent=2)
+                        logger.debug(f"HTTP #{self.json_count}: {json.dumps(sanitized)[:300]}")
+                    
+                    # Check if it contains odds
+                    if self.looks_like_odds_data(data):
+                        logger.info(f"✓ Found odds at: {endpoint[:80]}")
+                        collector_state["working_endpoints"].append(endpoint)
+                        extracted = self.extract_events_from_response(data)
+                        events.extend(extracted)
                         
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"HTTP request failed for {endpoint[:50]}: {e}")
+            except json.JSONDecodeError:
+                logger.debug(f"Invalid JSON from {endpoint[:50]}")
             except Exception as e:
-                logger.debug(f"HTTP attempt failed for {endpoint}: {e}")
-                
+                logger.debug(f"Error processing {endpoint[:50]}: {e}")
+        
+        if events:
+            collector_state["method"] = "http"
+            return events
+            
         return None
     
-    def parse_http_response(self, data: Dict) -> List[Dict]:
-        """Parse HTTP API response into canonical format"""
+    def looks_like_odds_data(self, data: Any) -> bool:
+        """Detect if data contains odds/betting information"""
+        if not isinstance(data, (dict, list)):
+            return False
+            
+        data_str = json.dumps(data).lower()
+        
+        # Betting/odds keywords
+        indicators = [
+            'odds', 'price', 'spread', 'total', 'moneyline', 'handicap',
+            'outcome', 'selection', 'market', 'bet', 'wager',
+            'event', 'match', 'game', 'fixture', 'competition',
+            'home', 'away', 'team', 'participant',
+            'decimal', 'american', 'fractional',
+            'over', 'under', 'points', 'line'
+        ]
+        
+        matches = sum(1 for ind in indicators if ind in data_str)
+        return matches >= 3
+    
+    async def try_playwright_collection(self) -> Optional[List[Dict]]:
+        """Enhanced Playwright scraping with network capture"""
+        try:
+            from playwright.async_api import async_playwright
+            
+            logger.info("Starting Playwright collection with network tracing...")
+            
+            playwright = await async_playwright().start()
+            browser = await playwright.chromium.launch(
+                headless=True,
+                args=['--disable-blink-features=AutomationControlled']
+            )
+            
+            # Setup HAR and tracing
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            har_path = HAR_DIR / f"pointsbet_{timestamp}.har"
+            self.trace_path = TRACE_DIR / f"pointsbet_{timestamp}.zip"
+            
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                record_har_path=str(har_path),
+                record_har_content='attach'
+            )
+            
+            await context.tracing.start(
+                screenshots=True,
+                snapshots=True,
+                sources=True
+            )
+            
+            page = await context.new_page()
+            captured_data = []
+            ws_messages = []
+            
+            # Intercept requests
+            async def intercept_route(route, request):
+                try:
+                    response = await route.fetch()
+                    url = request.url
+                    
+                    # Capture headers from actual browser requests
+                    if 'api' in url or 'sportsbook' in url:
+                        self.browser_headers = dict(request.headers)
+                    
+                    # Check for JSON responses
+                    if response:
+                        content_type = response.headers.get('content-type', '')
+                        if 'json' in content_type:
+                            try:
+                                body = await response.body()
+                                data = json.loads(body)
+                                
+                                # Log endpoint patterns
+                                if self.looks_like_odds_data(data):
+                                    logger.info(f"Found odds via Playwright: {url[:100]}")
+                                    captured_data.append(data)
+                                    
+                                    # Track endpoint
+                                    endpoint_pattern = self.extract_endpoint_pattern(url)
+                                    if endpoint_pattern not in collector_state["endpoints_found"]:
+                                        collector_state["endpoints_found"].append(endpoint_pattern)
+                                    
+                                    # Save actual endpoint
+                                    base_url = url.split('?')[0]
+                                    if base_url not in self.captured_endpoints:
+                                        self.captured_endpoints.append(base_url)
+                                        
+                            except json.JSONDecodeError:
+                                pass
+                                
+                    await route.fulfill(response=response)
+                except:
+                    await route.continue_()
+            
+            # WebSocket handler
+            def on_websocket(ws):
+                logger.info(f"WebSocket opened: {ws.url}")
+                
+                def on_frame(direction, payload):
+                    try:
+                        if payload and self.looks_like_odds_data(payload):
+                            ws_messages.append({
+                                'direction': direction,
+                                'data': json.loads(payload) if isinstance(payload, str) else payload
+                            })
+                    except:
+                        pass
+                
+                ws.on('framesent', lambda p: on_frame('sent', p))
+                ws.on('framereceived', lambda p: on_frame('received', p))
+            
+            await page.route('**/*', intercept_route)
+            page.on('websocket', on_websocket)
+            
+            # Try different sites
+            sites = [
+                ('https://sportsbook.fanatics.com', 'Fanatics Sportsbook'),
+                ('https://nj.pointsbet.com', 'PointsBet NJ'),
+                ('https://pointsbet.com/sports', 'PointsBet Main')
+            ]
+            
+            events = []
+            
+            for site_url, site_name in sites:
+                try:
+                    logger.info(f"Loading {site_name}...")
+                    await page.goto(site_url, wait_until='networkidle', timeout=30000)
+                    await page.wait_for_timeout(5000)
+                    
+                    # Try to interact with the page
+                    try:
+                        # Click on NFL if visible
+                        nfl_selectors = [
+                            'text=NFL',
+                            '[data-sport*="football"]',
+                            'a[href*="nfl"]'
+                        ]
+                        for selector in nfl_selectors:
+                            try:
+                                if await page.locator(selector).first.is_visible():
+                                    await page.locator(selector).first.click()
+                                    await page.wait_for_timeout(3000)
+                                    break
+                            except:
+                                continue
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    logger.debug(f"Failed to load {site_name}: {e}")
+            
+            # Process captured data
+            for data in captured_data:
+                extracted = self.extract_events_from_response(data)
+                events.extend(extracted)
+            
+            # Process WebSocket data
+            for ws_msg in ws_messages:
+                if ws_msg['direction'] == 'received':
+                    extracted = self.extract_events_from_response(ws_msg['data'])
+                    events.extend(extracted)
+            
+            # Save trace
+            await context.tracing.stop(path=str(self.trace_path))
+            logger.info(f"Trace saved to {self.trace_path}")
+            
+            # Create latest symlink
+            latest_link = TRACE_DIR / "latest.zip"
+            if latest_link.exists():
+                latest_link.unlink()
+            latest_link.symlink_to(self.trace_path.name)
+            
+            await browser.close()
+            await playwright.stop()
+            
+            if events:
+                collector_state["method"] = "playwright"
+                return events
+                
+        except ImportError:
+            logger.error("Playwright not installed")
+        except Exception as e:
+            logger.error(f"Playwright collection failed: {e}")
+            
+        return None
+    
+    def extract_endpoint_pattern(self, url: str) -> str:
+        """Extract endpoint pattern, masking IDs"""
+        import re
+        base = url.split('?')[0]
+        pattern = re.sub(r'/\d{4,}', '/{id}', base)
+        pattern = re.sub(r'/[a-f0-9]{8,}', '/{uuid}', pattern)
+        return pattern
+    
+    def extract_events_from_response(self, data: Any) -> List[Dict]:
+        """Extract events from API response"""
         events = []
         
         try:
-            # Try different data structures
-            if 'events' in data:
-                for event in data['events']:
-                    parsed = self.extract_event(event)
-                    if parsed:
-                        events.append(parsed)
-            elif 'competitions' in data:
-                for comp in data['competitions']:
-                    if 'events' in comp:
-                        for event in comp['events']:
-                            parsed = self.extract_event(event)
-                            if parsed:
-                                events.append(parsed)
-            elif isinstance(data, list):
-                for item in data:
-                    parsed = self.extract_event(item)
+            if isinstance(data, dict):
+                # Check for events arrays
+                if 'events' in data:
+                    for event in data['events']:
+                        parsed = self.parse_event(event)
+                        if parsed:
+                            events.append(parsed)
+                            
+                # Check for fixtures
+                elif 'fixtures' in data:
+                    for fixture in data['fixtures']:
+                        parsed = self.parse_event(fixture)
+                        if parsed:
+                            events.append(parsed)
+                            
+                # Check for competitions with events
+                elif 'competitions' in data:
+                    for comp in data['competitions']:
+                        if 'events' in comp:
+                            for event in comp['events']:
+                                parsed = self.parse_event(event)
+                                if parsed:
+                                    events.append(parsed)
+                                    
+                # Check for data array
+                elif 'data' in data and isinstance(data['data'], list):
+                    for item in data['data']:
+                        parsed = self.parse_event(item)
+                        if parsed:
+                            events.append(parsed)
+                            
+                # Direct event
+                elif any(k in data for k in ['homeTeam', 'awayTeam', 'competitors']):
+                    parsed = self.parse_event(data)
                     if parsed:
                         events.append(parsed)
                         
+            elif isinstance(data, list):
+                for item in data:
+                    extracted = self.extract_events_from_response(item)
+                    events.extend(extracted)
+                    
         except Exception as e:
-            logger.debug(f"Failed to parse HTTP response: {e}")
+            logger.debug(f"Failed to extract events: {e}")
             
         return events
     
-    def extract_event(self, data: Dict) -> Optional[Dict]:
-        """Extract event from PointsBet format"""
+    def parse_event(self, data: Dict) -> Optional[Dict]:
+        """Parse event from PointsBet/Fanatics format"""
         try:
-            event_id = data.get('key', data.get('id', f"pb_{int(time.time()*1000)}"))
-            
             # Extract teams
             home = None
             away = None
             
+            # Try different team structures
             if 'homeTeam' in data and 'awayTeam' in data:
-                home = data['homeTeam'].get('name', 'Team A')
-                away = data['awayTeam'].get('name', 'Team B')
-            elif 'competitors' in data:
-                competitors = data['competitors']
-                if len(competitors) >= 2:
-                    home = competitors[0].get('name', 'Team A')
-                    away = competitors[1].get('name', 'Team B')
-                    
+                home = data['homeTeam'].get('name', data['homeTeam'].get('displayName'))
+                away = data['awayTeam'].get('name', data['awayTeam'].get('displayName'))
+            elif 'home' in data and 'away' in data:
+                home = data['home'] if isinstance(data['home'], str) else data['home'].get('name')
+                away = data['away'] if isinstance(data['away'], str) else data['away'].get('name')
+            elif 'competitors' in data and len(data['competitors']) >= 2:
+                home = data['competitors'][0].get('name')
+                away = data['competitors'][1].get('name')
+            elif 'teams' in data and len(data['teams']) >= 2:
+                home = data['teams'][0].get('name')
+                away = data['teams'][1].get('name')
+                
             if not home or not away:
                 return None
                 
-            # Build canonical event
+            # Build event
             event = {
                 "book": BOOK,
-                "event_id": str(event_id),
-                "sport": data.get('sport', 'unknown'),
-                "league": data.get('competition', 'unknown'),
+                "event_id": str(data.get('id', data.get('eventId', f"pb_{int(time.time()*1000)}"))),
+                "sport": data.get('sport', data.get('sportName', 'unknown')),
+                "league": data.get('competition', data.get('competitionName', 'unknown')),
                 "home": home,
                 "away": away,
                 "commence_time": datetime.utcnow().isoformat() + 'Z',
@@ -156,127 +481,106 @@ class PointsBetCollector:
             }
             
             # Extract markets
-            if 'outcomes' in data:
+            markets = []
+            
+            # Check for markets array
+            if 'markets' in data:
+                for market in data['markets']:
+                    parsed = self.parse_market(market)
+                    if parsed:
+                        markets.append(parsed)
+                        
+            # Check for outcomes
+            elif 'outcomes' in data:
                 for outcome in data['outcomes']:
                     if outcome.get('price'):
-                        event['markets'].append({
+                        markets.append({
                             "key": "moneyline",
                             "outcomes": [
-                                {"name": "home", "price": outcome.get('price', -110)},
+                                {"name": "home", "price": outcome.get('price')},
                                 {"name": "away", "price": -110}
                             ]
                         })
                         break
                         
-            # Fallback synthetic odds
-            if not event['markets']:
-                event['markets'].append({
+            # Check for odds object
+            elif 'odds' in data:
+                odds = data['odds']
+                if 'moneyline' in odds:
+                    markets.append({
+                        "key": "moneyline",
+                        "outcomes": [
+                            {"name": "home", "price": odds['moneyline'].get('home', -110)},
+                            {"name": "away", "price": odds['moneyline'].get('away', -110)}
+                        ]
+                    })
+                    
+            # Add markets or synthetic
+            if markets:
+                event['markets'] = markets
+            else:
+                event['markets'] = [{
                     "key": "moneyline",
                     "outcomes": [
                         {"name": "home", "price": -110},
                         {"name": "away", "price": -110}
                     ]
-                })
+                }]
                 
             return event
             
         except Exception as e:
-            logger.debug(f"Failed to extract event: {e}")
+            logger.debug(f"Failed to parse event: {e}")
             return None
     
-    async def try_playwright_collection(self) -> Optional[List[Dict]]:
-        """Fallback to Playwright scraping"""
+    def parse_market(self, market: Dict) -> Optional[Dict]:
+        """Parse market data"""
         try:
-            # Lazy import Playwright
-            from playwright.async_api import async_playwright
+            market_type = market.get('marketType', market.get('type', 'unknown'))
             
-            logger.info("Falling back to Playwright scraping...")
-            
-            playwright = await async_playwright().start()
-            browser = await playwright.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            )
-            
-            page = await context.new_page()
-            intercepted_data = []
-            
-            # Intercept XHR/JSON
-            async def intercept_route(route, request):
-                try:
-                    response = await route.fetch()
-                    url = request.url
-                    
-                    if any(kw in url for kw in ['event', 'competition', 'odds', 'market']):
-                        content_type = response.headers.get('content-type', '')
-                        if 'json' in content_type:
-                            try:
-                                body = await response.body()
-                                data = json.loads(body)
-                                intercepted_data.append(data)
-                            except:
-                                pass
-                                
-                    await route.fulfill(response=response)
-                except:
-                    await route.continue_()
-                    
-            await page.route('**/*', intercept_route)
-            
-            # Try PointsBet/Fanatics sites
-            sites = [
-                'https://pointsbet.com/sports',
-                'https://sportsbook.fanatics.com'
-            ]
-            
-            for site in sites:
-                try:
-                    logger.info(f"Loading {site}...")
-                    await page.goto(site, wait_until='networkidle', timeout=30000)
-                    await page.wait_for_timeout(5000)
-                    
-                    # Click on sports sections if found
-                    for sport in ['NFL', 'NBA']:
-                        try:
-                            await page.click(f'text={sport}', timeout=2000)
-                            await page.wait_for_timeout(2000)
-                        except:
-                            pass
-                            
-                except Exception as e:
-                    logger.debug(f"Failed to load {site}: {e}")
-                    
-            await browser.close()
-            await playwright.stop()
-            
-            # Process intercepted data
-            events = []
-            for data in intercepted_data:
-                parsed_events = self.parse_http_response(data)
-                events.extend(parsed_events)
+            # Normalize type
+            if 'money' in market_type.lower():
+                key = 'moneyline'
+            elif 'spread' in market_type.lower() or 'handicap' in market_type.lower():
+                key = 'spread'
+            elif 'total' in market_type.lower():
+                key = 'total'
+            else:
+                key = market_type
                 
-            if events:
-                logger.info(f"Collected {len(events)} events via Playwright")
-                collector_state["method"] = "playwright"
-                return events
+            outcomes = []
+            
+            if 'outcomes' in market:
+                for outcome in market['outcomes']:
+                    outcomes.append({
+                        "name": outcome.get('name', outcome.get('type', 'unknown')),
+                        "price": outcome.get('price', outcome.get('odds', -110))
+                    })
+            elif 'selections' in market:
+                for selection in market['selections']:
+                    outcomes.append({
+                        "name": selection.get('name', 'unknown'),
+                        "price": selection.get('price', -110)
+                    })
+                    
+            if outcomes:
+                return {"key": key, "outcomes": outcomes}
                 
-        except ImportError:
-            logger.warning("Playwright not installed, cannot use fallback")
+            return None
+            
         except Exception as e:
-            logger.error(f"Playwright collection failed: {e}")
-            
-        return None
+            logger.debug(f"Failed to parse market: {e}")
+            return None
     
     async def collect_odds(self) -> List[Dict]:
-        """Main collection method - tries HTTP first, then Playwright"""
+        """Main collection method"""
         events = None
         
-        # Try HTTP first (unless forced to Playwright)
+        # Try HTTP first
         if USE_PLAYWRIGHT != "true":
             events = await self.try_http_collection()
             
-        # Fallback to Playwright if needed
+        # Fallback to Playwright
         if not events and USE_PLAYWRIGHT != "false":
             events = await self.try_playwright_collection()
             
@@ -293,8 +597,11 @@ async def publish_events(events: List[Dict]):
             "book": BOOK,
             "events": events,
             "timestamp": datetime.utcnow().isoformat(),
-            "collector_version": "1.0.0"
+            "collector_version": "2.0.0"
         }
+        
+        # Store last payload
+        collector_state["last_payload"] = message
         
         r.publish(channel, json.dumps(message))
         messages_total.labels(book=BOOK).inc()
@@ -327,6 +634,7 @@ async def collection_loop():
                 collector_up.labels(book=BOOK).set(1)
                 
                 logger.info(f"Collected {len(events)} events via {collector_state['method']}")
+                logger.info(f"Working endpoints: {len(collector_state['working_endpoints'])}")
             else:
                 logger.warning("No events collected")
                 collector_up.labels(book=BOOK).set(0.5)
@@ -338,7 +646,6 @@ async def collection_loop():
             collector_state["last_error"] = str(e)
             collector_up.labels(book=BOOK).set(0)
         
-        # Wait for next cycle
         await asyncio.sleep(SCRAPE_INTERVAL)
 
 @app.route('/healthz')
@@ -350,13 +657,32 @@ def health():
         "last_success": collector_state["last_success"],
         "errors": collector_state["errors"],
         "last_error": collector_state["last_error"],
-        "method": collector_state["method"]
+        "method": collector_state["method"],
+        "endpoints_found": len(collector_state["endpoints_found"]),
+        "working_endpoints": len(collector_state["working_endpoints"])
     })
 
 @app.route('/metrics')
 def metrics():
     """Prometheus metrics endpoint"""
     return generate_latest()
+
+@app.route('/debug/last_payload')
+def debug_payload():
+    """Debug endpoint to view last normalized message"""
+    if collector_state["last_payload"]:
+        return jsonify(collector_state["last_payload"])
+    return jsonify({"error": "No payload captured yet"}), 404
+
+@app.route('/debug/endpoints')
+def debug_endpoints():
+    """Debug endpoint to view discovered endpoints"""
+    return jsonify({
+        "endpoints_found": collector_state["endpoints_found"],
+        "working_endpoints": collector_state["working_endpoints"],
+        "total_found": len(collector_state["endpoints_found"]),
+        "total_working": len(collector_state["working_endpoints"])
+    })
 
 def run_flask():
     """Run Flask in thread"""

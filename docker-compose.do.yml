@@ -74,8 +74,11 @@ services:
       - PINNACLE_SPORTS=NFL,NBA,NHL,MLB
       - SCRAPE_INTERVAL_SEC=60
       - PLAYWRIGHT_HEADFUL=false
+      - DEBUG_NETWORK=1
     ports:
       - "19095:8000"
+    volumes:
+      - ./data/pinnacle_site:/app/data/pinnacle_site
     networks:
       - odds-network
     depends_on:
@@ -93,8 +96,11 @@ services:
       - POINTSBET_SPORTS=NFL,NBA,NHL,MLB
       - SCRAPE_INTERVAL_SEC=60
       - USE_PLAYWRIGHT=auto
+      - DEBUG_NETWORK=1
     ports:
       - "19096:8000"
+    volumes:
+      - ./data/pointsbet_unified:/app/data/pointsbet_unified
     networks:
       - odds-network
     depends_on:
