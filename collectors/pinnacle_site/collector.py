@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pinnacle Site Scraper - Deep network tracing to find real odds endpoints
+Pinnacle Site Scraper - Mobile proxy + deep interaction
 """
 
 import os
@@ -25,6 +25,15 @@ PORT = int(os.getenv("PORT", "8000"))
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SEC", "60"))
 DEBUG_NETWORK = os.getenv("DEBUG_NETWORK", "1") == "1"
 PLAYWRIGHT_HEADFUL = os.getenv("PLAYWRIGHT_HEADFUL", "false").lower() == "true"
+USE_PROXY = os.getenv("USE_PROXY", "true").lower() == "true"
+PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "soax")  # soax or brightdata
+
+# Proxy configuration (loaded from env)
+SOAX_HOST = os.getenv("SOAX_HOST", "")
+SOAX_PORT = os.getenv("SOAX_PORT", "")
+SOAX_USER = os.getenv("SOAX_USER", "")
+SOAX_PASS = os.getenv("SOAX_PASS", "")
+BD_PROXY_URL = os.getenv("BD_PROXY_URL", "")
 
 # Logging
 logging.basicConfig(level=logging.DEBUG if DEBUG_NETWORK else logging.INFO)
@@ -54,7 +63,8 @@ collector_state = {
     "errors": 0,
     "last_error": None,
     "last_payload": None,
-    "endpoints_found": []
+    "endpoints_found": [],
+    "proxy_active": None
 }
 
 # Data directories
@@ -66,8 +76,39 @@ WS_DIR = DATA_DIR / "ws"
 for d in [TRACE_DIR, HAR_DIR, WS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
+def get_proxy_config():
+    """Get proxy configuration"""
+    if not USE_PROXY:
+        return None
+    
+    if PROXY_PROVIDER == "soax" and all([SOAX_HOST, SOAX_PORT, SOAX_USER, SOAX_PASS]):
+        # Use Canada mobile proxy for Pinnacle
+        proxy_url = f"http://{SOAX_USER}:country-ca:{SOAX_PASS}@{SOAX_HOST}:{SOAX_PORT}"
+        logger.info(f"Using SOAX proxy (Canada mobile): {SOAX_HOST}:{SOAX_PORT}")
+        collector_state["proxy_active"] = "SOAX_CA"
+        return {
+            "server": f"http://{SOAX_HOST}:{SOAX_PORT}",
+            "username": SOAX_USER,
+            "password": f"country-ca:{SOAX_PASS}"
+        }
+    elif PROXY_PROVIDER == "brightdata" and BD_PROXY_URL:
+        logger.info("Using BrightData proxy")
+        collector_state["proxy_active"] = "BrightData"
+        # Parse BD_PROXY_URL
+        import re
+        match = re.match(r'http://([^:]+):([^@]+)@([^:]+):(\d+)', BD_PROXY_URL)
+        if match:
+            return {
+                "server": f"http://{match.group(3)}:{match.group(4)}",
+                "username": match.group(1),
+                "password": match.group(2)
+            }
+    
+    logger.warning("No proxy configured or credentials missing")
+    return None
+
 class PinnacleScraper:
-    """Enhanced Pinnacle scraper with deep network tracing"""
+    """Enhanced Pinnacle scraper with mobile proxy and deep interaction"""
     
     def __init__(self):
         self.browser = None
@@ -75,29 +116,44 @@ class PinnacleScraper:
         self.page = None
         self.captured_responses = []
         self.ws_messages = []
+        self.graphql_operations = []
         self.json_count = 0
         self.trace_path = None
         
     async def setup_browser(self):
-        """Initialize browser with tracing enabled"""
+        """Initialize browser with mobile config and proxy"""
         try:
             playwright = await async_playwright().start()
-            self.browser = await playwright.chromium.launch(
-                headless=not PLAYWRIGHT_HEADFUL,
-                args=[
+            
+            # Browser launch args
+            launch_args = {
+                "headless": not PLAYWRIGHT_HEADFUL,
+                "args": [
                     '--disable-blink-features=AutomationControlled',
                     '--disable-dev-shm-usage'
                 ]
-            )
+            }
             
-            # Create context with HAR recording
+            # Add proxy if configured
+            proxy_config = get_proxy_config()
+            if proxy_config:
+                launch_args["proxy"] = proxy_config
+            
+            self.browser = await playwright.chromium.launch(**launch_args)
+            
+            # Mobile context with Ontario geolocation
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             har_path = HAR_DIR / f"pinnacle_{timestamp}.har"
             self.trace_path = TRACE_DIR / f"pinnacle_{timestamp}.zip"
             
             self.context = await self.browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport={'width': 390, 'height': 844},  # iPhone 12 Pro
+                user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+                device_scale_factor=3,
+                is_mobile=True,
+                has_touch=True,
+                geolocation={'latitude': 43.6532, 'longitude': -79.3832},  # Toronto, ON
+                permissions=['geolocation'],
                 record_har_path=str(har_path),
                 record_har_content='attach'
             )
@@ -117,7 +173,7 @@ class PinnacleScraper:
             # WebSocket monitoring
             self.page.on('websocket', self.on_websocket)
             
-            logger.info(f"Browser initialized with tracing to {self.trace_path}")
+            logger.info(f"Browser initialized (mobile) with proxy: {collector_state['proxy_active']}")
             return True
             
         except Exception as e:
@@ -129,26 +185,38 @@ class PinnacleScraper:
         if isinstance(data, dict):
             sanitized = {}
             for k, v in data.items():
-                if any(sensitive in k.lower() for sensitive in ['token', 'key', 'secret', 'password']):
+                if any(sensitive in str(k).lower() for sensitive in ['token', 'key', 'secret', 'password', 'auth']):
                     sanitized[k] = 'REDACTED'
                 else:
                     sanitized[k] = self.sanitize_data(v)
             return sanitized
         elif isinstance(data, list):
-            return [self.sanitize_data(item) for item in data]
+            return [self.sanitize_data(item) for item in data[:100]]
         elif isinstance(data, str) and len(data) > 50:
-            # Hash long strings that might be tokens
-            if any(c in data for c in ['=', '&', '?']):
+            if any(c in data for c in ['=', '&', '?']) and 'http' not in data:
                 return f"HASH_{hashlib.md5(data.encode()).hexdigest()[:8]}"
         return data
     
     async def intercept_route(self, route: Route, request: Request):
-        """Enhanced interception with deep inspection"""
+        """Enhanced interception with GraphQL detection"""
         try:
             response = await route.fetch()
             url = request.url
             
-            # Log all JSON responses if DEBUG
+            # Check for GraphQL
+            if 'graphql' in url.lower() or request.method == 'POST':
+                try:
+                    post_data = request.post_data
+                    if post_data:
+                        data = json.loads(post_data)
+                        if 'query' in data or 'operationName' in data:
+                            op_name = data.get('operationName', 'unknown')
+                            logger.info(f"GraphQL operation: {op_name}")
+                            self.graphql_operations.append(op_name)
+                except:
+                    pass
+            
+            # Log all JSON responses
             if response:
                 content_type = response.headers.get('content-type', '')
                 
@@ -157,20 +225,15 @@ class PinnacleScraper:
                         body = await response.body()
                         data = json.loads(body)
                         
-                        # Track first 10 JSON responses in debug mode
+                        # Track first 10 JSON responses
                         if DEBUG_NETWORK and self.json_count < 10:
                             self.json_count += 1
                             sanitized = self.sanitize_data(data)
-                            logger.debug(f"JSON #{self.json_count} from {url[:100]}")
-                            logger.debug(f"Sample: {json.dumps(sanitized)[:500]}")
-                            
-                            # Save to file
                             debug_file = DATA_DIR / f"debug_json_{self.json_count}.json"
                             with open(debug_file, 'w') as f:
                                 json.dump({
                                     'url': url,
                                     'method': request.method,
-                                    'headers': dict(request.headers),
                                     'data': sanitized
                                 }, f, indent=2)
                         
@@ -184,16 +247,12 @@ class PinnacleScraper:
                                 'timestamp': time.time()
                             })
                             
-                            # Track unique endpoint patterns
                             endpoint_pattern = self.extract_endpoint_pattern(url)
                             if endpoint_pattern not in collector_state["endpoints_found"]:
                                 collector_state["endpoints_found"].append(endpoint_pattern)
-                                logger.info(f"New endpoint pattern: {endpoint_pattern}")
                                 
                     except json.JSONDecodeError:
                         pass
-                    except Exception as e:
-                        logger.debug(f"Error processing response: {e}")
             
             await route.fulfill(response=response)
             
@@ -212,29 +271,33 @@ class PinnacleScraper:
         """Capture WebSocket frames"""
         try:
             if payload:
-                # Try to parse as JSON
+                # Save to rotating log
+                ws_log = WS_DIR / "frames.jsonl"
+                with open(ws_log, 'a') as f:
+                    f.write(json.dumps({
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'direction': direction,
+                        'payload': self.sanitize_data(payload[:5000])
+                    }) + '\n')
+                
+                # Keep last 100 lines
+                if ws_log.stat().st_size > 1024 * 1024:  # 1MB
+                    lines = ws_log.read_text().splitlines()
+                    ws_log.write_text('\n'.join(lines[-100:]) + '\n')
+                
+                # Parse if JSON
                 try:
                     data = json.loads(payload)
                     if self.looks_like_odds_data(data):
-                        logger.info(f"WS {direction}: Found odds in WebSocket")
+                        logger.info(f"WS {direction}: Found odds")
                         self.ws_messages.append({
                             'direction': direction,
                             'data': data,
                             'timestamp': time.time()
                         })
                 except:
-                    # Not JSON, might be binary or other format
                     pass
                     
-                # Save WebSocket data
-                if DEBUG_NETWORK and len(self.ws_messages) < 10:
-                    ws_file = WS_DIR / f"ws_{len(self.ws_messages)}.json"
-                    with open(ws_file, 'w') as f:
-                        json.dump({
-                            'direction': direction,
-                            'payload': payload[:1000]
-                        }, f, indent=2)
-                        
         except Exception as e:
             logger.debug(f"WS frame error: {e}")
     
@@ -243,17 +306,15 @@ class PinnacleScraper:
         if not isinstance(data, (dict, list)):
             return False
             
-        # Convert to string for pattern matching
         data_str = json.dumps(data).lower()
         
-        # Odds indicators
         odds_keywords = [
             'odds', 'price', 'spread', 'total', 'moneyline', 'handicap',
             'over', 'under', 'bettype', 'market', 'selection', 'outcome',
             'event', 'match', 'game', 'sport', 'league', 'competition',
             'home', 'away', 'team', 'participant', 'competitor',
             'decimal', 'american', 'fractional', 'probability',
-            'live', 'prematch', 'inplay', 'betting', 'wager'
+            'live', 'prematch', 'inplay', 'betting', 'wager', 'line'
         ]
         
         matches = sum(1 for kw in odds_keywords if kw in data_str)
@@ -261,16 +322,14 @@ class PinnacleScraper:
     
     def extract_endpoint_pattern(self, url: str) -> str:
         """Extract endpoint pattern, masking IDs"""
-        # Remove query params
         base = url.split('?')[0]
-        # Mask numeric IDs
         import re
         pattern = re.sub(r'/\d{4,}', '/{id}', base)
         pattern = re.sub(r'/[a-f0-9]{8,}', '/{uuid}', pattern)
         return pattern
     
     async def scrape_odds(self) -> List[Dict]:
-        """Navigate and capture with detailed interaction"""
+        """Navigate with deep interaction to trigger odds loading"""
         if not self.page:
             if not await self.setup_browser():
                 return []
@@ -279,43 +338,73 @@ class PinnacleScraper:
             events = []
             
             # Navigate to Pinnacle
-            logger.info("Navigating to Pinnacle...")
+            logger.info("Navigating to Pinnacle mobile site...")
             await self.page.goto('https://www.pinnacle.com/en/sports', 
                                 wait_until='networkidle', 
                                 timeout=30000)
             
-            # Wait for initial load
             await self.page.wait_for_timeout(3000)
             
-            # Try to click on NFL specifically to trigger odds load
+            # Try to interact deeply
             try:
-                logger.info("Looking for NFL section...")
-                # Try multiple selectors
-                selectors = [
-                    'a[href*="football/nfl"]',
-                    'div:has-text("NFL")',
+                # Accept cookies if present
+                try:
+                    cookie_btn = self.page.locator('button:has-text("Accept")')
+                    if await cookie_btn.is_visible():
+                        await cookie_btn.click()
+                        await self.page.wait_for_timeout(1000)
+                except:
+                    pass
+                
+                # Click on Football/NFL
+                logger.info("Looking for Football/NFL...")
+                sport_selectors = [
+                    'a[href*="football"]',
+                    'div:has-text("Football")',
                     'span:has-text("NFL")',
-                    '[data-sport*="football"]',
-                    '.sport-navigation a:has-text("NFL")'
+                    'button:has-text("Football")',
+                    '[data-test*="football"]'
                 ]
                 
-                for selector in selectors:
+                for selector in sport_selectors:
                     try:
-                        if await self.page.locator(selector).first.is_visible():
+                        elem = self.page.locator(selector).first
+                        if await elem.is_visible():
                             logger.info(f"Clicking {selector}")
-                            await self.page.locator(selector).first.click()
+                            await elem.click()
                             await self.page.wait_for_timeout(3000)
                             break
                     except:
                         continue
-                        
-                # Try to click on a specific game to load odds
-                logger.info("Looking for game matchups...")
+                
+                # Click on NFL if needed
+                nfl_selectors = [
+                    'a[href*="/nfl"]',
+                    'div:has-text("NFL")',
+                    'span:has-text("NFL")',
+                    '[data-league*="nfl"]'
+                ]
+                
+                for selector in nfl_selectors:
+                    try:
+                        elem = self.page.locator(selector).first
+                        if await elem.is_visible():
+                            logger.info(f"Clicking NFL: {selector}")
+                            await elem.click()
+                            await self.page.wait_for_timeout(3000)
+                            break
+                    except:
+                        continue
+                
+                # Click on first game/event
+                logger.info("Looking for first game...")
                 game_selectors = [
                     '.event-row',
                     '.matchup',
-                    '.game-row',
-                    '[data-test*="event"]'
+                    '.game-card',
+                    '[data-test*="event"]',
+                    'a[href*="/line"]',
+                    '.odds-row'
                 ]
                 
                 for selector in game_selectors:
@@ -323,24 +412,22 @@ class PinnacleScraper:
                         elements = await self.page.locator(selector).all()
                         if elements:
                             logger.info(f"Found {len(elements)} games with {selector}")
-                            if len(elements) > 0:
-                                await elements[0].click()
-                                await self.page.wait_for_timeout(2000)
+                            await elements[0].click()
+                            await self.page.wait_for_timeout(5000)
                             break
                     except:
                         continue
                         
             except Exception as e:
-                logger.warning(f"Failed to interact with page: {e}")
+                logger.warning(f"Interaction failed: {e}")
             
             # Process captured data
-            logger.info(f"Processing {len(self.captured_responses)} captured responses")
+            logger.info(f"Processing {len(self.captured_responses)} responses, {len(self.ws_messages)} WS messages")
             
             for capture in self.captured_responses:
                 extracted = self.extract_events_from_response(capture['data'])
                 events.extend(extracted)
             
-            # Process WebSocket data
             for ws_msg in self.ws_messages:
                 if ws_msg['direction'] == 'received':
                     extracted = self.extract_events_from_response(ws_msg['data'])
@@ -350,7 +437,6 @@ class PinnacleScraper:
             await self.context.tracing.stop(path=str(self.trace_path))
             logger.info(f"Trace saved to {self.trace_path}")
             
-            # Create latest symlink
             latest_link = TRACE_DIR / "latest.zip"
             if latest_link.exists():
                 latest_link.unlink()
@@ -366,38 +452,44 @@ class PinnacleScraper:
             return []
     
     def extract_events_from_response(self, data: Dict) -> List[Dict]:
-        """Extract events from various Pinnacle response formats"""
+        """Extract events from various response formats"""
         events = []
         
         try:
-            # Try different structures
-            if isinstance(data, dict):
-                # Check for events array
+            # GraphQL response
+            if 'data' in data and isinstance(data['data'], dict):
+                for key, value in data['data'].items():
+                    if isinstance(value, list):
+                        for item in value:
+                            parsed = self.parse_event(item)
+                            if parsed:
+                                events.append(parsed)
+                    elif isinstance(value, dict):
+                        parsed = self.parse_event(value)
+                        if parsed:
+                            events.append(parsed)
+            
+            # Regular structures
+            elif isinstance(data, dict):
                 if 'events' in data:
                     for event in data['events']:
-                        parsed = self.parse_pinnacle_event(event)
+                        parsed = self.parse_event(event)
                         if parsed:
                             events.append(parsed)
-                            
-                # Check for matchups
                 elif 'matchups' in data:
                     for matchup in data['matchups']:
-                        parsed = self.parse_pinnacle_event(matchup)
+                        parsed = self.parse_event(matchup)
                         if parsed:
                             events.append(parsed)
-                            
-                # Check for leagues with events
                 elif 'leagues' in data:
                     for league in data['leagues']:
                         if 'events' in league:
                             for event in league['events']:
-                                parsed = self.parse_pinnacle_event(event)
+                                parsed = self.parse_event(event)
                                 if parsed:
                                     events.append(parsed)
-                                    
-                # Direct event structure
                 elif any(k in data for k in ['id', 'home', 'away', 'participants']):
-                    parsed = self.parse_pinnacle_event(data)
+                    parsed = self.parse_event(data)
                     if parsed:
                         events.append(parsed)
                         
@@ -411,8 +503,8 @@ class PinnacleScraper:
             
         return events
     
-    def parse_pinnacle_event(self, data: Dict) -> Optional[Dict]:
-        """Parse a single Pinnacle event"""
+    def parse_event(self, data: Dict) -> Optional[Dict]:
+        """Parse a single event"""
         try:
             # Extract teams
             home = None
@@ -451,7 +543,6 @@ class PinnacleScraper:
             # Extract markets
             markets = []
             
-            # Check for periods/markets structure
             if 'periods' in data:
                 for period in data['periods']:
                     if 'moneyline' in period:
@@ -463,15 +554,11 @@ class PinnacleScraper:
                                 {"name": "away", "price": ml.get('away', -110)}
                             ]
                         })
-                        
-            # Check for markets array
             elif 'markets' in data:
                 for market in data['markets']:
                     parsed_market = self.parse_market(market)
                     if parsed_market:
                         markets.append(parsed_market)
-                        
-            # Check for prices
             elif 'prices' in data:
                 prices = data['prices']
                 if 'moneyline' in prices:
@@ -483,7 +570,6 @@ class PinnacleScraper:
                         ]
                     })
                     
-            # Add markets or synthetic
             if markets:
                 event['markets'] = markets
             else:
@@ -506,7 +592,6 @@ class PinnacleScraper:
         try:
             market_type = market.get('type', market.get('key', 'unknown'))
             
-            # Normalize market type
             if 'money' in market_type.lower() or 'ml' in market_type.lower():
                 key = 'moneyline'
             elif 'spread' in market_type.lower() or 'handicap' in market_type.lower():
@@ -528,7 +613,7 @@ class PinnacleScraper:
                 for selection in market['selections']:
                     outcomes.append({
                         "name": selection.get('name', 'unknown'),
-                        "price": selection.get('price', selection.get('odds', -110))
+                        "price": selection.get('price', -110)
                     })
                     
             if outcomes:
@@ -563,10 +648,9 @@ async def publish_events(events: List[Dict]):
             "book": BOOK,
             "events": events,
             "timestamp": datetime.utcnow().isoformat(),
-            "collector_version": "2.0.0"
+            "collector_version": "3.0.0"
         }
         
-        # Store last payload for debug
         collector_state["last_payload"] = message
         
         r.publish(channel, json.dumps(message))
@@ -587,21 +671,15 @@ async def collection_loop():
                 logger.info("Starting collection cycle...")
                 ticks_total.labels(book=BOOK).inc()
                 
-                # Scrape odds
                 events = await scraper.scrape_odds()
                 
                 if events:
-                    # Publish to Redis
                     await publish_events(events)
-                    
-                    # Update state
                     collector_state["status"] = "ok"
                     collector_state["last_success"] = time.time()
                     last_success_ts.labels(book=BOOK).set(time.time())
                     collector_up.labels(book=BOOK).set(1)
-                    
                     logger.info(f"Collected {len(events)} events")
-                    logger.info(f"Endpoints found: {collector_state['endpoints_found']}")
                 else:
                     logger.warning("No events collected")
                     collector_up.labels(book=BOOK).set(0.5)
@@ -613,7 +691,6 @@ async def collection_loop():
                 collector_state["last_error"] = str(e)
                 collector_up.labels(book=BOOK).set(0)
             
-            # Wait for next cycle
             await asyncio.sleep(SCRAPE_INTERVAL)
             
     finally:
@@ -628,7 +705,8 @@ def health():
         "last_success": collector_state["last_success"],
         "errors": collector_state["errors"],
         "last_error": collector_state["last_error"],
-        "endpoints_found": len(collector_state["endpoints_found"])
+        "endpoints_found": len(collector_state["endpoints_found"]),
+        "proxy_active": collector_state["proxy_active"]
     })
 
 @app.route('/metrics')
@@ -648,7 +726,8 @@ def debug_endpoints():
     """Debug endpoint to view found endpoint patterns"""
     return jsonify({
         "endpoints": collector_state["endpoints_found"],
-        "count": len(collector_state["endpoints_found"])
+        "count": len(collector_state["endpoints_found"]),
+        "graphql_ops": list(set(collector_state.get("graphql_ops", [])))
     })
 
 def run_flask():
@@ -659,11 +738,9 @@ async def main():
     """Main entry point"""
     import threading
     
-    # Start Flask in background
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    # Run collection loop
     await collection_loop()
 
 if __name__ == '__main__':

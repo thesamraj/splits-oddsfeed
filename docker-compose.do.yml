@@ -75,6 +75,16 @@ services:
       - SCRAPE_INTERVAL_SEC=60
       - PLAYWRIGHT_HEADFUL=false
       - DEBUG_NETWORK=1
+      - USE_PROXY=${USE_PROXY:-false}
+      - PROXY_PROVIDER=${PROXY_PROVIDER:-soax}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - BRIGHT_HOST=${BRIGHT_HOST}
+      - BRIGHT_PORT=${BRIGHT_PORT}
+      - BRIGHT_USER=${BRIGHT_USER}
+      - BRIGHT_PASS=${BRIGHT_PASS}
     ports:
       - "19095:8000"
     volumes:
@@ -97,6 +107,16 @@ services:
       - SCRAPE_INTERVAL_SEC=60
       - USE_PLAYWRIGHT=auto
       - DEBUG_NETWORK=1
+      - USE_PROXY=${USE_PROXY:-false}
+      - PROXY_PROVIDER=${PROXY_PROVIDER:-soax}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - BRIGHT_HOST=${BRIGHT_HOST}
+      - BRIGHT_PORT=${BRIGHT_PORT}
+      - BRIGHT_USER=${BRIGHT_USER}
+      - BRIGHT_PASS=${BRIGHT_PASS}
     ports:
       - "19096:8000"
     volumes:

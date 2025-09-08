@@ -2,6 +2,7 @@
 """
 PointsBet/Fanatics Unified Collector - Deep network tracing
 HTTP-first with automatic endpoint detection, Playwright fallback
+Mobile proxy support for US-NJ
 """
 
 import os
@@ -26,6 +27,18 @@ PORT = int(os.getenv("PORT", "8000"))
 SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL_SEC", "60"))
 DEBUG_NETWORK = os.getenv("DEBUG_NETWORK", "1") == "1"
 USE_PLAYWRIGHT = os.getenv("USE_PLAYWRIGHT", "auto").lower()
+USE_PROXY = os.getenv("USE_PROXY", "").lower() in ["1", "true", "yes"]
+PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "soax").lower()
+
+# Proxy configuration
+SOAX_HOST = os.getenv("SOAX_HOST", "")
+SOAX_PORT = os.getenv("SOAX_PORT", "")
+SOAX_USER = os.getenv("SOAX_USER", "")
+SOAX_PASS = os.getenv("SOAX_PASS", "")
+BRIGHT_HOST = os.getenv("BRIGHT_HOST", "")
+BRIGHT_PORT = os.getenv("BRIGHT_PORT", "")
+BRIGHT_USER = os.getenv("BRIGHT_USER", "")
+BRIGHT_PASS = os.getenv("BRIGHT_PASS", "")
 
 # Logging
 logging.basicConfig(level=logging.DEBUG if DEBUG_NETWORK else logging.INFO)
@@ -57,7 +70,8 @@ collector_state = {
     "method": "http",
     "last_payload": None,
     "endpoints_found": [],
-    "working_endpoints": []
+    "working_endpoints": [],
+    "proxy_active": None
 }
 
 # Data directories
@@ -69,6 +83,34 @@ WS_DIR = DATA_DIR / "ws"
 for d in [TRACE_DIR, HAR_DIR, WS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
+def get_proxy_config():
+    """Get proxy configuration for US-NJ mobile"""
+    if not USE_PROXY:
+        return None
+        
+    if PROXY_PROVIDER == "soax" and all([SOAX_HOST, SOAX_PORT, SOAX_USER, SOAX_PASS]):
+        # Use US mobile proxy with New Jersey targeting
+        proxy_url = f"http://{SOAX_USER}:country-us:{SOAX_PASS}@{SOAX_HOST}:{SOAX_PORT}"
+        logger.info(f"Using SOAX proxy (US-NJ mobile): {SOAX_HOST}:{SOAX_PORT}")
+        collector_state["proxy_active"] = "SOAX_US_NJ"
+        return {
+            "server": f"http://{SOAX_HOST}:{SOAX_PORT}",
+            "username": SOAX_USER,
+            "password": f"country-us:{SOAX_PASS}"
+        }
+    elif PROXY_PROVIDER == "bright" and all([BRIGHT_HOST, BRIGHT_PORT, BRIGHT_USER, BRIGHT_PASS]):
+        proxy_url = f"http://{BRIGHT_USER}-country-us-state-nj:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
+        logger.info(f"Using BrightData proxy (US-NJ): {BRIGHT_HOST}:{BRIGHT_PORT}")
+        collector_state["proxy_active"] = "BRIGHT_US_NJ"
+        return {
+            "server": f"http://{BRIGHT_HOST}:{BRIGHT_PORT}",
+            "username": f"{BRIGHT_USER}-country-us-state-nj",
+            "password": BRIGHT_PASS
+        }
+    
+    logger.warning("Proxy requested but credentials not found")
+    return None
+
 class PointsBetCollector:
     """Enhanced collector with deep network analysis"""
     
@@ -78,6 +120,7 @@ class PointsBetCollector:
         self.browser_headers = {}
         self.json_count = 0
         self.trace_path = None
+        self.proxy_config = get_proxy_config()
         
         # Known API endpoints to try
         self.api_endpoints = [
@@ -120,24 +163,34 @@ class PointsBetCollector:
         events = []
         
         # Build headers from captured browser headers or defaults
+        # Use mobile UA for better compatibility
         headers = self.browser_headers or {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache',
             'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Ch-Ua-Mobile': '?1',
+            'Sec-Ch-Ua-Platform': '"iOS"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin'
         }
         
+        # Setup proxy for requests if configured
+        proxies = None
+        if self.proxy_config:
+            proxy_url = f"http://{self.proxy_config['username']}:{self.proxy_config['password']}@{self.proxy_config['server'].replace('http://', '')}"
+            proxies = {
+                "http": proxy_url,
+                "https": proxy_url
+            }
+        
         # Try working endpoints first
         for endpoint in collector_state["working_endpoints"]:
             try:
-                response = requests.get(endpoint, headers=headers, timeout=10)
+                response = requests.get(endpoint, headers=headers, proxies=proxies, timeout=10)
                 if response.status_code == 200:
                     data = response.json()
                     if self.looks_like_odds_data(data):
@@ -157,7 +210,7 @@ class PointsBetCollector:
             try:
                 logger.debug(f"Trying endpoint: {endpoint[:80]}")
                 
-                response = requests.get(endpoint, headers=headers, timeout=10)
+                response = requests.get(endpoint, headers=headers, proxies=proxies, timeout=10)
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -221,12 +274,19 @@ class PointsBetCollector:
         try:
             from playwright.async_api import async_playwright
             
-            logger.info("Starting Playwright collection with network tracing...")
+            logger.info("Starting Playwright collection with mobile emulation...")
             
             playwright = await async_playwright().start()
+            
+            # Launch options with proxy if configured
+            launch_args = ['--disable-blink-features=AutomationControlled']
+            if self.proxy_config:
+                launch_args.append(f"--proxy-server={self.proxy_config['server']}")
+            
             browser = await playwright.chromium.launch(
                 headless=True,
-                args=['--disable-blink-features=AutomationControlled']
+                args=launch_args,
+                proxy=self.proxy_config if self.proxy_config else None
             )
             
             # Setup HAR and tracing
@@ -234,9 +294,15 @@ class PointsBetCollector:
             har_path = HAR_DIR / f"pointsbet_{timestamp}.har"
             self.trace_path = TRACE_DIR / f"pointsbet_{timestamp}.zip"
             
+            # Mobile context with New Jersey geolocation
             context = await browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                viewport={'width': 390, 'height': 844},  # iPhone 12 Pro
+                user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+                device_scale_factor=3,
+                is_mobile=True,
+                has_touch=True,
+                geolocation={'latitude': 40.0583, 'longitude': -74.4057},  # New Jersey
+                permissions=['geolocation'],
                 record_har_path=str(har_path),
                 record_har_content='attach'
             )
@@ -311,11 +377,11 @@ class PointsBetCollector:
             await page.route('**/*', intercept_route)
             page.on('websocket', on_websocket)
             
-            # Try different sites
+            # Try different sites with mobile-optimized URLs
             sites = [
-                ('https://sportsbook.fanatics.com', 'Fanatics Sportsbook'),
                 ('https://nj.pointsbet.com', 'PointsBet NJ'),
-                ('https://pointsbet.com/sports', 'PointsBet Main')
+                ('https://sportsbook.fanatics.com', 'Fanatics Sportsbook'),
+                ('https://m.pointsbet.com', 'PointsBet Mobile')
             ]
             
             events = []
@@ -323,22 +389,87 @@ class PointsBetCollector:
             for site_url, site_name in sites:
                 try:
                     logger.info(f"Loading {site_name}...")
-                    await page.goto(site_url, wait_until='networkidle', timeout=30000)
-                    await page.wait_for_timeout(5000)
+                    await page.goto(site_url, wait_until='domcontentloaded', timeout=30000)
+                    await page.wait_for_timeout(3000)
                     
-                    # Try to interact with the page
+                    # Handle cookie consent
+                    try:
+                        cookie_selectors = [
+                            'button:has-text("Accept")',
+                            'button:has-text("Accept All")',
+                            'button:has-text("Accept Cookies")',
+                            '[aria-label*="accept cookie"]',
+                            '#onetrust-accept-btn-handler'
+                        ]
+                        for selector in cookie_selectors:
+                            try:
+                                if await page.locator(selector).first.is_visible():
+                                    await page.locator(selector).first.click()
+                                    await page.wait_for_timeout(1000)
+                                    logger.info("Accepted cookies")
+                                    break
+                            except:
+                                continue
+                    except:
+                        pass
+                    
+                    # Handle age gate
+                    try:
+                        age_selectors = [
+                            'button:has-text("21+")',
+                            'button:has-text("I am 21")',
+                            'button:has-text("Confirm")',
+                            '[aria-label*="confirm age"]'
+                        ]
+                        for selector in age_selectors:
+                            try:
+                                if await page.locator(selector).first.is_visible():
+                                    await page.locator(selector).first.click()
+                                    await page.wait_for_timeout(1000)
+                                    logger.info("Confirmed age")
+                                    break
+                            except:
+                                continue
+                    except:
+                        pass
+                    
+                    # Wait for content to load
+                    await page.wait_for_timeout(3000)
+                    
+                    # Try to interact with the page - click NFL
                     try:
                         # Click on NFL if visible
                         nfl_selectors = [
                             'text=NFL',
+                            'text=Football',
                             '[data-sport*="football"]',
-                            'a[href*="nfl"]'
+                            'a[href*="nfl"]',
+                            'a[href*="football"]',
+                            'button:has-text("NFL")'
                         ]
                         for selector in nfl_selectors:
                             try:
                                 if await page.locator(selector).first.is_visible():
                                     await page.locator(selector).first.click()
                                     await page.wait_for_timeout(3000)
+                                    logger.info("Clicked on NFL")
+                                    
+                                    # Try to click on first event
+                                    event_selectors = [
+                                        'a[href*="event"]',
+                                        '[data-testid*="event"]',
+                                        '.event-card',
+                                        '.match-card'
+                                    ]
+                                    for event_sel in event_selectors:
+                                        try:
+                                            if await page.locator(event_sel).first.is_visible():
+                                                await page.locator(event_sel).first.click()
+                                                await page.wait_for_timeout(3000)
+                                                logger.info("Clicked on first event")
+                                                break
+                                        except:
+                                            continue
                                     break
                             except:
                                 continue
@@ -659,7 +790,8 @@ def health():
         "last_error": collector_state["last_error"],
         "method": collector_state["method"],
         "endpoints_found": len(collector_state["endpoints_found"]),
-        "working_endpoints": len(collector_state["working_endpoints"])
+        "working_endpoints": len(collector_state["working_endpoints"]),
+        "proxy_active": collector_state["proxy_active"]
     })
 
 @app.route('/metrics')
