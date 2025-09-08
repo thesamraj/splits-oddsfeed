@@ -89,14 +89,13 @@ def get_proxy_config():
         return None
         
     if PROXY_PROVIDER == "soax" and all([SOAX_HOST, SOAX_PORT, SOAX_USER, SOAX_PASS]):
-        # Use US mobile proxy with New Jersey targeting
-        proxy_url = f"http://{SOAX_USER}:country-us:{SOAX_PASS}@{SOAX_HOST}:{SOAX_PORT}"
-        logger.info(f"Using SOAX proxy (US-NJ mobile): {SOAX_HOST}:{SOAX_PORT}")
+        # Use SOAX proxy - user already contains targeting info
+        logger.info(f"Using SOAX proxy: {SOAX_HOST}:{SOAX_PORT}")
         collector_state["proxy_active"] = "SOAX_US_NJ"
         return {
             "server": f"http://{SOAX_HOST}:{SOAX_PORT}",
             "username": SOAX_USER,
-            "password": f"country-us:{SOAX_PASS}"
+            "password": SOAX_PASS
         }
     elif PROXY_PROVIDER == "bright" and all([BRIGHT_HOST, BRIGHT_PORT, BRIGHT_USER, BRIGHT_PASS]):
         proxy_url = f"http://{BRIGHT_USER}-country-us-state-nj:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
