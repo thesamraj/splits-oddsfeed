@@ -4,13 +4,13 @@
 **Analysis Type:** Full Infrastructure Assessment
 
 ## CHANGELOG
-**Updated:** January 13, 2025
-- Verified actual DO droplet status (SSH OK at 104.131.186.8)
-- Removed references to non-deployed collectors (circa, superbook, betonline, bookmaker, betway, wynnbet)
-- Updated proxy vendor from ProxyGuys to The Social Proxy (TSP)
-- Corrected PointsBet/Fanatics status (not seasonal, endpoint migration + WAF)
-- Compressed timeline from 4 months to 14-day sprint plan
-- Added concrete metrics from live services
+**Updated:** January 14, 2025
+- Purged all mock/demo data generators from codebase
+- Added CI/CD guardrails: assert_no_mocks.sh, test_no_mocks.py, REAL_ONLY.md policy
+- Verified DO droplet collectors - NONE fetching real data (all 0 or mock)
+- Confirmed 6 requested collectors (circa, superbook, betonline, bookmaker, betway, wynnbet) NOT deployed on DO
+- Updated proxy vendor to The Social Proxy (TSP), marked Bright Data/SOAX as blocked
+- Retained 14-day sprint plan and PointsBet/Fanatics migration notes
 
 ## Executive Summary
 
@@ -40,26 +40,29 @@ Build a comprehensive real-time odds aggregation system that:
 - **Docker Orchestration**: Clean compose-based deployment for local and DO environments
 - **Metrics System**: Prometheus-compatible metrics with custom proxy aggregation
 
-### 2. Currently Deployed Collectors (DO Droplet Status)
+### 2. Real Collector Status
 
-#### Active Services (As of Jan 13, 2025):
-| Service | Port | Status | Events Published |
-|---------|------|--------|------------------|
-| mybookie | 19111 | ✅ healthy | 173,870 (mock data) |
-| betus | 19110 | ✅ healthy | 20,420 (mock data) |
-| bovada | 19081 | ⚠️ no metrics | N/A |
-| pinnacle-site | 19095 | ❌ init/errors | 0 (Tracing errors: 7363) |
-| pointsbet-unified | 19096 | ❌ init | 0 |
-| betfred | 19108 | ❌ init | 0 |
-| betnow | 19112 | Unknown | N/A |
-| everygame | 19113 | Unknown | N/A |
-| heritage | 19114 | Unknown | N/A |
-| fanatics-browser | 19097 | Unknown | N/A |
-| hardrock | 19101 | Unknown | N/A |
-| sportsinteraction | 19103 | Unknown | N/A |
-| kambi-browser | 19088 | Unknown | N/A |
+#### PASS/FAIL Table for 6 Requested Collectors
+| Collector | Deployed | collector_up | ticks_total | rows_last_10m | Status |
+|-----------|----------|--------------|-------------|---------------|--------|
+| circa | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+| superbook | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+| betonline | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+| bookmaker | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+| betway | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+| wynnbet | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
 
-**Note:** The 6 requested collectors (circa, superbook, betonline, bookmaker, betway, wynnbet) are NOT deployed on DO. They exist in the codebase but are not in docker-compose.do.yml.
+#### Currently Running Services (Jan 14, 2025)
+| Service | Port | Real Data | Issue |
+|---------|------|-----------|-------|
+| mybookie | 19111 | ❌ NO | Mock data removed, now returns 0 events |
+| betus | 19110 | ❌ NO | Mock data removed, now returns 0 events |
+| bovada | 19081 | ❌ NO | No healthz response |
+| pinnacle-site | 19095 | ❌ NO | Tracing errors (7363), stuck in init |
+| pointsbet-unified | 19096 | ❌ NO | 0 events, endpoints empty |
+| Others | Various | ❌ NO | All returning 0 real events |
+
+**Summary:** ZERO collectors currently fetching real odds data. Mock generators purged per REAL_ONLY policy.
 
 ### 3. Normalizer Pipeline ✅
 - **Canonical V1 Normalizer**: Handles 15+ book channels
