@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-BoltOdds WebSocket Collector - Aligned to Documentation
-Follows exact subscription pattern from docs
+BoltOdds WebSocket Collector - Extended Capture
+2×120s windows: bare subscribe then filtered
 """
 import os
 import sys
@@ -15,10 +15,6 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import websockets
-import redis
-import requests
-from prometheus_client import Counter, Gauge, generate_latest
-from flask import Flask, jsonify, Response
 
 # Load token from .env.local
 def load_token():
@@ -37,10 +33,8 @@ if not TOKEN:
 
 # Configuration
 WS_URL = f'wss://spro.agency/api?key={TOKEN}'
-INFO_URL = f'https://spro.agency/api/get_info?key={TOKEN}'
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
-STAGING_CHANNEL = 'odds.raw.bolt.staging'
-PORT = int(os.getenv('PORT', '8000'))
+BARE_DURATION = 300  # 5 minutes bare subscribe
+FILTERED_DURATION = 300  # 5 minutes filtered subscribe
 
 # Logging
 logging.basicConfig(
@@ -49,32 +43,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger('boltodds')
 
-# Metrics
-collector_up = Gauge('collector_up', 'Collector status')
-messages_total = Counter('messages_total', 'Total messages received')
-data_frames_total = Counter('data_frames_total', 'Total data frames')
-last_action = Gauge('last_action', 'Last action timestamp', ['type'])
-
-# Flask app
-app = Flask(__name__)
-
-# Global state
-state = {
-    'connected': False,
-    'last_msg_time': 0,
-    'games': {},
-    'subscription_mode': 'bare'
-}
-
 class BoltCollector:
     def __init__(self):
         self.ws = None
-        self.redis_client = None
-        self.frame_log = None
-        self.frame_count = 0
-        self.data_frame_count = 0
-        self.sports_available = []
-        self.books_available = []
+        self.frame_logs = []
+        self.frame_counts = {'bare': 0, 'filtered': 0}
+        self.action_counts = {}
         
     def sanitize(self, text: str) -> str:
         """Remove token from text"""
@@ -82,102 +56,35 @@ class BoltCollector:
             return text.replace(TOKEN, 'REDACTED')
         return text
         
-    async def initialize(self):
-        """Initialize Redis and fetch info"""
-        try:
-            # Redis connection
-            self.redis_client = redis.from_url(REDIS_URL)
-            self.redis_client.ping()
-            logger.info("Connected to Redis")
-            
-            # Fetch available sports/books
-            response = requests.get(INFO_URL, verify=False, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                self.sports_available = data.get('sports', [])
-                self.books_available = data.get('sportsbooks', [])
-                logger.info(f"Available: {len(self.sports_available)} sports, {len(self.books_available)} books")
-            
-            # Setup frame logging
-            Path('data/bolt/raw').mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-            self.frame_log = open(f'data/bolt/raw/frames_{timestamp}.jsonl', 'w')
-            
-            collector_up.set(1)
-            return True
-            
-        except Exception as e:
-            logger.error(f"Initialization failed: {e}")
-            collector_up.set(0)
-            return False
-            
-    def log_frame(self, frame: Dict, direction: str = 'recv'):
+    def log_frame(self, frame: Dict, log_file, phase: str):
         """Log frame to file"""
-        if self.frame_log:
-            record = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'frame_id': self.frame_count,
-                'direction': direction,
-                'data': json.loads(self.sanitize(json.dumps(frame)))
-            }
-            self.frame_log.write(json.dumps(record) + '\n')
-            self.frame_log.flush()
-            self.frame_count += 1
-            
-    def handle_message(self, msg: Dict):
-        """Handle different message types per docs"""
-        msg_type = msg.get('action') or msg.get('type', 'unknown')
+        record = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'phase': phase,
+            'frame_id': self.frame_counts[phase],
+            'data': json.loads(self.sanitize(json.dumps(frame)))
+        }
+        log_file.write(json.dumps(record) + '\n')
+        log_file.flush()
+        self.frame_counts[phase] += 1
         
-        # Update metrics
-        messages_total.inc()
-        last_action.labels(type=msg_type).set(time.time())
+        # Track action types
+        action = frame.get('action', frame.get('type', 'unknown'))
+        self.action_counts[action] = self.action_counts.get(action, 0) + 1
         
-        # Handle by type
-        if msg_type == 'ping':
-            # Ignore pings
-            return
-            
-        elif msg_type == 'socket_connected':
-            logger.info("Received ACK (socket_connected)")
-            state['connected'] = True
-            
-        elif msg_type in ['initial_state', 'game_update', 'line_update', 'game_added', 'game_removed', 'book_clear']:
-            # Data frame!
-            self.data_frame_count += 1
-            data_frames_total.inc()
-            
-            logger.info(f"DATA FRAME #{self.data_frame_count}: {msg_type}")
-            
-            # Publish to staging
-            envelope = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'type': msg_type,
-                'data': msg,
-                'collector': 'boltodds_aligned'
-            }
-            
-            sanitized = json.loads(self.sanitize(json.dumps(envelope)))
-            self.redis_client.publish(STAGING_CHANNEL, json.dumps(sanitized))
-            
-            # Update state
-            state['last_msg_time'] = time.time()
-            
-            # Track games
-            if 'game_id' in msg:
-                if msg_type == 'game_removed':
-                    state['games'].pop(msg['game_id'], None)
-                else:
-                    state['games'][msg['game_id']] = msg.get('sport', 'unknown')
-                    
-        else:
-            logger.debug(f"Unknown message type: {msg_type}")
-            
     async def run_collector(self):
-        """Main collector loop"""
+        """Main collector loop with 2×120s windows"""
         # Create SSL context
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
+        
+        # Setup output files
+        Path('data/bolt/raw').mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        
+        bare_log_path = f'data/bolt/raw/frames_bare_{timestamp}.jsonl'
+        filtered_log_path = f'data/bolt/raw/frames_filtered_{timestamp}.jsonl'
         
         try:
             logger.info(f"Connecting to WebSocket...")
@@ -195,124 +102,132 @@ class BoltCollector:
                 # Wait for ACK
                 ack_msg = await ws.recv()
                 ack = json.loads(ack_msg)
-                self.log_frame(ack, 'recv')
-                self.handle_message(ack)
+                logger.info(f"Received ACK: {ack.get('action', 'unknown')}")
                 
-                # STEP 1: Send bare subscribe (no filters) per docs
-                bare_sub = {"action": "subscribe"}
-                logger.info("Sending BARE subscribe (no filters)...")
-                await ws.send(json.dumps(bare_sub))
-                self.log_frame(bare_sub, 'send')
-                
-                # Listen for 2 minutes
-                bare_start = time.time()
-                bare_frames = 0
-                
-                while time.time() - bare_start < 120:
-                    try:
-                        msg = await asyncio.wait_for(ws.recv(), timeout=5)
-                        frame = json.loads(msg)
-                        self.log_frame(frame, 'recv')
-                        self.handle_message(frame)
-                        
-                        if frame.get('type') in ['initial_state', 'game_update', 'line_update']:
-                            bare_frames += 1
-                            
-                    except asyncio.TimeoutError:
-                        continue
-                    except Exception as e:
-                        logger.error(f"Frame error: {e}")
-                        
-                logger.info(f"Bare subscribe: {bare_frames} data frames in 2 minutes")
-                
-                # STEP 2: If we got data, try filtered subscribe
-                if bare_frames > 0 or True:  # Always try filtered
-                    # Pick some sports and books
-                    sports = ['NBA', 'NFL', 'NHL'] if 'NBA' in self.sports_available else self.sports_available[:3]
-                    books = ['draftkings', 'betmgm', 'fanduel'] 
-                    books = [b for b in books if b in self.books_available] or self.books_available[:3]
+                # PHASE 1: Bare subscribe (no filters)
+                with open(bare_log_path, 'w') as bare_log:
+                    bare_sub = {"action": "subscribe"}
+                    logger.info(f"Sending BARE subscribe: {self.sanitize(json.dumps(bare_sub))}")
+                    await ws.send(json.dumps(bare_sub))
                     
+                    # Log the subscription we sent
+                    self.log_frame(bare_sub, bare_log, 'bare')
+                    
+                    # Capture for 120 seconds
+                    bare_start = time.time()
+                    bare_data_frames = 0
+                    
+                    while time.time() - bare_start < BARE_DURATION:
+                        try:
+                            remaining = BARE_DURATION - (time.time() - bare_start)
+                            msg = await asyncio.wait_for(ws.recv(), timeout=min(5, remaining))
+                            frame = json.loads(msg)
+                            self.log_frame(frame, bare_log, 'bare')
+                            
+                            action = frame.get('action', frame.get('type', 'unknown'))
+                            if action not in ['ping', 'socket_connected']:
+                                bare_data_frames += 1
+                                if bare_data_frames % 100 == 0:
+                                    elapsed = int(time.time() - bare_start)
+                                    logger.info(f"Bare phase: {bare_data_frames} data frames ({elapsed}s)")
+                                    
+                        except asyncio.TimeoutError:
+                            continue
+                        except Exception as e:
+                            logger.error(f"Frame error: {e}")
+                    
+                    logger.info(f"Bare phase complete: {self.frame_counts['bare']} total frames, {bare_data_frames} data frames")
+                
+                # PHASE 2: Filtered subscribe
+                with open(filtered_log_path, 'w') as filtered_log:
                     filtered_sub = {
                         "action": "subscribe",
-                        "sports": sports,
-                        "sportsbooks": books
+                        "filters": {
+                            "sports": ["NFL", "NBA", "NHL"],
+                            "sportsbooks": ["draftkings", "betmgm", "espnbet", "thescore", "neobet"],
+                            "markets": ["Moneyline", "Spread", "Total"]
+                        }
                     }
-                    
-                    logger.info(f"Sending FILTERED subscribe: {sports}, {books}")
+                    logger.info(f"Sending FILTERED subscribe: {self.sanitize(json.dumps(filtered_sub))}")
                     await ws.send(json.dumps(filtered_sub))
-                    self.log_frame(filtered_sub, 'send')
-                    state['subscription_mode'] = 'filtered'
                     
-                # Continue listening
-                while True:
-                    try:
-                        msg = await asyncio.wait_for(ws.recv(), timeout=30)
-                        frame = json.loads(msg)
-                        self.log_frame(frame, 'recv')
-                        self.handle_message(frame)
-                        
-                        # Log first 50 frames
-                        if self.frame_count <= 50:
-                            logger.debug(f"Frame {self.frame_count}: {list(frame.keys())}")
+                    # Log the subscription we sent
+                    self.log_frame(filtered_sub, filtered_log, 'filtered')
+                    
+                    # Capture for 120 seconds
+                    filtered_start = time.time()
+                    filtered_data_frames = 0
+                    
+                    while time.time() - filtered_start < FILTERED_DURATION:
+                        try:
+                            remaining = FILTERED_DURATION - (time.time() - filtered_start)
+                            msg = await asyncio.wait_for(ws.recv(), timeout=min(5, remaining))
+                            frame = json.loads(msg)
+                            self.log_frame(frame, filtered_log, 'filtered')
                             
-                    except asyncio.TimeoutError:
-                        # Send ping to keep alive
-                        await ws.ping()
-                    except Exception as e:
-                        logger.error(f"Error: {e}")
-                        break
-                        
+                            action = frame.get('action', frame.get('type', 'unknown'))
+                            if action not in ['ping', 'socket_connected']:
+                                filtered_data_frames += 1
+                                if filtered_data_frames % 100 == 0:
+                                    elapsed = int(time.time() - filtered_start)
+                                    logger.info(f"Filtered phase: {filtered_data_frames} data frames ({elapsed}s)")
+                                    
+                        except asyncio.TimeoutError:
+                            continue
+                        except Exception as e:
+                            logger.error(f"Frame error: {e}")
+                    
+                    logger.info(f"Filtered phase complete: {self.frame_counts['filtered']} total frames, {filtered_data_frames} data frames")
+                
+                # Save file paths
+                self.frame_logs = [bare_log_path, filtered_log_path]
+                
         except Exception as e:
             logger.error(f"Connection failed: {e}")
-            state['connected'] = False
-            collector_up.set(0)
+            return False
             
-        finally:
-            if self.frame_log:
-                self.frame_log.close()
-
-# Flask routes
-@app.route('/healthz')
-def health():
-    return jsonify({
-        'status': 'ok' if state['connected'] else 'disconnected',
-        'connected': state['connected'],
-        'last_msg_time': state['last_msg_time'],
-        'games_tracked': len(state['games']),
-        'subscription_mode': state['subscription_mode']
-    })
-
-@app.route('/metrics')
-def metrics():
-    return Response(generate_latest(), mimetype='text/plain')
+        return True
 
 async def main():
     """Main entry point"""
     collector = BoltCollector()
     
-    if not await collector.initialize():
-        logger.error("Failed to initialize")
-        sys.exit(1)
-        
-    # Start Flask in background
-    import threading
-    flask_thread = threading.Thread(
-        target=lambda: app.run(host='0.0.0.0', port=PORT, debug=False)
-    )
-    flask_thread.daemon = True
-    flask_thread.start()
+    logger.info("Starting BoltOdds extended capture (2×120s)")
+    logger.info(f"Output: data/bolt/raw/")
     
-    # Run collector
-    try:
-        await collector.run_collector()
-    except KeyboardInterrupt:
-        logger.info("Stopped by user")
-    finally:
-        logger.info(f"Total frames: {collector.frame_count}")
-        logger.info(f"Data frames: {collector.data_frame_count}")
+    success = await collector.run_collector()
+    
+    if success:
+        logger.info("\n" + "="*60)
+        logger.info("CAPTURE COMPLETE")
+        logger.info("="*60)
+        logger.info(f"Bare frames: {collector.frame_counts['bare']}")
+        logger.info(f"Filtered frames: {collector.frame_counts['filtered']}")
+        logger.info(f"Files: {collector.frame_logs}")
         
+        logger.info("\nAction distribution:")
+        for action, count in sorted(collector.action_counts.items(), key=lambda x: x[1], reverse=True):
+            logger.info(f"  {action}: {count}")
+            
+        # Determine PASS/FAIL
+        data_actions = {'initial_state', 'line_update', 'game_update', 'game_added', 'game_removed', 'book_clear'}
+        has_data = any(action in collector.action_counts for action in data_actions)
+        
+        logger.info("\n" + "="*60)
+        if has_data:
+            logger.info("STATUS: PASS ✓")
+        else:
+            logger.info("STATUS: FAIL ✗ (No data frames)")
+        logger.info("="*60)
+        
+        return 0 if has_data else 1
+    else:
+        logger.error("Capture failed")
+        return 1
+
 if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
     
-    asyncio.run(main())
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

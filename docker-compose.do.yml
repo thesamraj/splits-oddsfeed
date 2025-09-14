@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  # Bolt normalizer (staging only)
+  bolt-normalizer:
+    build:
+      context: .
+      dockerfile: ./services/bolt_normalizer/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BOLT_CHANNEL=odds.raw.bolt.staging
+      - PORT=8000
+    ports:
+      - "19098:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
   # Bovada collector
   bovada:
     build:
@@ -15,6 +33,91 @@ services:
       - PORT=8000
     ports:
       - "19081:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  # Non-Kambi Real Collectors
+  circa:
+    build:
+      context: .
+      dockerfile: ./collectors/circa/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19084:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  superbook:
+    build:
+      context: .
+      dockerfile: ./collectors/superbook/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19085:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  betonline:
+    build:
+      context: .
+      dockerfile: ./collectors/betonline/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19086:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  bookmaker:
+    build:
+      context: .
+      dockerfile: ./collectors/bookmaker/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19087:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  betway:
+    build:
+      context: .
+      dockerfile: ./collectors/betway/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19089:8000"
+    networks:
+      - odds-network
+    restart: unless-stopped
+
+  wynnbet:
+    build:
+      context: .
+      dockerfile: ./collectors/wynnbet/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19090:8000"
     networks:
       - odds-network
     restart: unless-stopped
@@ -127,13 +230,145 @@ services:
       - normalizer
     restart: unless-stopped
 
+  # HardRock collector (STOPPED - not capturing)
+  # hardrock:
+    build:
+      context: ./collectors/hardrock
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - USE_PROXY=${USE_PROXY:-false}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - PORT=8000
+    ports:
+      - "19101:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # BetUS collector
+  betus:
+    build:
+      context: ./collectors/betus
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - USE_PROXY=${USE_PROXY:-false}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - PORT=8000
+    ports:
+      - "19105:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # MyBookie collector
+  mybookie:
+    build:
+      context: ./collectors/mybookie
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - USE_PROXY=${USE_PROXY:-false}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - PORT=8000
+    ports:
+      - "19106:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # BetFred collector
+  betfred:
+    build:
+      context: ./collectors/betfred
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - USE_PROXY=${USE_PROXY:-false}
+      - SOAX_HOST=${SOAX_HOST}
+      - SOAX_PORT=${SOAX_PORT}
+      - SOAX_USER=${SOAX_USER}
+      - SOAX_PASS=${SOAX_PASS}
+      - PORT=8000
+    ports:
+      - "19105:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # BetNow collector
+  betnow:
+    build:
+      context: ./collectors/betnow
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19112:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # Everygame collector
+  everygame:
+    build:
+      context: ./collectors/everygame
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19113:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
+  # Heritage collector
+  heritage:
+    build:
+      context: ./collectors/heritage
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+    ports:
+      - "19114:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+    restart: unless-stopped
+
   # Metrics Proxy
   metrics-proxy:
     build:
       context: ./services
       dockerfile: ./metrics_proxy/Dockerfile
     environment:
-      - METRICS_TARGETS=http://bovada:8000,http://kambi-browser:8000,http://normalizer:8000,http://pinnacle-site:8000,http://pointsbet-unified:8000
+      - METRICS_TARGETS=http://bovada:8000,http://kambi-browser:8000,http://normalizer:8000,http://pinnacle-site:8000,http://pointsbet-unified:8000,http://betnow:8000,http://everygame:8000,http://heritage:8000
       - DATABASE_URL=${DATABASE_URL}
       - PORT=8000
     ports:
@@ -146,6 +381,9 @@ services:
       - kambi-browser
       - pinnacle-site
       - pointsbet-unified
+      - betnow
+      - everygame
+      - heritage
     restart: unless-stopped
 
 networks:

@@ -45,7 +45,15 @@ class CanonicalNormalizer:
             "odds.raw.betway",
             "odds.raw.wynnbet",
             "odds.raw.pinnacle_site",
-            "odds.raw.pointsbet"
+            "odds.raw.pointsbet",
+            "odds.raw.fanatics",
+            "odds.raw.hardrock",
+            "odds.raw.betus",
+            "odds.raw.mybookie",
+            "odds.raw.betfred",
+            "odds.raw.betnow",
+            "odds.raw.everygame",
+            "odds.raw.heritage"
         ]
         
         for channel in self.channels:

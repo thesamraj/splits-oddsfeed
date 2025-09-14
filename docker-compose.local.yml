@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  # Bolt normalizer (staging only)
+  bolt-normalizer:
+    build:
+      context: .
+      dockerfile: ./services/bolt_normalizer/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BOLT_CHANNEL=odds.raw.bolt.staging
+      - PORT=8000
+    ports:
+      - "19098:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+
   # Bovada collector
   bovada:
     build:
