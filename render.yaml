@@ -1,32 +1,12 @@
-# Render.com deployment configuration
-# Stage enablement: Bovada → Kambi → FD → DK → MGM → Pinnacle
-# Realness-gated, Neon-only, fail-soft normalizers
+# Render.com minimal deployment configuration
+# Services: Redis broker, Normalizer, Bovada collector, Metrics proxy
 
 services:
   # Redis broker (required)
   - type: redis
     name: odds-broker
     plan: starter
-    maxMemoryPolicy: allkeys-lru
-
-  # API Server
-  - type: web
-    name: oddsfeed-api
-    env: docker
-    plan: starter
-    dockerfilePath: ./api/Dockerfile
-    dockerContext: ./api
-    healthCheckPath: /healthz
-    autoDeploy: true
-    envVars:
-      - key: DATABASE_URL
-        sync: false  # Set in Render dashboard
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: METRICS_PORT
-        value: 9090
-      - key: ENVIRONMENT
-        value: production
+    ipAllowList: []  # required by Render; empty list = internal-only access
 
   # Metrics Proxy (public endpoint)
   - type: web
@@ -38,414 +18,43 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
-      - key: PORT
-        value: 8000
       - key: DATABASE_URL
         sync: false  # For DB fallback metrics
       - key: METRICS_TARGETS
-        value: "bovada-collector:9090,betrivers-collector:9090,barstool-collector:9090,caesars-collector:9090,sugarhouse-collector:9090,unibet-collector:9090,fanduel-collector:9090,draftkings-collector:9090,betmgm-collector:9090,pinnacle-collector:9090,bet365-collector:9090,stake-collector:9090,pointsbet-collector:9090,normalizer:9090"
+        value: "https://oddsfeed-bovada.onrender.com,https://oddsfeed-normalizer.onrender.com"
+      - key: SERVICE_URL_BOVADA
+        value: "https://oddsfeed-bovada.onrender.com"
+      - key: SERVICE_URL_NORMALIZER
+        value: "https://oddsfeed-normalizer.onrender.com"
 
-  # Stage 0: Bovada (LIVE NOW)
-  - type: worker
+  # Bovada collector (now a web service)
+  - type: web
     name: oddsfeed-bovada
     env: docker
     plan: starter
     dockerfilePath: ./collectors/bovada_real/Dockerfile
     dockerContext: .
-    minInstances: 1
-    maxInstances: 1
-    restartPolicy: always
+    healthCheckPath: /healthz
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
         sync: false  # Set in Render dashboard
       - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
+        value: redis://odds-broker:6379
       - key: LIGHT_SOCCER
         value: true  # Limit soccer payload to 25MB
-      - key: REALNESS_THRESHOLD
-        value: 0.85  # Relaxed with hard signals
-      - key: REALNESS_MIN_SAMPLES
-        value: 200
-      - key: REALNESS_MIN_WINDOW_MIN
-        value: 10
-      - key: REALNESS_QUARANTINE
-        value: true
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: COLLECTION_INTERVAL
-        value: 60
-      - key: SLACK_WEBHOOK
-        sync: false  # Optional, set if needed
 
-  # Stage 1: Kambi Unified (5 brands)
-  # BetRivers
-  - type: worker
-    name: oddsfeed-betrivers
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/kambi_unified/Dockerfile
-    dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false  # Enable after Bovada stable
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: KAMBI_BRAND
-        value: betrivers
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # Barstool
-  - type: worker
-    name: oddsfeed-barstool
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/kambi_unified/Dockerfile
-    dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: KAMBI_BRAND
-        value: barstool
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # Caesars
-  - type: worker
-    name: oddsfeed-caesars
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/kambi_unified/Dockerfile
-    dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: KAMBI_BRAND
-        value: caesars
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # SugarHouse
-  - type: worker
-    name: oddsfeed-sugarhouse
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/kambi_unified/Dockerfile
-    dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: KAMBI_BRAND
-        value: sugarhouse
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # Unibet
-  - type: worker
-    name: oddsfeed-unibet
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/kambi_unified/Dockerfile
-    dockerContext: ./collectors/kambi_unified
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: KAMBI_BRAND
-        value: unibet
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # Stage 2: WebSocket Heavyweights
-  # FanDuel
-  - type: worker
-    name: oddsfeed-fanduel
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/fanduel_ws/Dockerfile
-    dockerContext: ./collectors/fanduel_ws
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false  # Enable after Kambi stable
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PROXY_URL
-        sync: false
-
-  # DraftKings
-  - type: worker
-    name: oddsfeed-draftkings
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/draftkings_ws/Dockerfile
-    dockerContext: ./collectors/draftkings_ws
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false  # Enable after FanDuel stable
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PROXY_URL
-        sync: false
-
-  # Stage 3: Remaining Books
-  # BetMGM
-  - type: worker
-    name: oddsfeed-betmgm
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/betmgm_browser/Dockerfile
-    dockerContext: ./collectors/betmgm_browser
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PROXY_URL
-        sync: false
-
-  # Pinnacle
-  - type: worker
-    name: oddsfeed-pinnacle
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/pinnacle/Dockerfile
-    dockerContext: ./collectors/pinnacle
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PIN_USERNAME
-        sync: false  # Set in dashboard
-      - key: PIN_PASSWORD
-        sync: false  # Set in dashboard
-
-  # Bet365
-  - type: worker
-    name: oddsfeed-bet365
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/bet365_api/Dockerfile
-    dockerContext: ./collectors/bet365_api
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PROXY_URL
-        sync: false
-
-  # Stake
-  - type: worker
-    name: oddsfeed-stake
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/stake_api/Dockerfile
-    dockerContext: ./collectors/stake_api
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # PointsBet
-  - type: worker
-    name: oddsfeed-pointsbet
-    env: docker
-    plan: starter
-    dockerfilePath: ./collectors/pointsbet_browser/Dockerfile
-    dockerContext: ./collectors/pointsbet_browser
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: false
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-      - key: PROXY_URL
-        sync: false
-
-  # Normalizer service (worker - no health check)
-  - type: worker
+  # Normalizer service (now a web service)
+  - type: web
     name: oddsfeed-normalizer
     env: docker
     plan: starter
     dockerfilePath: ./normalizer/Dockerfile
     dockerContext: ./normalizer
-    minInstances: 1
-    restartPolicy: always
-    autoDeploy: true  # Normalizer always auto-deploys
+    healthCheckPath: /healthz
+    autoDeploy: true
     envVars:
       - key: DATABASE_URL
         sync: false  # Set in Render dashboard
       - key: REDIS_URL
-        value: redis://oddsfeed-broker:6379
-      - key: ENABLE_REALNESS_GATE
-        value: true
-      - key: REAL_ONLY
-        value: true
-      - key: REALNESS_THRESHOLD
-        value: 0.9
-      - key: METRICS_PORT
-        value: 9090
-      - key: HEALTH_PORT
-        value: 9091
-
-  # Database cleaner cron job
-  - type: cron
-    name: oddsfeed-cleaner
-    env: docker
-    plan: starter
-    schedule: "0 * * * *"  # Every hour
-    dockerfilePath: ./services/db_cleaner/Dockerfile
-    dockerContext: ./services/db_cleaner
-    envVars:
-      - key: DATABASE_URL
-        sync: false  # Set in Render dashboard
-      - key: RETENTION_HOURS
-        value: 24
-
-  # Redis broker
-  - type: pserv
-    name: oddsfeed-broker
-    env: docker
-    plan: starter
-    dockerfilePath: ./Dockerfile.redis
-    dockerContext: .
-    autoDeploy: true
-    disk:
-      name: redis-data
-      mountPath: /data
-      sizeGB: 1
+        value: redis://odds-broker:6379

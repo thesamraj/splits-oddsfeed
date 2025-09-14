@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Metrics proxy - aggregates metrics from internal services with DB fallback
+Metrics proxy - aggregates metrics from public service URLs with DB fallback
 """
 import os
 import time
 import threading
 import requests
 import psycopg2
+import re
 from flask import Flask, Response, jsonify
 
 app = Flask(__name__)
@@ -18,25 +19,43 @@ targets_status = {}
 db_pool = None
 if os.getenv("DATABASE_URL"):
     try:
-        db_pool = psycopg2.pool.SimpleConnectionPool(
+        from psycopg2 import pool
+        db_pool = pool.SimpleConnectionPool(
             1, 5, os.getenv("DATABASE_URL"), connect_timeout=5
         )
     except Exception as e:
         print(f"Failed to initialize DB pool: {e}", flush=True)
 
+# Book to service base URL mapping from environment
+BOOK_BASE_URLS = {
+    "bovada": os.getenv("SERVICE_URL_BOVADA", "http://bovada:8000"),
+    "normalizer": os.getenv("SERVICE_URL_NORMALIZER", "http://normalizer:8000"),
+    "betrivers": os.getenv("SERVICE_URL_BETRIVERS", "http://betrivers:8000"),
+    "barstool": os.getenv("SERVICE_URL_BARSTOOL", ""),
+    "caesars": os.getenv("SERVICE_URL_CAESARS", ""),
+    "sugarhouse": os.getenv("SERVICE_URL_SUGARHOUSE", ""),
+    "unibet": os.getenv("SERVICE_URL_UNIBET", ""),
+    "fanduel": os.getenv("SERVICE_URL_FANDUEL", ""),
+    "draftkings": os.getenv("SERVICE_URL_DRAFTKINGS", ""),
+    "betmgm": os.getenv("SERVICE_URL_BETMGM", ""),
+    "pinnacle": os.getenv("SERVICE_URL_PINNACLE", ""),
+    "bet365": os.getenv("SERVICE_URL_BET365", ""),
+    "stake": os.getenv("SERVICE_URL_STAKE", ""),
+    "pointsbet": os.getenv("SERVICE_URL_POINTSBET", ""),
+}
+
 
 def parse_targets():
-    """Parse METRICS_TARGETS env var (space or comma separated URLs or host:port)"""
+    """Parse METRICS_TARGETS env var (comma-separated FULL URLs)"""
     raw = os.getenv("METRICS_TARGETS", "")
     targets = []
-    for part in raw.replace(",", " ").split():
+    for part in raw.split(","):
+        part = part.strip()
         if part:
-            # If it's a full URL, use as-is; else construct URL
-            if part.startswith("http://") or part.startswith("https://"):
-                targets.append(part)
-            else:
-                # Assume host:port format
-                targets.append(f"http://{part}/metrics")
+            # Ensure it's a proper URL
+            if not (part.startswith("http://") or part.startswith("https://")):
+                part = f"http://{part}"  # Default to http for local
+            targets.append(part)
     return targets
 
 
@@ -103,14 +122,22 @@ def get_db_metrics(book):
 
 
 def scrape_metrics():
+    """Scrape metrics from public service URLs"""
     targets = parse_targets()
     aggregated = []
     failed_books = set()
+    
+    print(f"Starting scrape of {len(targets)} targets: {targets}", flush=True)
 
-    for target in targets:
+    for base_url in targets:
         try:
-            resp = requests.get(target, timeout=3, allow_redirects=False)
+            # Append /metrics to base URL
+            metrics_url = f"{base_url.rstrip('/')}/metrics"
+            print(f"Scraping {metrics_url}...", flush=True)
+            resp = requests.get(metrics_url, timeout=5, allow_redirects=False)
+            
             if resp.status_code == 200:
+                print(f"Got {len(resp.text)} bytes from {metrics_url}", flush=True)
                 # Filter out duplicate TYPE/HELP lines to avoid conflicts
                 lines = resp.text.split("\n")
                 filtered = []
@@ -123,80 +150,100 @@ def scrape_metrics():
                     else:
                         filtered.append(line)
                 aggregated.append("\n".join(filtered))
-                targets_status[target] = {"status": "ok", "last_error": None}
+                targets_status[base_url] = {"status": "ok", "last_error": None}
             else:
-                targets_status[target] = {
+                targets_status[base_url] = {
                     "status": "error",
                     "last_error": f"HTTP {resp.status_code}",
                 }
-                # Extract book name from target URL
-                if "bovada" in target.lower():
+                # Extract book name from URL
+                if "bovada" in base_url.lower():
                     failed_books.add("bovada")
-                elif "betrivers" in target.lower():
+                elif "normalizer" in base_url.lower():
+                    failed_books.add("normalizer")
+                elif "betrivers" in base_url.lower():
                     failed_books.add("betrivers")
         except requests.exceptions.Timeout:
-            targets_status[target] = {"status": "error", "last_error": "timeout"}
-            print(f"Timeout scraping {target}", flush=True)
+            targets_status[base_url] = {"status": "error", "last_error": "timeout"}
+            print(f"Timeout scraping {base_url}/metrics", flush=True)
             # Extract book name
-            if "bovada" in target.lower():
+            if "bovada" in base_url.lower():
                 failed_books.add("bovada")
-            elif "betrivers" in target.lower():
-                failed_books.add("betrivers")
+            elif "normalizer" in base_url.lower():
+                failed_books.add("normalizer")
         except Exception as e:
-            targets_status[target] = {"status": "error", "last_error": str(e)[:100]}
-            print(f"Failed to scrape {target}: {e}", flush=True)
+            targets_status[base_url] = {"status": "error", "last_error": str(e)[:100]}
+            print(f"Failed to scrape {metrics_url}: {e}", flush=True)
 
     # Add DB fallback metrics for failed books
     if failed_books and db_pool:
-        db_metrics_lines = []
-        db_metrics_lines.append("# HELP odds_15m Odds in last 15 minutes (DB fallback)")
-        db_metrics_lines.append("# TYPE odds_15m gauge")
-        db_metrics_lines.append(
-            "# HELP ticks_15m Ticks in last 15 minutes (DB fallback)"
-        )
-        db_metrics_lines.append("# TYPE ticks_15m gauge")
-        db_metrics_lines.append("# HELP book_up Book status (DB fallback)")
-        db_metrics_lines.append("# TYPE book_up gauge")
-
+        print(f"Attempting DB fallback for: {failed_books}", flush=True)
         for book in failed_books:
-            metrics = get_db_metrics(book)
-            if metrics:
-                for key, value in metrics.items():
-                    db_metrics_lines.append(f"{key} {value}")
+            db_metrics = get_db_metrics(book)
+            if db_metrics:
+                fallback_lines = [f"# DB fallback metrics for {book}"]
+                for metric, value in db_metrics.items():
+                    fallback_lines.append(f"{metric} {value}")
+                aggregated.append("\n".join(fallback_lines))
                 print(f"Added DB fallback metrics for {book}", flush=True)
 
-        if len(db_metrics_lines) > 6:  # More than just headers
-            aggregated.append("\n".join(db_metrics_lines))
+    # Join all metrics
+    result = "\n".join(aggregated)
 
+    # Update cache
     with metrics_lock:
-        metrics_cache["data"] = "\n".join(aggregated)
+        metrics_cache["data"] = result
         metrics_cache["timestamp"] = time.time()
-        print(
-            f"Scraped {len(targets)} targets, {len(metrics_cache['data'])} bytes",
-            flush=True,
-        )
+        metrics_cache["targets"] = targets
+
+    return result
+
+
+def update_metrics_loop():
+    """Background thread to update metrics periodically"""
+    while True:
+        try:
+            scrape_metrics()
+        except Exception as e:
+            print(f"Error in metrics loop: {e}", flush=True)
+        time.sleep(10)  # Update every 10 seconds
+
+
+# Start background thread
+threading.Thread(target=update_metrics_loop, daemon=True).start()
 
 
 @app.route("/metrics")
 def metrics():
-    # Check if we need to scrape (without holding lock)
+    """Serve aggregated metrics"""
     with metrics_lock:
-        need_scrape = (
-            "data" not in metrics_cache
-            or time.time() - metrics_cache.get("timestamp", 0) > 30
-        )
+        if "data" not in metrics_cache:
+            # Initial scrape if no data yet
+            data = scrape_metrics()
+        else:
+            data = metrics_cache.get("data", "")
 
-    if need_scrape:
-        scrape_metrics()  # This updates metrics_cache with its own lock
-
-    # Return the cached data
-    with metrics_lock:
-        return Response(metrics_cache.get("data", ""), mimetype="text/plain")
+    return Response(data, mimetype="text/plain; version=0.0.4")
 
 
 @app.route("/healthz")
 def healthz():
-    return "OK", 200
+    """Health check endpoint"""
+    with metrics_lock:
+        has_data = "data" in metrics_cache
+        if has_data:
+            age = time.time() - metrics_cache.get("timestamp", 0)
+        else:
+            age = -1
+
+    return jsonify(
+        {
+            "status": "healthy" if has_data and age < 120 else "unhealthy",
+            "has_data": has_data,
+            "data_age_seconds": age if has_data else None,
+            "targets": parse_targets(),
+        }
+    )
 
 
 @app.route("/readiness")
@@ -234,37 +281,23 @@ def targets():
 
 @app.route("/realness/<book>/report")
 def realness_report(book):
-    """Proxy realness report from internal collector"""
+    """Proxy realness report from service"""
     # Input validation - alphanumeric and hyphens only
-    import re
-
     if not re.match(r"^[a-z0-9-]+$", book.lower()):
         return jsonify({"error": "Invalid book name format"}), 400
 
-    # Full allowlist map for all 13 books
-    service_map = {
-        "bovada": "bovada-collector",
-        "betrivers": "betrivers-collector",
-        "barstool": "barstool-collector",
-        "caesars": "caesars-collector",
-        "sugarhouse": "sugarhouse-collector",
-        "unibet": "unibet-collector",
-        "fanduel": "fanduel-collector",
-        "draftkings": "draftkings-collector",
-        "betmgm": "betmgm-collector",
-        "pinnacle": "pinnacle-collector",
-        "bet365": "bet365-collector",
-        "stake": "stake-collector",
-        "pointsbet": "pointsbet-collector",
-    }
-
-    service = service_map.get(book.lower())
-    if not service:
-        return jsonify({"error": "Unknown book"}), 404
+    # For local, use hardcoded URL for bovada
+    if book.lower() == "bovada":
+        base_url = os.getenv("BOVADA_BASE", "http://bovada:8000")
+    else:
+        # Get base URL for the book from environment
+        base_url = BOOK_BASE_URLS.get(book.lower(), "").strip()
+        if not base_url:
+            return jsonify({"error": "Unknown book or service URL not configured"}), 404
 
     # Proxy request with safe headers and timeout
     try:
-        url = f"http://{service}:9091/realness/report"
+        url = f"{base_url.rstrip('/')}/realness/report"
         headers = {"User-Agent": "metrics-proxy/1.0", "Accept": "application/json"}
         resp = requests.get(url, timeout=5, headers=headers)
 
@@ -276,7 +309,7 @@ def realness_report(book):
                     {
                         "error": f"Service returned {resp.status_code}",
                         "book": book,
-                        "service": service,
+                        "url": url,
                         "details": resp.text[:200] if resp.text else None,
                     }
                 ),
@@ -284,12 +317,12 @@ def realness_report(book):
             )
     except requests.exceptions.Timeout:
         return (
-            jsonify({"error": "Service timeout", "book": book, "service": service}),
+            jsonify({"error": "Service timeout", "book": book, "url": base_url}),
             504,
         )
     except requests.exceptions.ConnectionError:
         return (
-            jsonify({"error": "Service unavailable", "book": book, "service": service}),
+            jsonify({"error": "Service unavailable", "book": book, "url": base_url}),
             503,
         )
     except Exception as e:
@@ -303,49 +336,34 @@ def realness_report(book):
 
 @app.route("/healthz/<book>")
 def book_healthz(book):
-    """Proxy health check from internal collector"""
+    """Proxy health check from public service"""
     # Input validation
-    import re
-
     if not re.match(r"^[a-z0-9-]+$", book.lower()):
         return jsonify({"error": "Invalid book name format"}), 400
 
-    # Full allowlist map for all 13 books
-    service_map = {
-        "bovada": "bovada-collector",
-        "betrivers": "betrivers-collector",
-        "barstool": "barstool-collector",
-        "caesars": "caesars-collector",
-        "sugarhouse": "sugarhouse-collector",
-        "unibet": "unibet-collector",
-        "fanduel": "fanduel-collector",
-        "draftkings": "draftkings-collector",
-        "betmgm": "betmgm-collector",
-        "pinnacle": "pinnacle-collector",
-        "bet365": "bet365-collector",
-        "stake": "stake-collector",
-        "pointsbet": "pointsbet-collector",
-    }
-
-    service = service_map.get(book.lower())
-    if not service:
-        return jsonify({"error": "Unknown book"}), 404
+    # Get base URL for the book
+    base_url = BOOK_BASE_URLS.get(book.lower(), "").strip()
+    if not base_url:
+        return jsonify({"error": "Unknown book or service URL not configured"}), 404
 
     try:
-        url = f"http://{service}:9091/healthz"
+        url = f"{base_url.rstrip('/')}/healthz"
         headers = {"User-Agent": "metrics-proxy/1.0"}
         resp = requests.get(url, timeout=3, headers=headers)
 
-        # Return plain text for health checks
-        return resp.text, resp.status_code
+        # Return the response as-is
+        if resp.headers.get('content-type', '').startswith('application/json'):
+            return jsonify(resp.json()), resp.status_code
+        else:
+            return resp.text, resp.status_code
     except requests.exceptions.Timeout:
         return (
-            jsonify({"error": "Service timeout", "book": book, "service": service}),
+            jsonify({"error": "Service timeout", "book": book, "url": base_url}),
             504,
         )
     except requests.exceptions.ConnectionError:
         return (
-            jsonify({"error": "Service unavailable", "book": book, "service": service}),
+            jsonify({"error": "Service unavailable", "book": book, "url": base_url}),
             503,
         )
     except Exception as e:
@@ -357,15 +375,18 @@ def book_healthz(book):
         )
 
 
-# TODO: Add rate limiting with flask-limiter when available
-
-
 if __name__ == "__main__":
-    print(f"Starting metrics proxy with targets: {parse_targets()}")
-    if db_pool:
-        print("Database fallback enabled")
-    else:
-        print("Database fallback not configured")
-
-    scrape_metrics()  # Initial scrape
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+    port = int(os.environ.get("PORT", "8000"))
+    print(f"Starting metrics proxy on port {port}", flush=True)
+    print(f"METRICS_TARGETS: {os.getenv('METRICS_TARGETS', 'not set')}", flush=True)
+    print(f"DATABASE_URL: {'configured' if os.getenv('DATABASE_URL') else 'not set'}", flush=True)
+    
+    # Wait a bit for other services to start
+    print("Waiting 15s for services to start...", flush=True)
+    time.sleep(15)
+    
+    # Initial scrape before starting server
+    print("Performing initial metrics scrape...", flush=True)
+    scrape_metrics()
+    
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    redis \
+    psycopg2-binary \
+    prometheus-client
+
+COPY src/normalizer/canonical_v1.py /app/
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "/app/canonical_v1.py"]

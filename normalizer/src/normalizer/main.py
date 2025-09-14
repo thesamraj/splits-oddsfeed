@@ -18,9 +18,10 @@ import hashlib
 
 import redis.asyncio as redis
 from psycopg_pool import AsyncConnectionPool
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
-from flask import Flask, jsonify
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY, generate_latest, CONTENT_TYPE_LATEST
+from flask import Flask, jsonify, Response
 import threading
+import multiprocessing
 
 from normalizer.pinnacle_mapper import normalize_pinnacle_data
 from normalizer.kambi_mapper import (
@@ -115,21 +116,47 @@ PROCESSING_LATENCY = Histogram(
 app = Flask(__name__)
 
 
+def val(metric_value, labels=None, default=0):
+    """Safely get value from multiprocessing.Value or metric"""
+    try:
+        if hasattr(metric_value, '_value'):
+            # Prometheus metric
+            if labels:
+                return metric_value._value.get(labels, default)
+            return getattr(metric_value._value, 'value', default)
+        elif hasattr(metric_value, 'value'):
+            # multiprocessing.Value
+            return metric_value.value
+        else:
+            return metric_value
+    except:
+        return default
+
 @app.route("/healthz")
 def healthz():
+    # Get value safely
+    try:
+        last_success = LAST_SUCCESS_TS.labels(book="normalizer")._value.get()
+    except:
+        last_success = 0
+        
     return jsonify(
         {
             "status": "healthy",
             "timestamp": time.time(),
-            "last_success": LAST_SUCCESS_TS._value.get(("normalizer",), 0),
+            "last_success": last_success,
         }
     )
 
 
 @app.route("/metrics")
 def metrics():
-    # Prometheus handles this via start_http_server
-    return "Use port 9090 for metrics", 200
+    """Expose Prometheus metrics"""
+    try:
+        data = generate_latest(REGISTRY)
+        return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        return Response(f"metrics error: {e}", status=500, mimetype="text/plain")
 
 
 class Normalizer:
@@ -780,9 +807,11 @@ class Normalizer:
                                 markets = event.get("markets", [])
                                 for market in markets:
                                     market_type = normalize_market(
-                                        market.get("type", "moneyline")
+                                        market.get("key") or market.get("type", "moneyline")
                                     )
-                                    for selection in market.get("selections", []):
+                                    # Handle both "selections" and "outcomes" formats
+                                    selections = market.get("selections") or market.get("outcomes", [])
+                                    for selection in selections:
                                         await cur.execute(
                                             """
                                             INSERT INTO odds (event_id, book, market, outcome_name, outcome_price, outcome_point, ts)
@@ -794,7 +823,7 @@ class Normalizer:
                                                 market_type,
                                                 selection.get("name", ""),
                                                 selection.get("price", 0),
-                                                selection.get("line"),
+                                                selection.get("line") or selection.get("point"),
                                             ),
                                         )
                                 continue
@@ -945,55 +974,32 @@ class Normalizer:
                                         ),
                                     )
 
-                                # Also insert into ticks table
-                                if "home_price" in odds_item:
-                                    await cur.execute(
-                                        """
-                                        INSERT INTO odds_ticks (event_id, market, selection, price, line, ts)
-                                        VALUES (%s, %s, %s, %s, %s, NOW())
-                                        ON CONFLICT DO NOTHING
-                                        """,
-                                        (
-                                            event_id,
-                                            market,
-                                            "home",
-                                            odds_item["home_price"],
-                                            odds_item.get("line"),
-                                        ),
-                                    )
-                                if "away_price" in odds_item:
-                                    await cur.execute(
-                                        """
-                                        INSERT INTO odds_ticks (event_id, market, selection, price, line, ts)
-                                        VALUES (%s, %s, %s, %s, %s, NOW())
-                                        ON CONFLICT DO NOTHING
-                                        """,
-                                        (
-                                            event_id,
-                                            market,
-                                            "away",
-                                            odds_item["away_price"],
-                                            odds_item.get("line"),
-                                        ),
-                                    )
+                                # Skip odds_ticks inserts - table requires 'book' column
+                                # Focus on odds table only for multibook processing
 
                             valid_rows += 1
 
                         except Exception as e:
-                            # FAIL-SOFT: Log and continue on error
+                            # FAIL-SOFT: Log and rollback on error
                             error_rows += 1
                             if book in ["betmgm", "fanduel"]:
                                 logger.warning(
-                                    f"[FAIL-SOFT] {book} row error (continuing): {e}"
+                                    f"[FAIL-SOFT] {book} row error (rolling back): {e}"
                                 )
                                 MESSAGES_PROCESSED.labels(
                                     book=book, status="row_error"
                                 ).inc()
                             else:
                                 logger.error(f"[ERROR] {book} row error: {e}")
+
+                            # Rollback the transaction to clear the error state
+                            await conn.rollback()
+                            # Start a new transaction for the next event
                             continue
 
-                    await conn.commit()
+                    # Only commit if we're not in an error state
+                    if error_rows == 0 or valid_rows > 0:
+                        await conn.commit()
 
                     # Log results
                     if valid_rows > 0:
@@ -1097,6 +1103,12 @@ class Normalizer:
                     "pinnacle",
                     "mybookie",
                     "stake",
+                    "circa",
+                    "superbook",
+                    "betonline",
+                    "bookmaker",
+                    "betway",
+                    "wynnbet",
                 ]:
                     # Handle multi-book collectors that publish structured data
                     logger.info(f"[DEBUG] Routing {book} to multibook handler")
@@ -1696,19 +1708,36 @@ class Normalizer:
             try:
                 await asyncio.sleep(3.0)  # More frequent E2E logging
                 if self.running:
-                    # Log current metrics and status
-                    batch_size = len(self.batch_rows)
-                    last_insert = getattr(kambi_last_insert_ts, "_value", 0)
-                    now = time.time()
-                    since_last = now - last_insert if last_insert > 0 else -1
+                    try:
+                        # Log current metrics and status - guard with try/except
+                        batch_size = len(self.batch_rows)
+                        
+                        # Safely get last_insert value
+                        last_insert = 0
+                        try:
+                            if hasattr(kambi_last_insert_ts, '_value'):
+                                # For Prometheus metrics with _value dict
+                                last_insert = kambi_last_insert_ts._value.get(tuple(), 0)
+                                if hasattr(last_insert, 'value'):
+                                    last_insert = last_insert.value
+                            elif hasattr(kambi_last_insert_ts, 'value'):
+                                # For multiprocessing.Value
+                                last_insert = kambi_last_insert_ts.value
+                        except:
+                            last_insert = 0
+                        
+                        now = time.time()
+                        since_last = now - last_insert if last_insert > 0 else -1
 
-                    logger.info(
-                        f"E2E_TIMER: batch_size={batch_size} last_insert={since_last:.1f}s_ago now={now:.0f}"
-                    )
+                        logger.info(
+                            f"E2E_TIMER: batch_size={batch_size} last_insert={since_last:.1f}s_ago now={now:.0f}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"E2E_TIMER: Periodic logger error (non-fatal): {e}")
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning(f"E2E_TIMER: Error in periodic logging: {e}")
+                logger.warning(f"E2E_TIMER: Error in periodic logging loop: {e}")
 
     async def periodic_tick_cleanup(self):
         """Clean up odds_ticks older than 7 days, runs every hour"""
@@ -1754,10 +1783,7 @@ class Normalizer:
                     COLLECTOR_UP.labels(book="normalizer").set(0)
                     return
 
-        # Start metrics server on configured port
-        metrics_port = int(os.getenv("METRICS_PORT", "9090"))
-        start_http_server(metrics_port)
-        logger.info(f"Prometheus metrics on :{metrics_port}")
+        # Metrics are now served via Flask on the same port
 
         self.running = True
         try:
@@ -1809,21 +1835,18 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Metrics server started in run() method
-
-    # Start Flask health server in thread
-    health_port = int(os.getenv("HEALTH_PORT", "9091"))
-    health_thread = threading.Thread(
-        target=lambda: app.run(host="0.0.0.0", port=health_port, debug=False)
-    )
-    health_thread.daemon = True
-    health_thread.start()
-    logger.info(f"Health endpoint started on port {health_port}")
-
     # Set normalizer as up
     COLLECTOR_UP.labels(book="normalizer").set(1)
-
-    asyncio.run(main())
+    
+    # Start normalizer in background thread
+    normalizer_thread = threading.Thread(target=lambda: asyncio.run(main()))
+    normalizer_thread.daemon = True
+    normalizer_thread.start()
+    
+    # Run Flask app on Render's PORT (blocks)
+    port = int(os.environ.get("PORT", "8080"))
+    logger.info(f"Starting Flask on port {port} with /healthz and /metrics")
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 def process_kambi_envelope(conn, env: dict, now_ts_func):

@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # Bolt normalizer (staging only)
+  bolt-normalizer:
+    build:
+      context: .
+      dockerfile: ./services/bolt_normalizer/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - BOLT_CHANNEL=odds.raw.bolt.staging
+      - PORT=8000
+    ports:
+      - "19098:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - normalizer
+
+  # Bovada collector
+  bovada:
+    build:
+      context: .
+      dockerfile: ./collectors/bovada_real/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REAL_ONLY=true
+      - REALNESS_THRESHOLD=0.85
+      - LIGHT_SOCCER=true
+      - PORT=8000
+    ports:
+      - "19081:8000"
+    networks:
+      - odds-network
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+  # Normalizer
+  normalizer:
+    build:
+      context: ./normalizer
+      dockerfile: ./Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=8000
+      - METRICS_PORT=9090  # Internal reference only
+    ports:
+      - "19082:8000"
+    networks:
+      - odds-network
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+  # KAMBI COLLECTORS - DISABLED
+  # Requires mobile proxy infrastructure
+  # See KAMBI_MOBILE_PROXY_INTEGRATION.md for setup instructions
+  # To enable: checkout kambi-mobile-proxy branch and follow integration guide
+
+  # BoltOdds collector (staging)
+  boltodds:
+    build: ./collectors/boltodds
+    env_file: .env
+    environment:
+      - PORT=8000
+      - POLL_INTERVAL=30
+    ports:
+      - "19098:8000"
+    networks:
+      - odds-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+  # Metrics Proxy
+  metrics-proxy:
+    build:
+      context: ./services
+      dockerfile: ./metrics_proxy/Dockerfile
+    environment:
+      - METRICS_TARGETS=http://bovada:8000,http://normalizer:8000
+      - DATABASE_URL=${DATABASE_URL}
+      - BOVADA_BASE=http://bovada:8000
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    networks:
+      - odds-network
+    depends_on:
+      - bovada
+      - normalizer
+
+networks:
+  odds-network:
+    driver: bridge

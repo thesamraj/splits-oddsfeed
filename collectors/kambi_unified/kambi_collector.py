@@ -12,10 +12,11 @@ import random
 import hashlib
 import requests
 import redis
+import socket
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from prometheus_client import Counter, Gauge, start_http_server
-from flask import Flask, jsonify
+from prometheus_client import Counter, Gauge, REGISTRY, generate_latest, CONTENT_TYPE_LATEST
+from flask import Flask, jsonify, Response
 import threading
 import logging
 
@@ -24,41 +25,48 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# DNS check at startup
+try:
+    kambi_host = "eu-offering.kambicdn.org"
+    resolved_ip = socket.gethostbyname(kambi_host)
+    logger.info(f"DNS OK: {kambi_host} -> {resolved_ip}")
+except Exception as e:
+    logger.error(f"DNS FAIL: {kambi_host} -> {e}")
+
 # Configuration
 KAMBI_BRAND = os.getenv("KAMBI_BRAND", "betrivers").lower()
 REDIS_URL = os.getenv("REDIS_URL", "redis://broker:6379")
 DATABASE_URL = os.getenv("DATABASE_URL")
 REAL_ONLY = os.getenv("REAL_ONLY", "true").lower() == "true"
 REALNESS_THRESHOLD = float(os.getenv("REALNESS_THRESHOLD", "0.9"))
-METRICS_PORT = int(os.getenv("METRICS_PORT", "9090"))
-HEALTH_PORT = int(os.getenv("HEALTH_PORT", "9091"))
+PORT = int(os.getenv("PORT", "8000"))
 PROXY_URL = os.getenv("PROXY_URL")
 COLLECTION_INTERVAL = int(os.getenv("COLLECTION_INTERVAL", "60"))
 
 # Brand configurations
 BRAND_CONFIG = {
     "betrivers": {
-        "base_url": "https://eu-offering.kambicdn.com/offering/v2018/rsi2us",
+        "base_url": "https://eu-offering.kambicdn.org/offering/v2018/rsi2us",
         "endpoints": ["listView/american_football/nfl", "event/upcoming.json"],
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     },
     "barstool": {
-        "base_url": "https://eu-offering.kambicdn.com/offering/v2018/barstoolsports",
+        "base_url": "https://eu-offering.kambicdn.org/offering/v2018/barstoolsports",
         "endpoints": ["listView/american_football/nfl", "event/upcoming.json"],
         "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     },
     "caesars": {
-        "base_url": "https://eu-offering.kambicdn.com/offering/v2018/caesarspa",
+        "base_url": "https://eu-offering.kambicdn.org/offering/v2018/caesarspa",
         "endpoints": ["listView/american_football/nfl", "event/upcoming.json"],
         "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
     },
     "sugarhouse": {
-        "base_url": "https://eu-offering.kambicdn.com/offering/v2018/shpa",
+        "base_url": "https://eu-offering.kambicdn.org/offering/v2018/shpa",
         "endpoints": ["listView/american_football/nfl", "event/upcoming.json"],
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
     },
     "unibet": {
-        "base_url": "https://eu-offering.kambicdn.com/offering/v2018/ubuspa",
+        "base_url": "https://eu-offering.kambicdn.org/offering/v2018/ubuspa",
         "endpoints": ["listView/american_football/nfl", "event/upcoming.json"],
         "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
     },
@@ -164,15 +172,30 @@ class KambiCollector:
         self.session.headers.update(
             {
                 "User-Agent": self.config["user_agent"],
-                "Accept": "application/json",
+                "Accept": "application/json, text/plain, */*",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
                 "Cache-Control": "no-cache",
                 "Pragma": "no-cache",
+                "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "cross-site",
+                "Referer": "https://www.betrivers.com/" if self.brand == "betrivers" else f"https://www.{self.brand}.com/",
+                "Origin": "https://www.betrivers.com" if self.brand == "betrivers" else f"https://www.{self.brand}.com",
             }
         )
 
         if PROXY_URL:
             self.session.proxies = {"http": PROXY_URL, "https": PROXY_URL}
+            # Verify proxy is working
+            try:
+                test_resp = self.session.get("http://httpbin.org/ip", timeout=10)
+                logger.info(f"Proxy test: {test_resp.json()}")
+            except Exception as e:
+                logger.error(f"Proxy test failed: {e}")
 
         self.redis_client = redis.from_url(REDIS_URL)
         self.rate_limiter = TokenBucket(rate=6, burst=12)
@@ -212,8 +235,8 @@ class KambiCollector:
                     self.session.headers["User-Agent"] = random.choice(ua_list)
 
                 response = self.session.get(
-                    url, timeout=(5, 10)
-                )  # (connect, read) timeouts
+                    url, timeout=(10, 30), verify=True
+                )  # Increased timeouts for proxy
 
                 if response.status_code == 429:
                     http_429_total.labels(book=self.brand).inc()
@@ -426,30 +449,22 @@ def health():
 
 @app.route("/metrics")
 def metrics():
-    """Metrics endpoint (redirect to Prometheus)"""
-    return "", 200
-
-
-def start_health_server():
-    """Start Flask health server in background"""
-    threading.Thread(
-        target=lambda: app.run(host="0.0.0.0", port=HEALTH_PORT), daemon=True
-    ).start()
-
-
-def main():
-    # Start Prometheus metrics server
-    start_http_server(METRICS_PORT)
-    logger.info(f"Metrics server started on port {METRICS_PORT}")
-
-    # Start health server
-    start_health_server()
-    logger.info(f"Health server started on port {HEALTH_PORT}")
-
-    # Start collector
-    collector = KambiCollector()
-    collector.run()
+    """Expose Prometheus metrics"""
+    try:
+        data = generate_latest(REGISTRY)
+        return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        return Response(f"metrics error: {e}", status=500, mimetype="text/plain")
 
 
 if __name__ == "__main__":
-    main()
+    # Start collector in background thread
+    collector = KambiCollector()
+    collector_thread = threading.Thread(target=collector.run)
+    collector_thread.daemon = True
+    collector_thread.start()
+    logger.info(f"Started Kambi collector for brand: {KAMBI_BRAND}")
+    
+    # Run Flask app in main thread
+    logger.info(f"Starting Flask app on port {PORT}")
+    app.run(host="0.0.0.0", port=PORT, debug=False)

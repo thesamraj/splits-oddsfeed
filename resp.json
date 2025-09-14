@@ -1,0 +1,1 @@
+{"error":"Request validation failed","error_code":"validation","details":[{"message":"\"format\" is required","path":["format"],"type":"any.required","context":{"label":"format","key":"format"}}]}

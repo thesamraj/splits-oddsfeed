@@ -18,8 +18,8 @@ import hashlib
 import re
 from collections import OrderedDict
 from datetime import datetime, timezone
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
-from flask import Flask, jsonify
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY, generate_latest, CONTENT_TYPE_LATEST
+from flask import Flask, jsonify, Response
 
 # Import explainable realness
 from collectors.base.explainable_realness import ExplainableRealnessGate
@@ -69,15 +69,6 @@ class BovadaRealCollector:
         # Flask app for realness endpoints
         self.flask_app = Flask(__name__)
         self._setup_routes()
-
-        # Start Flask in background
-        health_port = int(os.getenv("HEALTH_PORT", "9091"))
-        threading.Thread(
-            target=lambda: self.flask_app.run(
-                host="0.0.0.0", port=health_port, debug=False
-            ),
-            daemon=True,
-        ).start()
 
         # Initialize metrics
         COLLECTOR_UP.labels(book=self.book).set(1)
@@ -172,19 +163,38 @@ class BovadaRealCollector:
 
         @self.flask_app.route("/healthz")
         def healthz():
+            # Safely get metric values
+            try:
+                last_success = LAST_SUCCESS_TS.labels(book=self.book)._value.get()
+            except:
+                last_success = 0
+            try:
+                realness_ok = REALNESS_OK.labels(book=self.book)._value.get()
+            except:
+                realness_ok = 1  # Default to OK
+            
             return jsonify(
                 {
                     "status": "healthy",
                     "timestamp": time.time(),
                     "book": self.book,
-                    "last_success": LAST_SUCCESS_TS._value.get((self.book,), 0),
-                    "realness_ok": REALNESS_OK._value.get((self.book,), 0),
+                    "last_success": last_success,
+                    "realness_ok": realness_ok,
                 }
             )
 
         @self.flask_app.route("/realness/report")
         def realness_report():
             return jsonify(self.gate.get_report())
+        
+        @self.flask_app.route("/metrics")
+        def metrics():
+            """Expose Prometheus metrics"""
+            try:
+                data = generate_latest(REGISTRY)
+                return Response(data, mimetype=CONTENT_TYPE_LATEST)
+            except Exception as e:
+                return Response(f"metrics error: {e}", status=500, mimetype="text/plain")
 
         @self.flask_app.route("/realness/sample")
         def realness_sample():
@@ -669,6 +679,13 @@ class BovadaRealCollector:
                         # Small delay between sports
                         time.sleep(random.uniform(1, 3))
 
+                # Increment tick counter if we collected any odds  
+                if all_odds:
+                    try:
+                        TICKS_TOTAL.labels(book=self.book).inc()
+                    except Exception as _:
+                        pass
+
                 # Validate with realness gate
                 if all_odds:
                     # Prepare validation data
@@ -715,7 +732,6 @@ class BovadaRealCollector:
 
                     # Update metrics
                     ODDS_UPSERTS_TOTAL.labels(book=self.book).inc(len(all_odds))
-                    TICKS_TOTAL.labels(book=self.book).inc()
                     LAST_SUCCESS_TS.labels(book=self.book).set(time.time())
 
                     self.stats["odds_published"] += len(all_odds)
@@ -739,10 +755,15 @@ class BovadaRealCollector:
 
 
 if __name__ == "__main__":
-    # Start metrics server
-    metrics_port = int(os.getenv("METRICS_PORT", "9090"))
-    start_http_server(metrics_port)
-    logger.info(f"Prometheus metrics on :{metrics_port}")
-
-    # Run collector
-    BovadaRealCollector().run()
+    # Create collector instance
+    collector = BovadaRealCollector()
+    
+    # Start collector in background thread
+    collector_thread = threading.Thread(target=collector.run)
+    collector_thread.daemon = True
+    collector_thread.start()
+    
+    # Run Flask app on PORT (blocks)
+    port = int(os.environ.get("PORT", "8000"))
+    logger.info(f"Starting Flask on port {port} with /healthz, /metrics, and /realness/*")
+    collector.flask_app.run(host="0.0.0.0", port=port, debug=False)

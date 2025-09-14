@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  kambi-browser:
+    build:
+      context: ./collectors/kambi_browser
+      dockerfile: ./Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - ZENROWS_ENABLED=false
+      - NODE_ENV=production
+    ports:
+      - "19088:8000"        # healthz/metrics for kambi-browser
+    # no proxy envs on purpose
+    # use host DNS by default; nothing special needed on Mac
+    restart: unless-stopped

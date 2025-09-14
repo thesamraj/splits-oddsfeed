@@ -1,0 +1,74 @@
+# Docker Compose override for proxy configuration
+# Usage: docker-compose -f docker-compose.local.yml -f docker-compose.proxy.yml up -d
+
+version: '3.8'
+
+services:
+  kambi-browser:
+    environment:
+      - USE_PROXY=true
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - PROXY_PROTO=${PROXY_PROTO:-http}
+      - PROXY_TAG=${PROXY_TAG:-proxyguys}
+    volumes:
+      - ./data/traces:/app/data/traces
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "proxy_tag=${PROXY_TAG:-proxyguys}"
+
+  fanatics:
+    environment:
+      - USE_PROXY=true
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - PROXY_PROTO=${PROXY_PROTO:-http}
+      - PROXY_TAG=${PROXY_TAG:-proxyguys}
+    volumes:
+      - ./data/traces:/app/data/traces
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "proxy_tag=${PROXY_TAG:-proxyguys}"
+
+  pointsbet:
+    environment:
+      - USE_PROXY=true
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - PROXY_PROTO=${PROXY_PROTO:-http}
+      - PROXY_TAG=${PROXY_TAG:-proxyguys}
+    volumes:
+      - ./data/traces:/app/data/traces
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "proxy_tag=${PROXY_TAG:-proxyguys}"
+
+  # Optional: Add proxy to other Kambi collectors
+  betrivers:
+    environment:
+      - USE_PROXY=${USE_PROXY:-false}
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - PROXY_PROTO=${PROXY_PROTO:-http}
+      - PROXY_TAG=${PROXY_TAG:-proxyguys}
+
+  sugarhouse:
+    environment:
+      - USE_PROXY=${USE_PROXY:-false}
+      - PROXY_HOST=${PROXY_HOST}
+      - PROXY_PORT=${PROXY_PORT}
+      - PROXY_USER=${PROXY_USER}
+      - PROXY_PASS=${PROXY_PASS}
+      - PROXY_PROTO=${PROXY_PROTO:-http}
+      - PROXY_TAG=${PROXY_TAG:-proxyguys}
