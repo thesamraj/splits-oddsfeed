@@ -807,9 +807,11 @@ class Normalizer:
                                 markets = event.get("markets", [])
                                 for market in markets:
                                     market_type = normalize_market(
-                                        market.get("type", "moneyline")
+                                        market.get("key") or market.get("type", "moneyline")
                                     )
-                                    for selection in market.get("selections", []):
+                                    # Handle both "selections" and "outcomes" formats
+                                    selections = market.get("selections") or market.get("outcomes", [])
+                                    for selection in selections:
                                         await cur.execute(
                                             """
                                             INSERT INTO odds (event_id, book, market, outcome_name, outcome_price, outcome_point, ts)
@@ -821,7 +823,7 @@ class Normalizer:
                                                 market_type,
                                                 selection.get("name", ""),
                                                 selection.get("price", 0),
-                                                selection.get("line"),
+                                                selection.get("line") or selection.get("point"),
                                             ),
                                         )
                                 continue
@@ -972,55 +974,32 @@ class Normalizer:
                                         ),
                                     )
 
-                                # Also insert into ticks table
-                                if "home_price" in odds_item:
-                                    await cur.execute(
-                                        """
-                                        INSERT INTO odds_ticks (event_id, market, selection, price, line, ts)
-                                        VALUES (%s, %s, %s, %s, %s, NOW())
-                                        ON CONFLICT DO NOTHING
-                                        """,
-                                        (
-                                            event_id,
-                                            market,
-                                            "home",
-                                            odds_item["home_price"],
-                                            odds_item.get("line"),
-                                        ),
-                                    )
-                                if "away_price" in odds_item:
-                                    await cur.execute(
-                                        """
-                                        INSERT INTO odds_ticks (event_id, market, selection, price, line, ts)
-                                        VALUES (%s, %s, %s, %s, %s, NOW())
-                                        ON CONFLICT DO NOTHING
-                                        """,
-                                        (
-                                            event_id,
-                                            market,
-                                            "away",
-                                            odds_item["away_price"],
-                                            odds_item.get("line"),
-                                        ),
-                                    )
+                                # Skip odds_ticks inserts - table requires 'book' column
+                                # Focus on odds table only for multibook processing
 
                             valid_rows += 1
 
                         except Exception as e:
-                            # FAIL-SOFT: Log and continue on error
+                            # FAIL-SOFT: Log and rollback on error
                             error_rows += 1
                             if book in ["betmgm", "fanduel"]:
                                 logger.warning(
-                                    f"[FAIL-SOFT] {book} row error (continuing): {e}"
+                                    f"[FAIL-SOFT] {book} row error (rolling back): {e}"
                                 )
                                 MESSAGES_PROCESSED.labels(
                                     book=book, status="row_error"
                                 ).inc()
                             else:
                                 logger.error(f"[ERROR] {book} row error: {e}")
+
+                            # Rollback the transaction to clear the error state
+                            await conn.rollback()
+                            # Start a new transaction for the next event
                             continue
 
-                    await conn.commit()
+                    # Only commit if we're not in an error state
+                    if error_rows == 0 or valid_rows > 0:
+                        await conn.commit()
 
                     # Log results
                     if valid_rows > 0:
@@ -1124,6 +1103,12 @@ class Normalizer:
                     "pinnacle",
                     "mybookie",
                     "stake",
+                    "circa",
+                    "superbook",
+                    "betonline",
+                    "bookmaker",
+                    "betway",
+                    "wynnbet",
                 ]:
                     # Handle multi-book collectors that publish structured data
                     logger.info(f"[DEBUG] Routing {book} to multibook handler")
