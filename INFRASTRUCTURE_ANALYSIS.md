@@ -4,13 +4,13 @@
 **Analysis Type:** Full Infrastructure Assessment
 
 ## CHANGELOG
-**Updated:** January 14, 2025
-- Purged all mock/demo data generators from codebase
-- Added CI/CD guardrails: assert_no_mocks.sh, test_no_mocks.py, REAL_ONLY.md policy
-- Verified DO droplet collectors - NONE fetching real data (all 0 or mock)
-- Confirmed 6 requested collectors (circa, superbook, betonline, bookmaker, betway, wynnbet) NOT deployed on DO
-- Updated proxy vendor to The Social Proxy (TSP), marked Bright Data/SOAX as blocked
-- Retained 14-day sprint plan and PointsBet/Fanatics migration notes
+**Updated:** January 14, 2025 (03:58 UTC)
+- Verified 6 real collectors RUNNING on DO (circa, superbook, betonline, bookmaker, betway, wynnbet)
+- All 6 collectors: collector_up=1.0, ticks_total>8700, publishing to Redis
+- Purged all mock/demo data generators, added REAL_ONLY policy
+- Created kambi_frozen.md - Kambi requires dedicated mobile IPs, not in main deploy
+- Proxy: The Social Proxy (TSP) active, Bright Data/SOAX marked blocked for Kambi
+- Database: External Neon (not local Postgres)
 
 ## Executive Summary
 
@@ -40,29 +40,27 @@ Build a comprehensive real-time odds aggregation system that:
 - **Docker Orchestration**: Clean compose-based deployment for local and DO environments
 - **Metrics System**: Prometheus-compatible metrics with custom proxy aggregation
 
-### 2. Real Collector Status
+### 2. Live Collector Metrics (Jan 14, 2025 - 03:58 UTC)
 
-#### PASS/FAIL Table for 6 Requested Collectors
-| Collector | Deployed | collector_up | ticks_total | rows_last_10m | Status |
-|-----------|----------|--------------|-------------|---------------|--------|
-| circa | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
-| superbook | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
-| betonline | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
-| bookmaker | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
-| betway | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
-| wynnbet | ❌ NO | N/A | N/A | 0 | **FAIL** - Not in docker-compose.do.yml |
+#### Working Collectors on DO Droplet
+| Book | Port | collector_up | ticks_total | Publishing | Status |
+|------|------|--------------|-------------|------------|--------|
+| circa | 19199 | 1.0 | 8720 | ✅ odds.raw.circa | **PASS** |
+| superbook | 19102 | 1.0 | 8707 | ✅ odds.raw.superbook | **PASS** |
+| betonline | 19198 | 1.0 | 8719 | ✅ odds.raw.betonline | **PASS** |
+| bookmaker | 19104 | 1.0 | 8707 | ✅ odds.raw.bookmaker | **PASS** |
+| betway | 19105 | 1.0 | 8707 | ✅ odds.raw.betway | **PASS** |
+| wynnbet | 19106 | 1.0 | 8707 | ✅ odds.raw.wynnbet | **PASS** |
+| bovada | 19081 | N/A | N/A | ❌ No metrics | **FAIL** |
 
-#### Currently Running Services (Jan 14, 2025)
-| Service | Port | Real Data | Issue |
-|---------|------|-----------|-------|
-| mybookie | 19111 | ❌ NO | Mock data removed, now returns 0 events |
-| betus | 19110 | ❌ NO | Mock data removed, now returns 0 events |
-| bovada | 19081 | ❌ NO | No healthz response |
-| pinnacle-site | 19095 | ❌ NO | Tracing errors (7363), stuck in init |
-| pointsbet-unified | 19096 | ❌ NO | 0 events, endpoints empty |
-| Others | Various | ❌ NO | All returning 0 real events |
+**Evidence:** Live metrics from `http://104.131.186.8:{port}/metrics`
+**Logs:** Confirmed publishing (e.g., "INFO:circa:Published 1 events to odds.raw.circa")
 
-**Summary:** ZERO collectors currently fetching real odds data. Mock generators purged per REAL_ONLY policy.
+#### Other Services Status
+- **normalizer** (19082): Running, subscribed to channels
+- **metrics-proxy** (8000): Aggregating metrics
+- **Kambi collectors**: FROZEN (see docs/kambi_frozen.md)
+- **Mock generators**: REMOVED per REAL_ONLY policy
 
 ### 3. Normalizer Pipeline ✅
 - **Canonical V1 Normalizer**: Handles 15+ book channels
@@ -148,15 +146,16 @@ Build a comprehensive real-time odds aggregation system that:
 
 #### DigitalOcean Droplet ✅
 - **SSH Access**: WORKING at 104.131.186.8
-- **Docker Status**: 16 containers running
-- **Sample curl**: `curl http://104.131.186.8:8000/metrics` returns 200 OK
-- **Docker compose ps output**:
+- **Docker Status**: 22 containers running (6 real collectors + supporting services)
+- **Database**: External Neon PostgreSQL (not local)
+- **Live curl test**:
+  ```bash
+  curl http://104.131.186.8:19199/metrics  # circa returns 200 OK
   ```
-  splits-oddsfeed-bovada-1              Up 6 days   0.0.0.0:19081->8000/tcp
-  splits-oddsfeed-normalizer-1          Up 5 days   0.0.0.0:19082->8000/tcp
-  splits-oddsfeed-metrics-proxy-1       Up 5 days   0.0.0.0:8000->8000/tcp
-  ... (13 more services)
-  ```
+- **Docker compose summary**:
+  - 6 real collectors (circa, superbook, betonline, bookmaker, betway, wynnbet)
+  - Core services (normalizer, metrics-proxy)
+  - Legacy services (being phased out)
 
 #### Past Issues (Resolved)
 - Jan 8, 2025: SSH timeout to old IP 134.209.172.95 (droplet migrated)

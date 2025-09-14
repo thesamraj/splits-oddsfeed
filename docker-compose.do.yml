@@ -232,24 +232,24 @@ services:
 
   # HardRock collector (STOPPED - not capturing)
   # hardrock:
-    build:
-      context: ./collectors/hardrock
-      dockerfile: ./Dockerfile
-    environment:
-      - REDIS_URL=${REDIS_URL}
-      - USE_PROXY=${USE_PROXY:-false}
-      - SOAX_HOST=${SOAX_HOST}
-      - SOAX_PORT=${SOAX_PORT}
-      - SOAX_USER=${SOAX_USER}
-      - SOAX_PASS=${SOAX_PASS}
-      - PORT=8000
-    ports:
-      - "19101:8000"
-    networks:
-      - odds-network
-    depends_on:
-      - normalizer
-    restart: unless-stopped
+  #   build:
+  #     context: ./collectors/hardrock
+  #     dockerfile: ./Dockerfile
+  #   environment:
+  #     - REDIS_URL=${REDIS_URL}
+  #     - USE_PROXY=${USE_PROXY:-false}
+  #     - SOAX_HOST=${SOAX_HOST}
+  #     - SOAX_PORT=${SOAX_PORT}
+  #     - SOAX_USER=${SOAX_USER}
+  #     - SOAX_PASS=${SOAX_PASS}
+  #     - PORT=8000
+  #   ports:
+  #     - "19101:8000"
+  #   networks:
+  #     - odds-network
+  #   depends_on:
+  #     - normalizer
+  #   restart: unless-stopped
 
   # BetUS collector
   betus:
